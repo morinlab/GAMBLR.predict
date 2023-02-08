@@ -1,0 +1,391 @@
+Gene	Feature	Annotation as aSHM	Included in statistical analysis
+BCL11A	Amplification	NA	Yes
+MALT1	Amplification	NA	Yes
+REL	Amplification	NA	Yes
+XPO1	Amplification	NA	Yes
+CD58	Homozygous deletion	NA	Yes
+CDKN2A	Homozygous deletion	NA	Yes
+DDX3X	Homozygous deletion	NA	Yes
+PRDM1	Homozygous deletion	NA	Yes
+RB1	Homozygous deletion	NA	Yes
+TNFAIP3	Homozygous deletion	NA	Yes
+TNFRSF14	Homozygous deletion	NA	Yes
+TP53	Homozygous deletion	NA	Yes
+ARID1A	Mutation		Yes
+ATM	Mutation		Yes
+B2M	Mutation		Yes
+BCL10	Mutation		Yes
+BCL2	Mutation	Yes	Yes
+BCL6	Mutation		Yes
+BCL7A	Mutation		Yes
+BCOR	Mutation		Yes
+BLM	Mutation		Yes
+BRAF	Mutation		Yes
+BTG1	Mutation	Yes	Yes
+BTG2	Mutation	Yes	Yes
+BTK	Mutation		Yes
+CARD11	Mutation		Yes
+CCND3	Mutation		Yes
+CD70	Mutation		Yes
+CD79A	Mutation		Yes
+CD79B	Mutation		Yes
+CD83	Mutation	Yes	Yes
+CIITA	Mutation		Yes
+CREBBP	Mutation		Yes
+CXCR4	Mutation		Yes
+DNMT3A	Mutation		Yes
+DTX1	Mutation	Yes	Yes
+EBF1	Mutation		Yes
+EGR1	Mutation		Yes
+EP300	Mutation		Yes
+ETV6	Mutation		Yes
+EZH2_646	Mutation		Yes
+EZH2_noncan	Mutation		Yes
+FAS	Mutation		Yes
+FAT1	Mutation		Yes
+FAT3	Mutation		Yes
+FAT4	Mutation		Yes
+FBXO11	Mutation		Yes
+FOXO1	Mutation		Yes
+GNA13	Mutation		Yes
+HIST1H1B	Mutation	Yes	Yes
+HIST1H1C	Mutation	Yes	Yes
+HIST1H1D	Mutation	Yes	Yes
+HIST1H1E	Mutation	Yes	Yes
+HIST1H2AC	Mutation	Yes	Yes
+HIST1H2AG	Mutation	Yes	Yes
+HIST1H2AM	Mutation	Yes	Yes
+HIST1H2BC	Mutation	Yes	Yes
+HIST1H2BD	Mutation	Yes	Yes
+HIST1H2BG	Mutation	Yes	Yes
+HIST1H3B	Mutation	Yes	Yes
+HIST1H3G	Mutation	Yes	Yes
+ID3	Mutation		Yes
+IKZF1	Mutation		Yes
+IKZF3	Mutation		Yes
+IRF1	Mutation		Yes
+IRF4	Mutation		Yes
+IRF8	Mutation		Yes
+ITPKB	Mutation		Yes
+KLF2	Mutation		Yes
+KLHL6	Mutation		Yes
+KMT2C	Mutation		Yes
+KMT2D	Mutation		Yes
+KRAS	Mutation		Yes
+LTB	Mutation		Yes
+MAP2K1	Mutation		Yes
+MEF2B	Mutation		Yes
+MGA	Mutation		Yes
+MPEG1	Mutation		Yes
+MYC	Mutation	Yes	Yes
+MYD88_265	Mutation		Yes
+MYD88_noncan	Mutation		Yes
+NF1	Mutation		Yes
+NFKBIA	Mutation		Yes
+NFKBIE	Mutation		Yes
+NOTCH1	Mutation		Yes
+NOTCH2	Mutation		Yes
+P2RY8	Mutation		Yes
+PAX5	Mutation		Yes
+PDS5B	Mutation		Yes
+PIK3CD	Mutation		Yes
+PIK3R1	Mutation		Yes
+PIM1	Mutation	Yes	Yes
+POU2AF1	Mutation		Yes
+POU2F2_239	Mutation		Yes
+POU2F2_noncan	Mutation		Yes
+PRKCB	Mutation		Yes
+PTEN	Mutation		Yes
+PTPN6	Mutation		Yes
+PTPRC	Mutation		Yes
+RASA2	Mutation		Yes
+RHOA	Mutation		Yes
+ROBO1	Mutation		Yes
+SGK1	Mutation	Yes	Yes
+SMARCA4	Mutation		Yes
+SOCS1	Mutation	Yes	Yes
+SPEN	Mutation		Yes
+SPIB	Mutation		Yes
+SRSF2	Mutation		Yes
+STAT3	Mutation		Yes
+STAT6	Mutation		Yes
+TBL1XR1	Mutation		Yes
+TET2	Mutation		Yes
+TLR2	Mutation		Yes
+TMEM30A	Mutation		Yes
+TNF	Mutation		Yes
+XPO1	Mutation		Yes
+ZFP36L1	Mutation		Yes
+AKAP9	Amplification	NA	
+BCL2	Amplification	NA	
+BCL6	Amplification	NA	
+CALR	Amplification	NA	
+CARD11	Amplification	NA	
+CCND3	Amplification	NA	
+CD274	Amplification	NA	
+CD79A	Amplification	NA	
+CD79B	Amplification	NA	
+CDK4	Amplification	NA	
+CXCR4	Amplification	NA	
+ETNK1	Amplification	NA	
+FGFR3	Amplification	NA	
+IL7R	Amplification	NA	
+IRF4	Amplification	NA	
+IRF8	Amplification	NA	
+JAK2	Amplification	NA	
+KDM4C	Amplification	NA	
+KMT2A	Amplification	NA	
+LCK	Amplification	NA	
+MYC	Amplification	NA	
+MYD88	Amplification	NA	
+NFKBIZ	Amplification	NA	
+PDCD1LG2	Amplification	NA	
+PIM1	Amplification	NA	
+POU2AF1	Amplification	NA	
+POU2F2	Amplification	NA	
+PRKCB	Amplification	NA	
+PTPRD	Amplification	NA	
+SETBP1	Amplification	NA	
+SETDB1	Amplification	NA	
+SMC1A	Amplification	NA	
+SPIB	Amplification	NA	
+TLR2	Amplification	NA	
+WHSC1	Amplification	NA	
+ARID1A	Homozygous deletion	NA	
+ATRX	Homozygous deletion	NA	
+BCL7A	Homozygous deletion	NA	
+BCOR	Homozygous deletion	NA	
+BCORL1	Homozygous deletion	NA	
+BIRC2	Homozygous deletion	NA	
+BIRC3	Homozygous deletion	NA	
+CD274	Homozygous deletion	NA	
+CIITA	Homozygous deletion	NA	
+CUX1	Homozygous deletion	NA	
+CYLD	Homozygous deletion	NA	
+EBF1	Homozygous deletion	NA	
+ECT2L	Homozygous deletion	NA	
+EGR2	Homozygous deletion	NA	
+ETV6	Homozygous deletion	NA	
+FAS	Homozygous deletion	NA	
+FAT1	Homozygous deletion	NA	
+FAT3	Homozygous deletion	NA	
+FBXW10	Homozygous deletion	NA	
+FBXW7	Homozygous deletion	NA	
+FNDC3A	Homozygous deletion	NA	
+GATA1	Homozygous deletion	NA	
+GATA3	Homozygous deletion	NA	
+GNA13	Homozygous deletion	NA	
+HLAA	Homozygous deletion	NA	
+HLAB	Homozygous deletion	NA	
+HLAC	Homozygous deletion	NA	
+IKZF1	Homozygous deletion	NA	
+IRF1	Homozygous deletion	NA	
+KDM6A	Homozygous deletion	NA	
+KLF2	Homozygous deletion	NA	
+MLH1	Homozygous deletion	NA	
+NFKBIA	Homozygous deletion	NA	
+PHF6	Homozygous deletion	NA	
+PTEN	Homozygous deletion	NA	
+PTPN6	Homozygous deletion	NA	
+RCOR1	Homozygous deletion	NA	
+SGK1	Homozygous deletion	NA	
+SPEN	Homozygous deletion	NA	
+STAG2	Homozygous deletion	NA	
+TMEM30A	Homozygous deletion	NA	
+TNFAIP2	Homozygous deletion	NA	
+TP73	Homozygous deletion	NA	
+TRAF3	Homozygous deletion	NA	
+ZFP36L1	Homozygous deletion	NA	
+ZRSR2	Homozygous deletion	NA	
+ABL1	Mutation		
+ACTG1	Mutation		
+AKAP9	Mutation		
+ALK	Mutation		
+APC	Mutation		
+ARAF	Mutation		
+ARID1B	Mutation		
+ARID2	Mutation		
+ASXL1	Mutation		
+ASXL2	Mutation		
+ATRX	Mutation		
+BACH2	Mutation		
+BCL11A	Mutation		
+BCORL1	Mutation		
+BCR	Mutation		
+BIRC2	Mutation		
+BIRC3	Mutation		
+BLNK	Mutation		
+CALR	Mutation		
+CASP8	Mutation		
+CBFB	Mutation		
+CBL	Mutation		
+CCND1	Mutation		
+CD19	Mutation		
+CD22	Mutation		
+CD274	Mutation		
+CD58	Mutation		
+CDK4	Mutation		
+CDKN1B	Mutation		
+CDKN2A	Mutation		
+CDKN2B	Mutation		
+CDKN2C	Mutation		
+CEBPA	Mutation		
+CHD2	Mutation		
+CHD4	Mutation		
+CHEK2	Mutation		
+CHUK	Mutation		
+CSF2RB	Mutation		
+CSF3R	Mutation		
+CTCF	Mutation		
+CTNNB1	Mutation		
+CUX1	Mutation		
+CYLD	Mutation		
+DDX3X	Mutation		
+DIS3	Mutation		
+DNMT3B	Mutation		
+DTX1	Mutation		
+ECT2L	Mutation		
+EED	Mutation		
+EGFR	Mutation		
+EGR2	Mutation		
+ERBB2	Mutation		
+ERCC4	Mutation		
+ETNK1	Mutation		
+ETV1	Mutation		
+FAM46C	Mutation		
+FAT2	Mutation		
+FBXW10	Mutation		
+FBXW7	Mutation		
+FGFR2	Mutation		
+FGFR3	Mutation		
+FLT3	Mutation		
+FNDC3A	Mutation		
+FYN	Mutation		
+GATA1	Mutation		
+GATA2	Mutation		
+GATA3	Mutation		
+GCSAM	Mutation		
+GMPS	Mutation		
+GNAS	Mutation		
+H3F3A	Mutation		
+H3F3B	Mutation		
+HIST1H2BO	Mutation	Yes	
+HLA-A	Mutation		
+HLA-B	Mutation		
+HLA-C	Mutation		
+HRAS	Mutation		
+IDH1	Mutation		
+IDH2	Mutation		
+IKBKG	Mutation		
+IL2RG	Mutation		
+IL7R	Mutation		
+INTS12	Mutation		
+JAK1	Mutation		
+JAK2	Mutation		
+JAK3	Mutation		
+KDM4C	Mutation		
+KDM6A	Mutation		
+KDR	Mutation		
+KIT	Mutation		
+KMT2A	Mutation		
+KMT2E	Mutation		
+KSR2	Mutation		
+LCK	Mutation		
+LYN	Mutation		
+MALT1	Mutation		
+MAP2K4	Mutation		
+MAX	Mutation		
+MECOM	Mutation		
+MED1	Mutation		
+MET	Mutation		
+MLH1	Mutation		
+MPL	Mutation		
+MSH2	Mutation		
+MSH6	Mutation		
+MTOR	Mutation		
+MYB	Mutation		
+NBEAL2	Mutation		
+NF2	Mutation		
+NFE2	Mutation		
+NFKB1	Mutation		
+NFKB2	Mutation		
+NFKBIZ	Mutation		
+NPM1	Mutation		
+NRAS	Mutation		
+NTRK1	Mutation		
+PBRM1	Mutation		
+PDGFRA	Mutation		
+PDGFRB	Mutation		
+PDK1	Mutation		
+PEG3	Mutation		
+PHF6	Mutation		
+PIK3CA	Mutation		
+PLCG1	Mutation		
+PLCG2	Mutation		
+PMS2	Mutation		
+POT1	Mutation		
+PPM1D	Mutation		
+PRDM1	Mutation		
+PRPF40B	Mutation		
+PTCH1	Mutation		
+PTPN1	Mutation		
+PTPN11	Mutation		
+PTPRD	Mutation		
+RAD21	Mutation		
+RAD51	Mutation		
+RAG2	Mutation		
+RB1	Mutation		
+RCOR1	Mutation		
+REL	Mutation		
+RELN	Mutation		
+RET	Mutation		
+ROS1	Mutation		
+RPL10	Mutation		
+RPL5	Mutation		
+RPN1	Mutation		
+RPS15	Mutation		
+RPS2	Mutation		
+RUNX1	Mutation		
+S1PR2	Mutation		
+SAMHD1	Mutation		
+SETBP1	Mutation		
+SETD2	Mutation		
+SETDB1	Mutation		
+SF1	Mutation		
+SF3A1	Mutation		
+SF3B1	Mutation		
+SH2B3	Mutation		
+SMARCB1	Mutation		
+SMC1A	Mutation		
+SMC3	Mutation		
+SNX7	Mutation		
+SP140	Mutation		
+SPRY4	Mutation		
+STAG2	Mutation		
+STAT5B	Mutation		
+STK11	Mutation		
+SUZ12	Mutation		
+SYK	Mutation		
+TCF3	Mutation		
+TET1	Mutation		
+TET3	Mutation		
+TGDS	Mutation		
+THPO	Mutation		
+THRAP3	Mutation		
+TNFAIP2	Mutation		
+TNFAIP3	Mutation		
+TNFRSF14	Mutation		
+TNKS	Mutation		
+TP53	Mutation		
+TP73	Mutation		
+TRAF2	Mutation		
+TRAF3	Mutation		
+TYK2	Mutation		
+U2AF1	Mutation		
+U2AF2	Mutation		
+USP29	Mutation		
+USP6	Mutation		
+WHSC1	Mutation		
+WT1	Mutation		
+XBP1	Mutation		
+ZRSR2	Mutation		
