@@ -1,10 +1,17 @@
 Package: GAMBLR.predict
-Title: What the Package Does (One Line, Title Case)
+Title: ML functionality for classification of B-cell lymphomas
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+Authors@R:
+    person(
+        given = "Kostiantyn",
+        family = "Dreval",
+        role = c("aut", "cre"),
+        email = "kdreval@sfu.ca",
+        comment = c(ORCID = "0000-0002-6214-2843")
+    )
+Description: Collection of functions and helpers to classify different B-cell lymphomas.
+    This is part of the Genomic Analysis of Mature B-cell Lymphomas (GAMBL) project of the
+    Morin Lab and is closely related to R packages GAMBLR and GAMBLR.data.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
