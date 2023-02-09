@@ -12,8 +12,7 @@ Authors@R:
 Description: Collection of functions and helpers to classify different B-cell lymphomas.
     This is part of the Genomic Analysis of Mature B-cell Lymphomas (GAMBL) project of the
     Morin Lab and is closely related to R packages GAMBLR and GAMBLR.data.
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
