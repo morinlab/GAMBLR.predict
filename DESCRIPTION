@@ -29,7 +29,8 @@ Imports:
     randomForest,
     readr,
     stringr,
+    tibble,
     tidyr
 Remotes:
-    morinlab/GAMBLR.data
+    morinlab/GAMBLR.data,
     morinlab/GAMBLR

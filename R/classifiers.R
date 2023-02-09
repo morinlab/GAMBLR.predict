@@ -10,7 +10,7 @@
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import dplyr readr stringr randomForest GAMBLR GAMBLR.data tidyr
+#' @import dplyr readr stringr randomForest GAMBLR GAMBLR.data tidyr tibble
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set="tFL-study")
