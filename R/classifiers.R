@@ -10,7 +10,7 @@
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import dplyr readr stringr randomForest GAMBLR
+#' @import dplyr readr stringr randomForest GAMBLR GAMBLR.data tidyr
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set="tFL-study")
@@ -234,7 +234,7 @@ classify_fl <- function(
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import data.table circlize dplyr reads stringr
+#' @import data.table circlize dplyr readr stringr
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set = "DLBCL-unembargoed")
