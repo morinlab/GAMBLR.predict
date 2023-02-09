@@ -1,10 +1,32 @@
+library(dplyr)
+library(readr)
+library(stringr)
+library(tidyr)
+
+# RF model of BL
+RFmodel_BL <- system.file(
+  "extdata",
+  "RFmodel_BL.rds",
+  package = "GAMBLR.predict") %>%
+  readRDS
+
+# RF model of FL
+RFmodel_FL <- system.file(
+  "extdata",
+  "RFmodel_FL.rds",
+  package = "GAMBLR.predict") %>%
+  readRDS
+
+usethis::use_data(RFmodel_BL, overwrite = TRUE)
+usethis::use_data(RFmodel_FL, overwrite = TRUE)
+
 # Features of Chapuy classifier with cluster weights
 chapuy_features <- list()
 
 chapuy_features$feature_weights <- system.file(
   "extdata",
   "chapuy_weights.tsv",
-  package="GAMBLR") %>%
+  package="GAMBLR.predict") %>%
   read_tsv
 
 chapuy_features$ssm_features <- chapuy_features$feature_weights$Feature[
@@ -68,7 +90,7 @@ usethis::use_data(chapuy_features, overwrite = TRUE)
 RFmodel_Lacy <- system.file(
   "extdata",
   "Lacy_rf_model.rds",
-  package="GAMBLR") %>%
+  package="GAMBLR.predict") %>%
   readRDS
 
 # Features
@@ -77,7 +99,7 @@ lacy_features <- list()
 lacy_features$all <- system.file(
   "extdata",
   "lacy_weights.tsv",
-  package="GAMBLR") %>%
+  package="GAMBLR.predict") %>%
   read_tsv
 
 lacy_features$cnv <-
@@ -136,7 +158,7 @@ lacy_features$grch37_shm <-
 lacy_features$shm %>%
     left_join(
         .,
-        grch37_gene_coordinates,
+        GAMBLR::grch37_gene_coordinates,
         by=c("Gene"="gene_name")
     ) %>%
     dplyr::select(chromosome, start, end, everything()) %>%
@@ -147,7 +169,7 @@ lacy_features$shm %>%
     )
 
 lacy_features$hg38_shm <-
-hg38_gene_coordinates %>%
+GAMBLR::hg38_gene_coordinates %>%
     dplyr::filter(
         ensembl_gene_id %in% c(
             lacy_features$grch37_shm$ensembl_gene_id,
