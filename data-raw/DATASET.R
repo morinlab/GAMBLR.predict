@@ -226,3 +226,15 @@ c(
 
 usethis::use_data(RFmodel_Lacy, overwrite = TRUE)
 usethis::use_data(lacy_features, overwrite = TRUE)
+
+
+# Introduce LymphGenerator features
+lymphgenerator_features <- list()
+
+lymphgenerator_features$CNV <- system.file(
+  "extdata",
+  "lymphgenerator_cnv.tsv",
+  package="GAMBLR.predict") %>%
+  readr::read_tsv(.)
+
+usethis::use_data(lymphgenerator_features, overwrite = TRUE)
