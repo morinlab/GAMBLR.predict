@@ -262,4 +262,18 @@ lymphgenerator_features$hotspots <- system.file(
   read_tsv %>%
   pull(HOTSPOT)
 
+lymphgenerator_features$SSM <- system.file(
+  "extdata",
+  "lymphgenerator_ssm.tsv",
+  package="GAMBLR.predict") %>%
+  read_tsv %>%
+  pull(SSM)
+
+lymphgenerator_features$aSHM <- system.file(
+  "extdata",
+  "lymphgenerator_ashm.tsv",
+  package="GAMBLR.predict") %>%
+  read_tsv %>%
+  pull(aSHM)
+
 usethis::use_data(lymphgenerator_features, overwrite = TRUE)
