@@ -235,6 +235,31 @@ lymphgenerator_features$CNV <- system.file(
   "extdata",
   "lymphgenerator_cnv.tsv",
   package="GAMBLR.predict") %>%
-  readr::read_tsv(.)
+  read_tsv
+
+lymphgenerator_features$SV <- system.file(
+  "extdata",
+  "lymphgenerator_sv.tsv",
+  package="GAMBLR.predict") %>%
+  read_tsv %>%
+  pull(Tx)
+
+lymphgenerator_features$SV <- gsub(
+    "_SV",
+    "",
+    lymphgenerator_features$SV
+)
+
+lymphgenerator_features$SV <- c(
+    lymphgenerator_features$SV,
+    "MYC"
+)
+
+lymphgenerator_features$hotspots <- system.file(
+  "extdata",
+  "lymphgenerator_hotspots.tsv",
+  package="GAMBLR.predict") %>%
+  read_tsv %>%
+  pull(HOTSPOT)
 
 usethis::use_data(lymphgenerator_features, overwrite = TRUE)
