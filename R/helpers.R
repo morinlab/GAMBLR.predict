@@ -721,3 +721,345 @@ classify_dlbcl_lacy <- function(
     }
 
 }
+
+
+classify_dlbcl_lymphgenerator <- function(
+	  these_samples_metadata,
+    maf_data,
+    sv_data,
+    seg_data,
+    feature_set,
+	  seq_type = "genome",
+	  projection = "grch37",
+    output = "matrix"
+){
+    # Before computation check that user requested only matrix
+    if(!output == "matrix"){
+      stop(
+        "At this poing LymphGenerator mode can only support matrix generation"
+      )
+    }
+
+    # Standartize the genome build
+    projection <- handle_genome_build(projection)
+
+    # Initiate placeholders
+    features <- list()
+    matrix <- list()
+
+
+    # Collect CNV features
+    oncogenes_bed <- lymphgenerator_features$CNV %>%
+        dplyr::filter(
+            genome_build == projection
+        ) %>%
+        dplyr::select(chromosome, start, end, symbol, direction) %>%
+        as.data.table()
+
+    setkey(oncogenes_bed, chromosome, start, end)
+
+    # drop low-level events
+    seg_data <- seg_data %>%
+        dplyr::filter(
+            sample %in% these_samples_metadata$Tumor_Sample_Barcode
+        ) %>%
+        dplyr::mutate(
+            CN = (2 * 2 ^ log.ratio)
+        ) %>%
+        dplyr::filter(
+            abs(log.ratio) > 0.56 &
+            !CN %in% c(1, 2, 3)
+        ) %>%
+        as.data.table()
+
+    setkey(seg_data, chrom, start, end)
+
+    # Generate the CNV matrix
+    matrix$cnv <- foverlaps(
+        oncogenes_bed,
+        seg_data
+    ) %>%
+    dplyr::rename("Tumor_Sample_Barcode" = "sample") %>%
+    dplyr::select(Tumor_Sample_Barcode, symbol, CN, direction) %>%
+    dplyr::filter(
+        (CN < 2 & direction == "LOSS") |
+        (CN > 2 & direction %in% c("AMP", "GAIN"))
+    ) %>%
+    dplyr::mutate(
+        mutated = 1,
+        symbol = paste0(symbol, "_", direction)
+    ) %>%
+    dplyr::select(-c(CN, direction)) %>%
+    dplyr::distinct(
+        symbol,
+        Tumor_Sample_Barcode,
+        mutated
+    ) %>%
+    pivot_wider(
+        .,
+        names_from = "symbol",
+        values_from = "mutated",
+        values_fill = 0
+    ) %>%
+    column_to_rownames("Tumor_Sample_Barcode")
+
+    matrix$cnv <- complete_missing_from_matrix(
+        matrix$cnv,
+        list_of_samples = these_samples_metadata$Tumor_Sample_Barcode
+    )
+
+
+    # Collect SV features
+    matrix$sv <- sv_data %>%
+        annotate_sv(.) %>%
+        dplyr::filter(
+            tumour_sample_id %in% these_samples_metadata$Tumor_Sample_Barcode,
+            gene %in% lymphgenerator_features$SV,
+            !is.na(partner)
+        ) %>%
+        dplyr::mutate(
+            feature = case_when(
+                gene == "BCL6" & partner == "MYC" ~ "MYC_BCL6",
+                gene == "MYC" & ! partner %in% c(
+                  "IGH", "IGL", "IGK", "BCL6"
+                  ) ~ "MYC_OTHER",
+                gene == "MYC" ~ paste0(gene, "_", partner),
+                TRUE ~ paste0(gene, "_SV")
+                ),
+            mutated = 1
+        ) %>%
+        dplyr::distinct(
+            tumour_sample_id,
+            feature,
+            mutated
+        ) %>%
+        pivot_wider(
+            .,
+            names_from = "feature",
+            values_from = "mutated",
+            values_fill = 0
+        ) %>%
+        column_to_rownames("tumour_sample_id")
+
+    matrix$sv <- complete_missing_from_matrix(
+        matrix$sv,
+        list_of_samples = these_samples_metadata$Tumor_Sample_Barcode
+    )
+
+    # Collect HOTSPOT features
+    matrix$hotspot <- annotate_hotspots(
+        maf_data %>% filter(
+            Hugo_Symbol %in% lymphgenerator_features$hotspot,
+            Tumor_Sample_Barcode %in% these_samples_metadata$Tumor_Sample_Barcode),
+        recurrence_min = 10
+    )
+
+    matrix$hotspot <- review_hotspots(matrix$hotspot) %>%
+        filter(hot_spot == TRUE) %>%
+        select(Tumor_Sample_Barcode, Hugo_Symbol, hot_spot)
+
+    matrix$hotspot <- matrix$hotspot %>%
+        mutate(hot_spot = 1) %>%
+        distinct(
+            Tumor_Sample_Barcode,
+            Hugo_Symbol,
+            .keep_all = TRUE
+        ) %>%
+        pivot_wider(
+            .,
+            names_from = "Hugo_Symbol",
+            values_from = "hot_spot",
+            values_fill = 0
+        ) %>%
+        column_to_rownames("Tumor_Sample_Barcode")
+
+    matrix$hotspot <- complete_missing_from_matrix(
+        matrix$hotspot,
+        list_of_samples = these_samples_metadata$Tumor_Sample_Barcode
+    )
+
+    colnames(matrix$hotspot) <- paste0(
+        colnames(matrix$hotspot),
+        "HOTSPOT"
+    )
+
+    # Collect SSM features, including NFKBIZ 3'
+    matrix$ssm <- get_coding_ssm_status(
+        gene_symbols = lymphgenerator_features$SSM,
+        these_samples_metadata = these_samples_metadata,
+        maf_data = maf_data,
+        include_hotspots = FALSE,
+        include_silent = FALSE
+    ) %>%
+    column_to_rownames("sample_id")
+
+    matrix$ssm <- complete_missing_from_matrix(
+        matrix$ssm,
+        list_of_samples = these_samples_metadata$Tumor_Sample_Barcode
+    )
+
+    matrix$nfkbiz <- maf_data %>%
+        dplyr::filter(
+            Hugo_Symbol == "NFKBIZ",
+            Variant_Classification == "3'UTR",
+            Tumor_Sample_Barcode %in% these_samples_metadata$Tumor_Sample_Barcode
+    ) %>%
+    dplyr::select(Tumor_Sample_Barcode, Hugo_Symbol) %>%
+    distinct() %>%
+    dplyr::mutate(
+        Hugo_Symbol = paste0(
+            Hugo_Symbol,
+            "_3UTR"
+        ),
+        mutated = 1
+    ) %>%
+    pivot_wider(
+        .,
+        names_from = "Hugo_Symbol",
+        values_from = "mutated",
+        values_fill = 0
+    ) %>%
+    dplyr::mutate(these_names = Tumor_Sample_Barcode) %>%
+    column_to_rownames("these_names")
+
+    matrix$nfkbiz <- complete_missing_from_matrix(
+        matrix$nfkbiz,
+        list_of_samples = these_samples_metadata$Tumor_Sample_Barcode
+    ) %>%
+    select(-Tumor_Sample_Barcode)
+
+    matrix$ssm <- cbind(
+        matrix$ssm,
+        matrix$nfkbiz
+    )
+
+    # Collect aSHM features
+    matrix$ashm <- get_ashm_count_matrix(
+        regions_bed = grch37_ashm_regions %>%
+            filter(name %in% lymphgenerator_features$aSHM),
+        maf_data = maf_data,
+        these_samples_metadata = these_samples_metadata
+    )
+
+    matrix$ashm <- complete_missing_from_matrix(
+        matrix$ashm,
+        these_samples_metadata$Tumor_Sample_Barcode
+    )
+
+    # Binarizing the matrix
+    matrix$ashm <- matrix$ashm %>%
+        rownames_to_column("Tumor_Sample_Barcode") %>%
+        left_join(
+            .,
+            these_samples_metadata %>%
+                select(Tumor_Sample_Barcode, pathology),
+            by = "Tumor_Sample_Barcode"
+        ) %>%
+        column_to_rownames("Tumor_Sample_Barcode")
+
+    # calculate average N of mutations in each aSHM site per pathology
+    matrix$ashm_aggregated <- aggregate(
+        . ~ pathology,
+        data = matrix$ashm,
+        FUN = mean
+    ) %>%
+    dplyr::relocate(
+        pathology,
+        .after = last_col()
+    )
+
+    # convert ashm counts and averages to long format
+    matrix$ashm <- matrix$ashm %>%
+        rownames_to_column("Tumor_Sample_Barcode") %>%
+        pivot_longer(
+            !c(Tumor_Sample_Barcode, pathology),
+            names_to = "Region",
+            values_to = "N_mut"
+        )
+
+    matrix$ashm_aggregated <- matrix$ashm_aggregated %>%
+        pivot_longer(
+            !pathology,
+            names_to = "Region",
+            values_to = "Average_mut"
+        )
+
+    # merge counts/averages together
+    matrix$ashm <- left_join(
+        matrix$ashm,
+        matrix$ashm_aggregated,
+        by = c("pathology", "Region")
+    )
+
+    matrix$ashm <- matrix$ashm %>%
+        dplyr::mutate(
+            Average_mut = ifelse(
+                pathology == "DLBCL",
+                Average_mut + 3,
+                Average_mut + 1)
+        ) %>%
+        dplyr::mutate(
+            Feature = ifelse(
+                N_mut > Average_mut,
+                1,
+                0)
+        ) %>%
+        dplyr::select(
+            Tumor_Sample_Barcode,
+            Region,
+            Feature
+        ) %>%
+        pivot_wider(
+            names_from = "Region",
+            values_from = "Feature"
+        ) %>%
+        dplyr::arrange(
+            match(
+                Tumor_Sample_Barcode,
+                these_samples_metadata$Tumor_Sample_Barcode)
+        ) %>%
+        column_to_rownames("Tumor_Sample_Barcode")
+
+    matrix$full <- bind_cols(
+        matrix$ssm,
+        matrix$hotspot,
+        matrix$ashm,
+        matrix$cnv,
+        matrix$sv
+    ) %>%
+    t
+
+    #####
+    return(matrix$full)
+}
+
+
+#' Harmonize different flavours of genome builds.
+#'
+#' Will process different genome build flavours and return it in consistent formatting used throughout this package.
+#'
+#' @param incoming_genome_build The string specifying the genome build that is about to be harmonized.
+#'
+#' @return string
+#'
+#'
+handle_genome_build <- function(
+  incoming_genome_build
+){
+
+  if (incoming_genome_build %in% hg19_build_flavours){
+    this_genome_build = "grch37"
+  }else if(incoming_genome_build %in% hg38_build_flavours){
+    this_genome_build = "hg38"
+  }else{
+    stop(
+      paste(
+        "The specified genome build",
+        incoming_genome_build,
+        "is not currently supported."
+      )
+    )
+  }
+
+  return(this_genome_build)
+}
