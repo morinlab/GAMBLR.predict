@@ -724,14 +724,14 @@ classify_dlbcl_lacy <- function(
 
 
 classify_dlbcl_lymphgenerator <- function(
-	  these_samples_metadata,
+	these_samples_metadata,
     maf_data,
     sv_data,
     seg_data,
-    feature_set,
-	  seq_type = "genome",
-	  projection = "grch37",
-    output = "matrix"
+	seq_type = "genome",
+	projection = "grch37",
+    output = "matrix",
+    drop_after_flattening = FALSE
 ){
     # Before computation check that user requested only matrix
     if(!output == "matrix"){
@@ -1030,6 +1030,31 @@ classify_dlbcl_lymphgenerator <- function(
     t
 
     #####
+    # Now flatten the features that we want to be aquished
+    bcl2_feat <- c("BCL2-intronic", "BCL2-TSS", "BCL2")
+    myc_feat <- c("MYC-TSS", "MYC")
+    bcl6_feat <- c("BCL6_SV", "BCL6")
+    pim1_feat <- c("PIM1", "PIM1-TSS")
+    btg2_feat <- c("BTG2", "BTG2-intronic")
+
+    features <- list(bcl2_feat, myc_feat, bcl6_feat, pim1_feat, btg2_feat)
+    names <- c("BCL2_any", "MYC_aSHM", "BCL6_any", "PIM1_any", "BTG2_any")
+
+    for(i in 1:length(names)){
+        matrix$full <- flatten_feature(
+            names[i],
+            features[[i]],
+            matrix$full
+        )
+    }
+
+    if(drop_after_flattening){
+        matrix$full <- matrix$full[
+            !(rownames(matrix$full) %in% unlist(features))
+            ,
+        ]
+    }
+
     return(matrix$full)
 }
 
@@ -1047,19 +1072,51 @@ handle_genome_build <- function(
   incoming_genome_build
 ){
 
-  if (incoming_genome_build %in% hg19_build_flavours){
-    this_genome_build = "grch37"
-  }else if(incoming_genome_build %in% hg38_build_flavours){
-    this_genome_build = "hg38"
-  }else{
-    stop(
-      paste(
-        "The specified genome build",
-        incoming_genome_build,
-        "is not currently supported."
-      )
-    )
-  }
+    if (incoming_genome_build %in% hg19_build_flavours){
+        this_genome_build = "grch37"
+    }else if(incoming_genome_build %in% hg38_build_flavours){
+        this_genome_build = "hg38"
+    }else{
+        stop(
+        paste(
+            "The specified genome build",
+            incoming_genome_build,
+            "is not currently supported."
+            )
+        )
+    }
 
-  return(this_genome_build)
+    return(this_genome_build)
+}
+
+# Flatten feature
+#'
+#' @import dplyr tidyselect
+#'
+#' @return string
+
+flatten_feature <- function(
+    new_name,
+    features_to_flatten,
+    incoming_data
+){
+    flattened_data <- incoming_data %>%
+        as.data.frame %>%
+        t() %>%
+        as.data.frame %>%
+        dplyr::mutate(
+            across(
+                {{ features_to_flatten }}, ~replace(., . == 0, NA)
+            )
+        ) %>%
+        dplyr::mutate(
+            !!new_name := coalesce(!!! syms ( features_to_flatten ))
+        ) %>%
+        dplyr::select(
+            sort(tidyselect::peek_vars())
+        ) %>%
+        t %>%
+        replace(is.na(.), 0)
+
+    return(flattened_data)
 }
