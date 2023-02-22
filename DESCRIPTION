@@ -29,7 +29,8 @@ Imports:
     readr,
     stringr,
     tibble,
-    tidyr
+    tidyr,
+    tidyselect
 Remotes:
     morinlab/GAMBLR.data,
     morinlab/GAMBLR

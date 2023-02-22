@@ -723,6 +723,22 @@ classify_dlbcl_lacy <- function(
 }
 
 
+#' Construct LymphGenerator matrix
+#'
+#' Use the LymphGenerator features to construct matrix. Optionally, flatten some features having the same
+#' biological information.
+#'
+#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified. Must also contain column pathology.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
+#' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
+#' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments. Must be already adjusted for ploidy.
+#' @param seq_type String of the seq type for the sample set.
+#' @param projection String of projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
+#' @param output The output to be returned. Currently only matrix is supported.
+#' @param drop_after_flattening Boolean on whether to remove features (rows) after flattening. Defaults to FALSE.
+#' @return binary matrix
+#' @import data.table GAMBLR dplyr readr stringr tibble
+#'
 classify_dlbcl_lymphgenerator <- function(
 	these_samples_metadata,
     maf_data,
@@ -1064,7 +1080,6 @@ classify_dlbcl_lymphgenerator <- function(
 #' Will process different genome build flavours and return it in consistent formatting used throughout this package.
 #'
 #' @param incoming_genome_build The string specifying the genome build that is about to be harmonized.
-#'
 #' @return string
 #'
 #'
@@ -1089,11 +1104,19 @@ handle_genome_build <- function(
     return(this_genome_build)
 }
 
-# Flatten feature
+#' Flatten feature
 #'
+#' Return matrix (features in rows and samples in columns) where several features are
+#' squished (flattened) into a single one. The number and order of features to be flattened
+#' does not matter. New row with the new name specified by user will be created, and will be positive
+#' (value of 1) if any of the features to flatten are positive.
+#'
+#' @param new_name String of the new feature name.
+#' @param features_to_flatten Vector of features (row names) to be flattened.
+#' @param incoming_data Matrix or data frame of features.
+#' @return matrix
 #' @import dplyr tidyselect
 #'
-#' @return string
 
 flatten_feature <- function(
     new_name,
