@@ -400,7 +400,26 @@ classify_dlbcl <- function(
 
 }
 
-
+#' Classify BL samples into genetic subgroups.
+#'
+#' Use the random forest prediction model to assemble the binary matrix and use it to classify BL tummors into genetic subgroups
+#'
+#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
+#' @param this_seq_type The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR. Defaults to genome.
+#' @param projection The projection of the samples. Defaults to grch37.
+#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
+#' @param ashm_cutoff Numeric value indicating number of mutations for binarizing aSHM feature. Recommended to use the default value (3).
+#'
+#' @return data frame with classification, binary matrix used in classification, or both
+#' @export
+#' @import dplyr randomForest GAMBLR GAMBLR.data tidyr tibble
+#'
+#' @examples
+#' test_meta <- get_gambl_metadata(case_set = "BL-DLBCL-manuscript-HTMCP")
+#' predictions <- classify_bl(these_samples_metadata = test_meta)
+#' predictions <- classify_bl(these_samples_metadata = test_meta, output = "predictions")
+#'
 classify_bl <- function(
     these_samples_metadata,
     maf_data,
@@ -471,7 +490,10 @@ classify_bl <- function(
     # Now use this data to classify the samples according to one of the systems
     # Generate binary matrix for SSMs
     ssm_matrix <- get_coding_ssm_status(
-        gene_symbols = rownames(RFmodel_BL$importance),
+        gene_symbols = c(
+            rownames(RFmodel_BL$importance),
+            "HLA-A", "HLA-B", "HLA-DMB"
+        ),
         these_samples_metadata = these_samples_metadata,
         maf_data = maf_data,
         include_hotspots = FALSE
@@ -514,6 +536,14 @@ classify_bl <- function(
             ssm_matrix,
             ashm_matrix
         )
+
+    # Prepare for random forest
+    colnames(assembled_matrix) <- (gsub(
+            '_|-|\\.',
+            '',
+            colnames(assembled_matrix)
+        )
+    )
 
     # Check for missing features
     assembled_matrix <- check_for_missing_features(
