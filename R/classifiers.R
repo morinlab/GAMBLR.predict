@@ -401,6 +401,169 @@ classify_dlbcl <- function(
 }
 
 
+classify_bl <- function(
+    these_samples_metadata,
+    maf_data,
+    this_seq_type = "genome",
+    projection = "grch37",
+    output = "both",
+    ashm_cutoff = 3
+){
+    # If no metadata is provided, just get all BLs
+    if(missing(these_samples_metadata)){
+        message("No metadata is provided.")
+        message("Will retreive metadata for all BL genomes in GAMBL.")
+        these_samples_metadata <- get_gambl_metadata(
+            seq_type_filter = this_seq_type
+        ) %>%
+        dplyr::filter(pathology == "BL")
+    }
+
+
+    projection <- handle_genome_build(projection)
+
+    # If no maf data is provided, get the SSMs from GAMBL
+    if(missing(maf_data)){
+        message("No maf data is provided.")
+        message("Retreiving the mutations data from GAMBL...")
+        maf_data =  get_ssm_by_samples(
+            these_samples_metadata = these_samples_metadata,
+            seq_type = this_seq_type,
+            projection = projection,
+            subset_from_merge = TRUE,
+            augmented = FALSE
+        )
+    }
+
+
+    # Confirm all samples have mutations
+    found_samples <- length(unique(maf_data$Tumor_Sample_Barcode))
+    requested_samples <- length(unique(these_samples_metadata$sample_id))
+
+    if(!found_samples == requested_samples){
+        message(
+            paste0(
+                "WARNING! Did not find SSM for all samples. Only the data for ",
+                found_samples,
+                " was available in the maf. The missing samples are: "
+            )
+        )
+        message(
+            paste(
+              setdiff(
+                unique(these_samples_metadata$sample_id),
+                unique(maf_data$Tumor_Sample_Barcode)
+              ),
+              collapse=", "
+            )
+        )
+        # Drop missing samples from metadata
+        these_samples_metadata <- these_samples_metadata %>%
+            dplyr::filter(
+                sample_id %in% maf_data$Tumor_Sample_Barcode
+            )
+    }else{
+        message(
+            "Success! The SSM for all samples were found in maf."
+        )
+    }
+
+    # Now use this data to classify the samples according to one of the systems
+    # Generate binary matrix for SSMs
+    ssm_matrix <- get_coding_ssm_status(
+        gene_symbols = rownames(RFmodel_BL$importance),
+        these_samples_metadata = these_samples_metadata,
+        maf_data = maf_data,
+        include_hotspots = FALSE
+    )
+
+    ssm_matrix <- ssm_matrix %>%
+        column_to_rownames("sample_id")
+
+    # Generate binary matrix for aSHM
+    ashm_bed <- base::get(
+        paste0(
+            projection, "_ashm_regions"
+        )
+    ) %>%
+    dplyr::filter(name %in% c(
+        "LPP_TSS-1",
+        "LPP-TSS-1"
+        )
+    )
+
+    # Generate binary matrix for ashm
+    ashm_matrix <- get_ashm_count_matrix(
+        maf_data = maf,
+        these_samples_metadata = these_samples_metadata,
+        regions_bed = ashm_bed
+    )
+
+    colnames(ashm_matrix) <- c("LPPTSS1")
+
+    ashm_matrix <- ashm_matrix %>%
+        mutate("LPPTSS1" = ifelse(
+            LPPTSS1 > ashm_cutoff,
+            1,
+            0
+        )
+    )
+
+    # Combine together the SSM, hotspots, and aSHM
+    assembled_matrix <- bind_cols(
+            ssm_matrix,
+            ashm_matrix
+        )
+
+    # Check for missing features
+    assembled_matrix <- check_for_missing_features(
+        assembled_matrix,
+        rownames(RFmodel_BL$importance)
+    )
+
+    # Ensure consistent ordering
+    assembled_matrix <- assembled_matrix %>%
+        select(
+            rownames(
+                RFmodel_BL$importance
+            )
+        )
+
+    # Make prediction
+    prediction <- predict(
+        RFmodel_BL,
+        assembled_matrix,
+        type = "Vote"
+    )
+
+    prediction <- bind_cols(
+        prediction,
+        predict(
+                RFmodel_BL,
+                assembled_matrix
+            ) %>%
+            as.data.frame %>%
+            `names<-`("BL_subgroup")
+        ) %>%
+    rownames_to_column("sample_id")
+
+    if(output == "predictions"){
+        return(prediction)
+    }else if (output == "matrix") {
+       return(assembled_matrix)
+    }else if(output == "both"){
+        return(
+            list(
+                predictions = prediction,
+                matrix = assembled_matrix)
+        )
+    }else{
+        stop("Invalid output type. Please specify predictions, matrix, or both.")
+    }
+
+}
+
+
 #' Complete samples missing from matrix.
 #'
 #' If some samples are missing from the matrix, add them with filled in 0 as value and normalize their ordering for consistency.
