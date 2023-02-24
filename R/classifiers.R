@@ -334,20 +334,19 @@ classify_dlbcl <- function(
         setkey(chrom, start, end)
 
 
-    # Now use this data to classify the samples according to one of the systems
-    if(method=="chapuy"){
+    # If no SV data is provided, get the SVs from GAMBL
+    if(missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
+        message("No SV data is provided.")
+        message("Will retreive SVs available through GAMBL.")
 
-      # SVs are needed only for Chapuy predictions
-      # If no SV data is provided, get the SVs from GAMBL
-      if(missing(sv_data)){
-          message("No SV data is provided.")
-          message("Will retreive SVs available through GAMBL.")
-
-          sv_data <- get_manta_sv() %>%
-              dplyr::filter(
+        sv_data <- get_manta_sv() %>%
+                dplyr::filter(
                 tumour_sample_id %in% these_samples_metadata$sample_id
-              )
-      }
+            )
+    }
+
+    # Now use this data to classify the samples according to one of the systems
+    if(method == "chapuy"){
 
       sv_data <- sv_data %>%
           annotate_sv(
@@ -364,7 +363,7 @@ classify_dlbcl <- function(
           output = output
       )
 
-    }else if (method=="lacy") {
+    }else if (method == "lacy") {
       predictions <- classify_dlbcl_lacy(
           these_samples_metadata,
           maf_data,
@@ -373,7 +372,7 @@ classify_dlbcl <- function(
           output = output
       )
 
-    }else if (method=="hmrn") {
+    }else if (method == "hmrn") {
       predictions <- classify_dlbcl_lacy(
           these_samples_metadata,
           maf_data,
@@ -381,6 +380,15 @@ classify_dlbcl <- function(
           projection = projection,
           output = output,
           include_N1 = TRUE
+      )
+    }else if (method == "lymphgenerator") {
+      predictions <- classify_dlbcl_lymphgenerator(
+          these_samples_metadata,
+          maf_data,
+          sv_data,
+          seg_data,
+          projection = projection,
+          output = output
       )
     }
 
