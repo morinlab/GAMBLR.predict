@@ -1055,6 +1055,12 @@ classify_dlbcl_lymphgenerator <- function(
         )
     }
 
+    matrix$full <- massage_matrix_for_clustering(
+        matrix$full,
+        blacklisted_cnv_regex = "3UTR|SV|HOTSPOT|MYC|BCL2|TP53BP1|intronic",
+        min_feature_percent = 0
+    )
+
     if(drop_after_flattening){
         matrix$full <- matrix$full[
             !(rownames(matrix$full) %in% unlist(features))
