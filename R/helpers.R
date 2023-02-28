@@ -1068,6 +1068,10 @@ classify_dlbcl_lymphgenerator <- function(
         ]
     }
 
+    matrix$full <- matrix$full %>%
+        t() %>%
+        as.data.frame()
+
     return(matrix$full)
 }
 
