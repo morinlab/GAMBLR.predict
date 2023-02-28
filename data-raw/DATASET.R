@@ -267,13 +267,15 @@ lymphgenerator_features$SSM <- system.file(
   "lymphgenerator_ssm.tsv",
   package="GAMBLR.predict") %>%
   read_tsv %>%
-  pull(SSM)
+  pull(SSM) %>%
+  sort
 
 lymphgenerator_features$aSHM <- system.file(
   "extdata",
   "lymphgenerator_ashm.tsv",
   package="GAMBLR.predict") %>%
   read_tsv %>%
-  pull(aSHM)
+  pull(aSHM) %>%
+  sort
 
 usethis::use_data(lymphgenerator_features, overwrite = TRUE)
