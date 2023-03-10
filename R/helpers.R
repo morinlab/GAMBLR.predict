@@ -733,7 +733,7 @@ classify_dlbcl_lacy <- function(
 #' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
 #' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments. Must be already adjusted for ploidy.
 #' @param seq_type String of the seq type for the sample set.
-#' @param projection String of projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
+#' @param projection String of projection of the samples. Only used to retrieve data through GAMBLR when it is not provided. Defaults to grch37.
 #' @param output The output to be returned. Currently only matrix is supported.
 #' @param drop_after_flattening Boolean on whether to remove features (rows) after flattening. Defaults to FALSE.
 #' @return binary matrix
@@ -756,7 +756,7 @@ classify_dlbcl_lymphgenerator <- function(
       )
     }
 
-    # Standartize the genome build
+    # Standardize the genome build
     projection <- handle_genome_build(projection)
 
     # Initiate placeholders
@@ -1078,9 +1078,9 @@ classify_dlbcl_lymphgenerator <- function(
 }
 
 
-#' Harmonize different flavours of genome builds.
+#' Harmonize different flavors of genome builds.
 #'
-#' Will process different genome build flavours and return it in consistent formatting used throughout this package.
+#' Will process different genome build flavors and return it in consistent formatting used throughout this package.
 #'
 #' @param incoming_genome_build The string specifying the genome build that is about to be harmonized.
 #' @return string
