@@ -912,42 +912,44 @@ classify_dlbcl_lymphgenerator <- function(
         matrix$ssm,
         list_of_samples = these_samples_metadata$Tumor_Sample_Barcode
     )
+###
+    if("NFKBIZ" %in% maf_data$Hugo_Symbol){
+        matrix$nfkbiz <- maf_data %>%
+            dplyr::filter(
+                Hugo_Symbol == "NFKBIZ",
+                Variant_Classification == "3'UTR",
+                Tumor_Sample_Barcode %in% these_samples_metadata$Tumor_Sample_Barcode
+        ) %>%
+        dplyr::select(Tumor_Sample_Barcode, Hugo_Symbol) %>%
+        distinct() %>%
+        dplyr::mutate(
+            Hugo_Symbol = paste0(
+                Hugo_Symbol,
+                "_3UTR"
+            ),
+            mutated = 1
+        ) %>%
+        pivot_wider(
+            .,
+            names_from = "Hugo_Symbol",
+            values_from = "mutated",
+            values_fill = 0
+        ) %>%
+        dplyr::mutate(these_names = Tumor_Sample_Barcode) %>%
+        column_to_rownames("these_names")
 
-    matrix$nfkbiz <- maf_data %>%
-        dplyr::filter(
-            Hugo_Symbol == "NFKBIZ",
-            Variant_Classification == "3'UTR",
-            Tumor_Sample_Barcode %in% these_samples_metadata$Tumor_Sample_Barcode
-    ) %>%
-    dplyr::select(Tumor_Sample_Barcode, Hugo_Symbol) %>%
-    distinct() %>%
-    dplyr::mutate(
-        Hugo_Symbol = paste0(
-            Hugo_Symbol,
-            "_3UTR"
-        ),
-        mutated = 1
-    ) %>%
-    pivot_wider(
-        .,
-        names_from = "Hugo_Symbol",
-        values_from = "mutated",
-        values_fill = 0
-    ) %>%
-    dplyr::mutate(these_names = Tumor_Sample_Barcode) %>%
-    column_to_rownames("these_names")
+        matrix$nfkbiz <- complete_missing_from_matrix(
+            matrix$nfkbiz,
+            list_of_samples = these_samples_metadata$Tumor_Sample_Barcode
+        ) %>%
+        select(-Tumor_Sample_Barcode)
 
-    matrix$nfkbiz <- complete_missing_from_matrix(
-        matrix$nfkbiz,
-        list_of_samples = these_samples_metadata$Tumor_Sample_Barcode
-    ) %>%
-    select(-Tumor_Sample_Barcode)
-
-    matrix$ssm <- cbind(
-        matrix$ssm,
-        matrix$nfkbiz
-    )
-
+        matrix$ssm <- cbind(
+            matrix$ssm,
+            matrix$nfkbiz
+        )
+    }
+###
     # Collect aSHM features
     matrix$ashm <- get_ashm_count_matrix(
         regions_bed = grch37_ashm_regions %>%
