@@ -35,6 +35,8 @@ classify_dlbcl(
 \item{method}{Classification method. One of chapuy (used as default), lacy, or hmrn.}
 
 \item{adjust_ploidy}{Whether to perform ploidy adjustment for the CNV data. Defaults to TRUE (recommended).}
+
+\item{annotate_sv}{Whether to perform SV annotation on the supplied SV data frame. Defaults to TRUE.}
 }
 \value{
 data frame with classification, binary matrix used in classification, or both

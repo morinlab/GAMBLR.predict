@@ -231,6 +231,7 @@ classify_fl <- function(
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @param method Classification method. One of chapuy (used as default), lacy, or hmrn.
 #' @param adjust_ploidy Whether to perform ploidy adjustment for the CNV data. Defaults to TRUE (recommended).
+#' @param annotate_sv Whether to perform SV annotation on the supplied SV data frame. Defaults to TRUE.
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
