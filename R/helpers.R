@@ -1037,17 +1037,18 @@ classify_dlbcl_lymphgenerator <- function(
         ) %>%
         column_to_rownames("Tumor_Sample_Barcode")
 
-    matrix$full <- bind_cols(
-        matrix$ssm,
-        matrix$hotspot,
-        matrix$ashm,
-        matrix$cnv,
-        matrix$sv
+    # Drop helper matrices here before merge
+    matrix <- matrix[!names(matrix) %in% c("nfkbiz", "ashm_aggregated")]
+
+    matrix$full <- do.call(
+        bind_cols,
+        matrix
     ) %>%
+    as.data.frame %>%
     t
 
     #####
-    # Now flatten the features that we want to be aquished
+    # Now flatten the features that we want to be squished
     for(i in 1:length(GAMBLR.predict:::names)){
         matrix$full <- flatten_feature(
             GAMBLR.predict:::names[i],
