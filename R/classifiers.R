@@ -252,7 +252,8 @@ classify_dlbcl <- function(
     projection = "grch37",
     output = "both",
     method = "chapuy",
-    adjust_ploidy = TRUE
+    adjust_ploidy = TRUE,
+    annotate_sv = TRUE
 ){
     # If no metadata is provided, just get all DLBCLs
     if(missing(these_samples_metadata)){
@@ -345,14 +346,16 @@ classify_dlbcl <- function(
             )
     }
 
+    if(annotate_sv){
+        sv_data <- sv_data %>%
+            annotate_sv(
+                genome_build = projection
+            ) %>%
+            dplyr::filter(!is.na(partner))
+    }
+
     # Now use this data to classify the samples according to one of the systems
     if(method == "chapuy"){
-
-      sv_data <- sv_data %>%
-          annotate_sv(
-              genome_build = projection
-          ) %>%
-          dplyr::filter(!is.na(partner))
 
       predictions <- classify_dlbcl_chapuy(
           these_samples_metadata,

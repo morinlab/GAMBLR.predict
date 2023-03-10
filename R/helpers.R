@@ -827,7 +827,6 @@ classify_dlbcl_lymphgenerator <- function(
 
     # Collect SV features
     matrix$sv <- sv_data %>%
-        annotate_sv(.) %>%
         dplyr::filter(
             tumour_sample_id %in% these_samples_metadata$Tumor_Sample_Barcode,
             gene %in% lymphgenerator_features$SV,
@@ -1124,10 +1123,17 @@ flatten_feature <- function(
     features_to_flatten,
     incoming_data
 ){
-    flattened_data <- incoming_data %>%
+    incoming_data <- incoming_data %>%
         as.data.frame %>%
         t() %>%
-        as.data.frame %>%
+        as.data.frame
+
+    incoming_data <- check_for_missing_features(
+        incoming_data,
+        features_to_flatten
+    )
+
+    flattened_data <- incoming_data %>%
         dplyr::mutate(
             across(
                 {{ features_to_flatten }}, ~replace(., . == 0, NA)

@@ -13,7 +13,8 @@ classify_dlbcl(
   projection = "grch37",
   output = "both",
   method = "chapuy",
-  adjust_ploidy = TRUE
+  adjust_ploidy = TRUE,
+  annotate_sv = TRUE
 )
 }
 \arguments{
