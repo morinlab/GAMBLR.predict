@@ -247,6 +247,7 @@ classify_fl <- function(
 classify_dlbcl <- function(
     these_samples_metadata,
     maf_data,
+    only_maf_data = FALSE,
     seg_data,
     sv_data,
     this_seq_type = "genome",
@@ -314,7 +315,7 @@ classify_dlbcl <- function(
 
 
     # If no seg data is provided, get the CNVs from GAMBL
-    if(missing(seg_data)){
+    if(!only_maf_data & missing(seg_data)){
         message("No CNV data is provided.")
         message("Will retreive segments available through GAMBL.")
 
@@ -324,20 +325,8 @@ classify_dlbcl <- function(
             projection = projection)
     }
 
-    if(adjust_ploidy){
-        seg_data <- adjust_ploidy(
-            seg_data %>% rename("sample"="ID"),
-            projection = projection
-        )
-    }
-
-    seg_data <- seg_data %>%
-        as.data.table %>%
-        setkey(chrom, start, end)
-
-
     # If no SV data is provided, get the SVs from GAMBL
-    if(missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
+    if(!only_maf_data & missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
         message("No SV data is provided.")
         message("Will retreive SVs available through GAMBL.")
 
@@ -347,12 +336,25 @@ classify_dlbcl <- function(
             )
     }
 
-    if(annotate_sv){
-        sv_data <- sv_data %>%
-            annotate_sv(
-                genome_build = projection
-            ) %>%
-            dplyr::filter(!is.na(partner))
+    if(!only_maf_data){
+        if(adjust_ploidy){
+            seg_data <- adjust_ploidy(
+                seg_data %>% rename("sample"="ID"),
+                projection = projection
+            )
+        }
+
+        seg_data <- seg_data %>%
+            as.data.table %>%
+            setkey(chrom, start, end)
+        
+        if(annotate_sv){
+            sv_data <- sv_data %>%
+                annotate_sv(
+                    genome_build = projection
+                ) %>%
+                dplyr::filter(!is.na(partner))
+        }
     }
 
     # Now use this data to classify the samples according to one of the systems
@@ -386,14 +388,23 @@ classify_dlbcl <- function(
           include_N1 = TRUE
       )
     }else if (method == "lymphgenerator") {
-      predictions <- classify_dlbcl_lymphgenerator(
-          these_samples_metadata,
-          maf_data,
-          sv_data,
-          seg_data,
-          projection = projection,
-          output = output
-      )
+        if(only_maf_data){
+            predictions <- classify_dlbcl_lymphgenerator(
+                these_samples_metadata,
+                maf_data,
+                projection = projection,
+                output = output
+            )
+        }else{
+            predictions <- classify_dlbcl_lymphgenerator(
+                these_samples_metadata,
+                maf_data,
+                sv_data,
+                seg_data,
+                projection = projection,
+                output = output
+            )
+        }
     }
 
     else{
