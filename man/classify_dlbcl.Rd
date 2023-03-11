@@ -7,6 +7,7 @@
 classify_dlbcl(
   these_samples_metadata,
   maf_data,
+  only_maf_data = FALSE,
   seg_data,
   sv_data,
   this_seq_type = "genome",
@@ -22,15 +23,17 @@ classify_dlbcl(
 
 \item{maf_data}{The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.}
 
+\item{only_maf_data}{Whether to restrict matrix generation to maf data only. Only supported in the lymphgenerator mode. Default is FALSE (use SV and CNV).}
+
 \item{seg_data}{The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.}
 
 \item{sv_data}{The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.}
 
-\item{this_seq_type}{The seq_type of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to genome.}
+\item{this_seq_type}{The seq_type of the samples. Only used to retrieve data through GAMBLR when it is not provided. Defaults to genome.}
 
 \item{projection}{The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.}
 
-\item{output}{The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.}
+\item{output}{The output to be returned after the prediction is done. Can be one of predictions, matrix, or both. Defaults to both.}
 
 \item{method}{Classification method. One of chapuy (used as default), lacy, or hmrn.}
 

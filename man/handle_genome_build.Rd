@@ -2,7 +2,7 @@
 % Please edit documentation in R/helpers.R
 \name{handle_genome_build}
 \alias{handle_genome_build}
-\title{Harmonize different flavours of genome builds.}
+\title{Harmonize different flavors of genome builds.}
 \usage{
 handle_genome_build(incoming_genome_build)
 }
@@ -13,5 +13,5 @@ handle_genome_build(incoming_genome_build)
 string
 }
 \description{
-Will process different genome build flavours and return it in consistent formatting used throughout this package.
+Will process different genome build flavors and return it in consistent formatting used throughout this package.
 }

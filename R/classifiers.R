@@ -224,11 +224,12 @@ classify_fl <- function(
 #'
 #' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
 #' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
+#' @param only_maf_data Whether to restrict matrix generation to maf data only. Only supported in the lymphgenerator mode. Default is FALSE (use SV and CNV).
 #' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
 #' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param this_seq_type The seq_type of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to genome.
+#' @param this_seq_type The seq_type of the samples. Only used to retrieve data through GAMBLR when it is not provided. Defaults to genome.
 #' @param projection The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
-#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
+#' @param output The output to be returned after the prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @param method Classification method. One of chapuy (used as default), lacy, or hmrn.
 #' @param adjust_ploidy Whether to perform ploidy adjustment for the CNV data. Defaults to TRUE (recommended).
 #' @param annotate_sv Whether to perform SV annotation on the supplied SV data frame. Defaults to TRUE.
