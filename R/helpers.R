@@ -1022,7 +1022,7 @@ classify_dlbcl_lymphgenerator <- function(
                 seq_type == "capture",
                 0,
                 Average_mut)
-	    ) %>%
+        ) %>%
         dplyr::mutate(
             Feature = ifelse(
                 N_mut > Average_mut,
