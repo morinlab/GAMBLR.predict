@@ -145,11 +145,23 @@ classify_fl <- function(
     ashm_matrix[ashm_matrix<=5] = 0
     ashm_matrix[ashm_matrix>5] = 1
 
-
-    ashm_matrix <- ashm_matrix %>%
+    if("SGK1_TSS_1" %in% colnames(ashm_matrix)){
+        ashm_matrix <- ashm_matrix %>%
         rename(
-            "PAX5_TSS" = "PAX5_TSS_1",
             "SGK1_TSS" = "SGK1_TSS_1"
+        )
+    }
+
+    if("PAX5_TSS_1" %in% colnames(ashm_matrix)){
+        ashm_matrix <- ashm_matrix %>%
+        rename(
+            "PAX5_TSS" = "PAX5_TSS_1"
+        )
+    }
+
+    ashm_matrix <- check_for_missing_features(
+        ashm_matrix,
+        ashm_features
     )
 
 
