@@ -406,7 +406,8 @@ classify_dlbcl <- function(
                 these_samples_metadata,
                 maf_data,
                 projection = projection,
-                output = output
+                output = output,
+                seq_type = this_seq_type
             )
         }else{
             predictions <- classify_dlbcl_lymphgenerator(
@@ -415,7 +416,8 @@ classify_dlbcl <- function(
                 sv_data,
                 seg_data,
                 projection = projection,
-                output = output
+                output = output,
+                seq_type = this_seq_type
             )
         }
     }

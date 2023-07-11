@@ -953,6 +953,12 @@ classify_dlbcl_lymphgenerator <- function(
     }
 
     # Collect aSHM features
+    message(
+        paste(
+            "Assembling the aSHM matrix for LymphGenerator using seq type",
+            seq_type
+        )
+    )
     matrix$ashm <- get_ashm_count_matrix(
         regions_bed = grch37_ashm_regions %>%
             filter(name %in% lymphgenerator_features$aSHM),
