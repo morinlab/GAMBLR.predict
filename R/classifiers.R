@@ -39,8 +39,9 @@ classify_fl <- function(
     hotspot_features <- req_features[grepl("HOTSPOT|inKATdomain", req_features)]
     ashm_features <- req_features[grepl("_TSS|_intronic|_intron_1", req_features)]
     ashm_features_bed <- grch37_ashm_regions %>%
+        mutate(name = paste(gene, region, sep = "-")) %>%
         dplyr::mutate(
-            name = gsub("-", "_", grch37_ashm_regions$name)
+            name = gsub("-", "_", name)
         ) %>%
         dplyr::filter(name %in% ashm_features | name %in% c("PAX5_TSS_1", "SGK1_TSS_1"))
 
@@ -129,10 +130,10 @@ classify_fl <- function(
     if("CREBBPHOTSPOT" %in% colnames(ssm_matrix)){
         ssm_matrix <- ssm_matrix %>%
             dplyr::rename(
-                "CREBBPinKATdomain" = "CREBBPHOTSPOT",
-                "HLA_DMB" = "HLA-DMB"
+                "CREBBPinKATdomain" = "CREBBPHOTSPOT"
             )
     }
+
 
     # Generate binary matrix for ashm
     ashm_matrix <- get_ashm_count_matrix(
@@ -180,6 +181,13 @@ classify_fl <- function(
           ashm_features
         )
     )
+
+    if("HLA-DMB" %in% colnames(assembled_matrix)){
+        assembled_matrix <- assembled_matrix %>%
+            dplyr::rename(
+                "HLA_DMB" = "HLA-DMB"
+            )
+    }
 
     # Ensure consistent ordering
     assembled_matrix <- assembled_matrix %>%
@@ -360,7 +368,7 @@ classify_dlbcl <- function(
         seg_data <- seg_data %>%
             as.data.table %>%
             setkey(chrom, start, end)
-        
+
         if(annotate_sv){
             sv_data <- sv_data %>%
                 annotate_sv(
