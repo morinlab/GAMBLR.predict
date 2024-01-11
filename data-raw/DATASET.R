@@ -235,7 +235,8 @@ lymphgenerator_features$CNV <- system.file(
   "extdata",
   "lymphgenerator_cnv.tsv",
   package="GAMBLR.predict") %>%
-  read_tsv
+  read_tsv %>%
+  arrange(genome_build, chromosome, start)
 
 lymphgenerator_features$SV <- system.file(
   "extdata",

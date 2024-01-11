@@ -836,9 +836,7 @@ classify_dlbcl_lymphgenerator <- function(
             dplyr::mutate(
                 feature = case_when(
                     gene == "BCL6" & partner == "MYC" ~ "MYC_BCL6",
-                    gene == "MYC" & ! partner %in% c(
-                    "IGH", "IGL", "IGK", "BCL6"
-                    ) ~ "MYC_OTHER",
+                    gene == "MYC" & ! partner  == "IGH" ~ "MYC_SV",
                     gene == "MYC" ~ paste0(gene, "_", partner),
                     TRUE ~ paste0(gene, "_SV")
                     ),
