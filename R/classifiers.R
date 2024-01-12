@@ -21,9 +21,22 @@
 #' @import dplyr readr stringr randomForest GAMBLR.data GAMBLR.helpers tidyr tibble
 #'
 #' @examples
-#' test_meta <- get_gambl_metadata(case_set="tFL-study")
-#' predictions = classify_fl(these_samples_metadata = test_meta)
-#' predictions = classify_fl(these_samples_metadata = test_meta, output = "both")
+#' meta <- GAMBLR.data::sample_data$meta %>%
+#'     filter(pathology == "FL")
+#'
+#' maf <- GAMBLR.data::get_coding_ssm(
+#'     these_samples_metadata = meta
+#' )
+#'
+#' classify_fl(
+#'     these_samples_metadata = meta,
+#'     maf_data = maf
+#' )
+#' classify_fl(
+#'     these_samples_metadata = meta,
+#'     maf_data = maf,
+#'     output = "both"
+#' )
 #'
 classify_fl <- function(
     these_samples_metadata,
