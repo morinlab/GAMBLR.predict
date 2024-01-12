@@ -1,16 +1,24 @@
 #' Classify FL samples into cFL/dFL subgroups.
 #'
-#' Use the random forest prediction model to assemble the binary matrix and use it to classify FL tummors into cFL/dFL
+#' Use the random forest prediction model to assemble the binary matrix and use
+#' it to classify FL tummors into cFL/dFL
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param model The RF model. Classifier from the paper describing cFL is used. It is not recommended to change the value of this parameter.
-#' @param this_seq_type The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR. Defaults to genome.
-#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to predictions.
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified. Required argument.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least
+#'      must contain the first 45 columns of standard MAF format. Required
+#'      argument. The maf data must be in the grch37 projection.
+#' @param matrix Optionally, if the binary feature matrix is already prepared,
+#'      it can be provided in this argument.
+#' @param output The output to be returned after prediction is done. Can be one
+#'      of predictions, matrix, or both. Defaults to predictions.
+#' @param model The RF model. Classifier from the paper describing cFL is used.
+#'      It is not recommended to change the value of this parameter. This is a
+#'      developer-only option and used for testing and functionality improvement.
 #'
-#' @return data frame with classification, binary matrix used in classification, or both
+#' @return data frame, binary matrix, or both
 #' @export
-#' @import dplyr readr stringr randomForest GAMBLR GAMBLR.data tidyr tibble
+#' @import dplyr readr stringr randomForest GAMBLR.data GAMBLR.helpers tidyr tibble
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set="tFL-study")
@@ -20,62 +28,86 @@
 classify_fl <- function(
     these_samples_metadata,
     maf_data,
-    model = RFmodel_FL,
-    this_seq_type = "genome",
-    output = "predictions"
+    matrix,
+    output = "predictions",
+    model = RFmodel_FL
 ) {
 
-    # Establish minimum required set of genes
-    req_features <- rownames(
-        model$importance
-    )
+    if(missing(matrix)){
+        if(missing(these_samples_metadata) & missing(maf_data)){
+            stop(
+                "Exiting. Provide the sample metadata and maf data."
+            )
+        }
 
-    ssm_features <- req_features[!grepl("HOTSPOT|_TSS|inKATdomain|_intronic|_intron_1", req_features)]
-    ssm_features = gsub(
-        "_",
-        "-",
-        ssm_features
-    )
-    hotspot_features <- req_features[grepl("HOTSPOT|inKATdomain", req_features)]
-    ashm_features <- req_features[grepl("_TSS|_intronic|_intron_1", req_features)]
-    ashm_features_bed <- grch37_ashm_regions %>%
-        mutate(name = paste(gene, region, sep = "-")) %>%
-        dplyr::mutate(
-            name = gsub("-", "_", name)
-        ) %>%
-        dplyr::filter(name %in% ashm_features | name %in% c("PAX5_TSS_1", "SGK1_TSS_1"))
+        # Establish minimum required set of genes
+        req_features <- rownames(
+            model$importance
+        )
 
-    req_features <- gsub(
-        "HOTSPOT|_TSS|inKATdomain|_intronic|_intron_1",
-        "",
-        req_features
-    )
-    req_features <- gsub(
-        "_",
-        "-",
-        req_features
-    )
-    req_features <- sort(
-        unique(
+        # SSM
+        pattern <- c("HOTSPOT|_TSS|inKATdomain|_intronic|_intron_1")
+        ssm_features <- req_features[!grepl(pattern, req_features)]
+        # Handle HLA gene names
+        ssm_features = gsub(
+            "_",
+            "-",
+            ssm_features
+        )
+
+        # Hotspots
+        hotspot_features <- req_features[grepl("HOTSPOT|inKATdomain", req_features)]
+
+        # aSHM
+        pattern <- c("_TSS|_intronic|_intron_1")
+        ashm_features <- req_features[grepl(pattern, req_features)]
+        ashm_features_bed <- GAMBLR.data::somatic_hypermutation_locations_GRCh37_v0.2 %>%
+            dplyr::mutate(name = paste(gene, region, sep = "_")) %>%
+            dplyr::mutate(
+                name = case_when(
+                    name == "PAX5_intron-1" ~ "PAX5_intron_1",
+                    name == "PAX5_TSS-1" ~ "PAX5_TSS",
+                    name == "SGK1_TSS-1" ~ "SGK1_TSS",
+                    TRUE ~ name
+                )
+            ) %>%
+            dplyr::filter(name %in% ashm_features) %>%
+            dplyr::mutate(
+                chrom = chr_name,
+                start = hg19_start,
+                end = hg19_end
+            ) %>%
+            dplyr::select(chrom, start, end, name) %>%
+            dplyr::mutate(
+                chrom = gsub("chr", "", chrom)
+            )
+
+
+        # Simplify gene names for all features to tabulate their mut status
+        req_features <- gsub(
+            "HOTSPOT|_TSS|inKATdomain|_intronic|_intron_1", # drop any extra info
+            "",
             req_features
         )
-    )
+        req_features <- gsub(
+            "_", # HLA gene name handling
+            "-",
+            req_features
+        )
+        req_features <- sort(
+            unique(
+                req_features
+            )
+        )
 
-    if(missing(these_samples_metadata) & missing(maf_data)){
-        stop("Exiting. Please provide the sample metadata or maf data to use in classification.")
-    }else if (missing(maf_data)){
-       message(
-            "No maf data was provided. Retreiving SSMs using GAMBLR..."
-       )
-       maf_data =  get_ssm_by_samples(
-            these_samples_metadata = these_samples_metadata,
-            seq_type = this_seq_type,
-            subset_from_merge = TRUE,
-            augmented = FALSE
-       )
-       found_samples <- length(unique(maf_data$Tumor_Sample_Barcode))
-       requested_samples <- length(unique(these_samples_metadata$sample_id))
-       if(!found_samples == requested_samples){
+        # Handle possible missing samples in maf compared to metadata
+        found_samples <- length(unique(maf_data$Tumor_Sample_Barcode))
+        requested_samples <- length(unique(these_samples_metadata$sample_id))
+        if(!found_samples == requested_samples){
+            missing_samples <- setdiff(
+                    unique(these_samples_metadata$sample_id),
+                    unique(maf_data$Tumor_Sample_Barcode)
+                )
             message(
                 paste0(
                     "Did not find SSM for all samples. Only the data for ",
@@ -84,103 +116,103 @@ classify_fl <- function(
                 )
             )
             message(
-                setdiff(
-                    unique(these_samples_metadata$sample_id),
-                    unique(maf_data$Tumor_Sample_Barcode)
+                paste(
+                    as.character(missing_samples),
+                    collapse = ", "
                 )
+            )
+            message(
+                "They will be dropped since their mutation data is not provided."
             )
             # Drop missing samples from metadata
             these_samples_metadata <- these_samples_metadata %>%
                 dplyr::filter(
                     sample_id %in% maf_data$Tumor_Sample_Barcode
                 )
-       }else{
+        }else{
             message(
-                "The SSM for all samples were found in GAMBLR. Proceeding to matrix assembling."
+                "The SSM for all samples were found in the provided data."
             )
-       }
-    }else if (missing(these_samples_metadata)){
+        }
         message(
-            "The metadata was not provided. Retreiving the metadata through GAMBLR..."
+            "Proceeding to matrix assembling..."
         )
-        these_samples_metadata <- get_gambl_metadata(seq_type_filter = this_seq_type) %>%
-            filter(sample_id %in% maf_data$Tumor_Sample_Barcode)
 
-    }else{
-        message(
-            "Using the provided metadata and maf to assemble the matrix..."
+        # Generate binary matrix for SSMs and hotspots
+        ssm_matrix <- GAMBLR.data::get_coding_ssm_status(
+            gene_symbols = ssm_features,
+            these_samples_metadata = these_samples_metadata,
+            maf_data = maf_data,
+            genes_of_interest = gsub(
+                "HOTSPOT|inKATdomain",
+                "",
+                hotspot_features
+            )
         )
-    }
 
-    # Generate binary matrix for SSMs and hotspots
-    ssm_matrix <- get_coding_ssm_status(
-        gene_symbols = ssm_features,
-        these_samples_metadata = these_samples_metadata,
-        maf_data = maf_data,
-        genes_of_interest = gsub(
-            "HOTSPOT|inKATdomain",
-            "",
-            hotspot_features
-        )
-    )
-
-    ssm_matrix <- ssm_matrix %>%
-        column_to_rownames("sample_id")
-
-    if("CREBBPHOTSPOT" %in% colnames(ssm_matrix)){
         ssm_matrix <- ssm_matrix %>%
-            dplyr::rename(
-                "CREBBPinKATdomain" = "CREBBPHOTSPOT"
+            column_to_rownames("sample_id")
+
+        if("CREBBPHOTSPOT" %in% colnames(ssm_matrix)){
+            ssm_matrix <- ssm_matrix %>%
+                dplyr::rename(
+                    "CREBBPinKATdomain" = "CREBBPHOTSPOT"
+                )
+        }
+
+
+        # Generate binary matrix for ashm
+        overlap <- GAMBLR.helpers::cool_overlaps(
+            data1 = maf_data,
+            data2 = ashm_features_bed,
+            columns2 = c("chrom", "start", "end")
+        )
+
+        ashm_matrix <- overlap %>%
+            dplyr::group_by(Tumor_Sample_Barcode, name) %>%
+            dplyr::tally() %>%
+            dplyr::ungroup() %>%
+            tidyr::pivot_wider(
+                names_from = name,
+                values_from = n
+            ) %>%
+            tibble::column_to_rownames("Tumor_Sample_Barcode") %>%
+            replace(is.na(.), 0)
+
+        # Handle possible samples with no muts
+        ashm_matrix <- complete_missing_from_matrix(
+            ashm_matrix,
+            these_samples_metadata$sample_id
+        )
+
+
+        ashm_matrix[ashm_matrix <= 5] = 0
+        ashm_matrix[ashm_matrix > 5] = 1
+
+        ashm_matrix <- check_for_missing_features(
+            ashm_matrix,
+            ashm_features
+        )
+
+
+        # Combine together the SSM, hotspots, and aSHM
+        assembled_matrix <- bind_cols(
+                ssm_matrix,
+                ashm_matrix
             )
+
+            # Check for missing features
+        assembled_matrix <- check_for_missing_features(
+            assembled_matrix,
+            c(
+                ssm_features,
+                hotspot_features,
+                ashm_features
+            )
+        )
+    }else{
+        assembled_matrix <- matrix
     }
-
-
-    # Generate binary matrix for ashm
-    ashm_matrix <- get_ashm_count_matrix(
-        ashm_features_bed,
-        maf_data = maf_data,
-        these_samples_metadata = these_samples_metadata,
-        seq_type = this_seq_type
-    )
-
-    ashm_matrix[ashm_matrix<=5] = 0
-    ashm_matrix[ashm_matrix>5] = 1
-
-    if("SGK1_TSS_1" %in% colnames(ashm_matrix)){
-        ashm_matrix <- ashm_matrix %>%
-        rename(
-            "SGK1_TSS" = "SGK1_TSS_1"
-        )
-    }
-
-    if("PAX5_TSS_1" %in% colnames(ashm_matrix)){
-        ashm_matrix <- ashm_matrix %>%
-        rename(
-            "PAX5_TSS" = "PAX5_TSS_1"
-        )
-    }
-
-    ashm_matrix <- check_for_missing_features(
-        ashm_matrix,
-        ashm_features
-    )
-
-
-    # Combine together the SSM, hotspots, and aSHM
-    assembled_matrix <- bind_cols(
-            ssm_matrix,
-            ashm_matrix
-        )
-
-    # Check for missing features
-    assembled_matrix <- check_for_missing_features(
-        assembled_matrix,
-        c(
-          ssm_features,
-          hotspot_features,
-          ashm_features
-        )
-    )
 
     if("HLA-DMB" %in% colnames(assembled_matrix)){
         assembled_matrix <- assembled_matrix %>%
@@ -201,7 +233,7 @@ classify_fl <- function(
     prediction <- predict(
         model,
         assembled_matrix,
-        type="Vote"
+        type = "Vote"
     )
 
     prediction <- bind_cols(
@@ -215,20 +247,21 @@ classify_fl <- function(
         ) %>%
     rownames_to_column("sample_id")
 
-    if(output=="predictions"){
+    if(output == "predictions"){
         return(prediction)
-    }else if (output=="matrix") {
+    }else if (output == "matrix") {
        return(assembled_matrix)
-    }else if(output=="both"){
+    }else if(output == "both"){
         return(
             list(
                 predictions = prediction,
                 matrix = assembled_matrix)
         )
     }else{
-        stop("Invalid output type. Please specify predictions, matrix, or both.")
+        stop(
+            "Invalid output type. Please specify predictions, matrix, or both."
+        )
     }
-
 
 }
 
