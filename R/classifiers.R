@@ -53,6 +53,13 @@ classify_fl <- function(
             )
         }
 
+        # Ensure maf data has correct formatting
+        maf_data <- maf_data %>%
+            dplyr::mutate(
+                Start_Position = as.numeric(Start_Position),
+                End_Position = as.numeric(End_Position)
+            )
+
         # Establish minimum required set of genes
         req_features <- rownames(
             model$importance
