@@ -18,7 +18,7 @@
 #'
 #' @return data frame, binary matrix, or both
 #' @export
-#' @import dplyr readr stringr randomForest GAMBLR.data GAMBLR.helpers tidyr tibble
+#' @import dplyr readr stringr randomForest GAMBLR.data tidyr tibble
 #'
 #' @examples
 #' meta <- GAMBLR.data::sample_data$meta %>%
@@ -182,7 +182,7 @@ classify_fl <- function(
 
 
         # Generate binary matrix for ashm
-        overlap <- GAMBLR.helpers::cool_overlaps(
+        overlap <- GAMBLR.data::cool_overlaps(
             data1 = maf_data,
             data2 = ashm_features_bed,
             columns2 = c("chrom", "start", "end")
