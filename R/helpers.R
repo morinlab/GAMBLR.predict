@@ -58,7 +58,7 @@ check_for_missing_features <- function(
 #' @param projection The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @return data frame with classification, binary matrix used in classification, or both
-#' @import data.table dplyr readr
+#' @import dplyr readr GAMBLR.data
 #'
 classify_dlbcl_chapuy <- function(
     these_samples_metadata,
@@ -144,9 +144,7 @@ classify_dlbcl_chapuy <- function(
                 chapuy_features$cnv_features_arm,
                 .,
                 by="arm"
-            ) %>%
-        as.data.table %>%
-        setkey(chromosome, start, end)
+            )
 
     # Next, the cytoband features
     cnv_features_cytoband <- cytoband_coordinates %>%
@@ -154,22 +152,22 @@ classify_dlbcl_chapuy <- function(
                 chapuy_features$cnv_features_cytoband,
                 .,
                 by="cytoband"
-            ) %>%
-        as.data.table %>%
-        setkey(chr, start, end)
+            )
 
-    cnv_arms <- foverlaps(
+    cnv_arms <- cool_overlaps(
           seg_data,
           cnv_features_arm,
-          nomatch = 0
+          columns1 = c("chrom", "start", "end"),
+          columns2 = c("chromosome", "start", "end")
         ) %>%
         dplyr::select(sample, arm, CNV, log.ratio) %>%
         dplyr::rename("feature"="arm")
 
-    cnv_cytobands <-  foverlaps(
+    cnv_cytobands <-  cool_overlaps(
           seg_data,
           cnv_features_cytoband,
-          nomatch = 0
+          columns1 = c("chrom", "start", "end"),
+          columns2 = c("chr", "start", "end")
         ) %>%
         select(sample, cytoband, CNV, log.ratio) %>%
         rename("feature"="cytoband")
@@ -360,7 +358,7 @@ classify_dlbcl_chapuy <- function(
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to N1 group as described in Runge et al (2021). Defaults to FALSE.
 #' @return data frame with classification, binary matrix used in classification, or both
-#' @import data.table randomForest dplyr readr
+#' @import randomForest dplyr readr
 #'
 classify_dlbcl_lacy <- function(
     these_samples_metadata,
@@ -500,16 +498,11 @@ classify_dlbcl_lacy <- function(
             .,
             by=c("Gene"="gene_name")
         ) %>%
-        as.data.table %>%
-        setkey(
-            chromosome,
-            start,
-            end
-        ) %>%
-        foverlaps(
+        cool_overlaps(
             seg_data,
             .,
-            nomatch = 0
+            columns1 = c("chrom", "start", "end"),
+            columns2 = c("chromosome", "start", "end")
         ) %>%
         dplyr::mutate(
             CN = 2*2^log.ratio,
@@ -517,12 +510,7 @@ classify_dlbcl_lacy <- function(
         ) %>%
         # drop neutrals
         dplyr::filter(
-            !data.table::between(
-                CN,
-                1,
-                6,
-                incbounds = FALSE
-            )
+            !(CN > 1 & CN < 6)
         ) %>%
         # ensure the same direction
         dplyr::filter(
@@ -737,7 +725,7 @@ classify_dlbcl_lacy <- function(
 #' @param output The output to be returned. Currently only matrix is supported.
 #' @param drop_after_flattening Boolean on whether to remove features (rows) after flattening. Defaults to FALSE.
 #' @return binary matrix
-#' @import data.table GAMBLR dplyr readr tibble
+#' @import GAMBLR dplyr readr tibble
 #'
 classify_dlbcl_lymphgenerator <- function(
 	these_samples_metadata,
@@ -769,10 +757,7 @@ classify_dlbcl_lymphgenerator <- function(
             dplyr::filter(
                 genome_build == projection
             ) %>%
-            dplyr::select(chromosome, start, end, symbol, direction) %>%
-            as.data.table()
-
-        setkey(oncogenes_bed, chromosome, start, end)
+            dplyr::select(chromosome, start, end, symbol, direction)
 
         # drop low-level events
         seg_data <- seg_data %>%
@@ -785,15 +770,15 @@ classify_dlbcl_lymphgenerator <- function(
             dplyr::filter(
                 abs(log.ratio) > 0.56 &
                 !CN %in% c(1, 2, 3)
-            ) %>%
-            as.data.table()
-
-        setkey(seg_data, chrom, start, end)
+            )
 
         # Generate the CNV matrix
-        matrix$cnv <- foverlaps(
+        matrix$cnv <- cool_overlaps(
             oncogenes_bed,
-            seg_data
+            seg_data,
+            nomatch = TRUE,
+            columns1 = c("chromosome", "start", "end"),
+            columns2 = c("chrom", "start", "end")
         ) %>%
         dplyr::rename("Tumor_Sample_Barcode" = "sample") %>%
         dplyr::select(Tumor_Sample_Barcode, symbol, CN, direction) %>%

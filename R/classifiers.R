@@ -309,7 +309,7 @@ classify_fl <- function(
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import data.table dplyr readr
+#' @import dplyr readr
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set = "DLBCL-unembargoed")
@@ -419,8 +419,7 @@ classify_dlbcl <- function(
         }
 
         seg_data <- seg_data %>%
-            as.data.table %>%
-            setkey(chrom, start, end)
+            as.data.frame
 
         if(annotate_sv){
             sv_data <- sv_data %>%

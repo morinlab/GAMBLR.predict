@@ -20,7 +20,6 @@ Depends:
     R (>= 2.10)
 LazyData: true
 Imports:
-    data.table,
     dplyr,
     GAMBLR (>= 0.0.0.9500),
     GAMBLR.data (>= 0.1),
