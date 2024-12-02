@@ -27,7 +27,6 @@ Imports:
     GAMBLR.data (>= 0.1),
     randomForest,
     readr,
-    stringr,
     tibble,
     tidyr,
     tidyselect

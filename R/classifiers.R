@@ -18,7 +18,7 @@
 #'
 #' @return data frame, binary matrix, or both
 #' @export
-#' @import dplyr readr stringr randomForest GAMBLR.data tidyr tibble
+#' @import dplyr readr randomForest GAMBLR.data tidyr tibble
 #'
 #' @examples
 #' meta <- GAMBLR.data::sample_data$meta %>%
@@ -309,7 +309,7 @@ classify_fl <- function(
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import data.table circlize dplyr readr stringr
+#' @import data.table circlize dplyr readr
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set = "DLBCL-unembargoed")
@@ -788,7 +788,7 @@ complete_missing_from_matrix = function(
 #'
 #' @return A matrix compatible with NMF input.
 #' @export
-#' @import dplyr stringr
+#' @import dplyr
 #'
 #' @examples
 #' data = system.file("extdata", "sample_matrix.tsv", package = "GAMBLR.predict") %>% read_tsv() %>% column_to_rownames("Feature")

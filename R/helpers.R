@@ -58,7 +58,7 @@ check_for_missing_features <- function(
 #' @param projection The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @return data frame with classification, binary matrix used in classification, or both
-#' @import data.table circlize dplyr readr stringr
+#' @import data.table circlize dplyr readr
 #'
 classify_dlbcl_chapuy <- function(
     these_samples_metadata,
@@ -360,7 +360,7 @@ classify_dlbcl_chapuy <- function(
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to N1 group as described in Runge et al (2021). Defaults to FALSE.
 #' @return data frame with classification, binary matrix used in classification, or both
-#' @import data.table randomForest dplyr readr stringr
+#' @import data.table randomForest dplyr readr
 #'
 classify_dlbcl_lacy <- function(
     these_samples_metadata,
@@ -669,9 +669,9 @@ classify_dlbcl_lacy <- function(
             Hugo_Symbol=="NOTCH1"
           ) %>%
           dplyr::filter(
-            str_detect(
-              Variant_Classification,
-              "Frame_Shift"
+            grepl(
+              "Frame_Shift",
+              Variant_Classification
             )
           )  %>%
           pull(
@@ -737,7 +737,7 @@ classify_dlbcl_lacy <- function(
 #' @param output The output to be returned. Currently only matrix is supported.
 #' @param drop_after_flattening Boolean on whether to remove features (rows) after flattening. Defaults to FALSE.
 #' @return binary matrix
-#' @import data.table GAMBLR dplyr readr stringr tibble
+#' @import data.table GAMBLR dplyr readr tibble
 #'
 classify_dlbcl_lymphgenerator <- function(
 	these_samples_metadata,
