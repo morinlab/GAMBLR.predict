@@ -55,7 +55,7 @@ check_for_missing_features <- function(
 #' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
 #' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
 #' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
+#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @import dplyr readr GAMBLR.data
@@ -84,7 +84,7 @@ classify_dlbcl_chapuy <- function(
         dplyr::filter(
           Variant_Classification %in% c(
             "Silent",
-            GAMBLR:::coding_class
+            GAMBLR.data:::coding_class
         )) %>%
         dplyr::select(
             Tumor_Sample_Barcode,
@@ -120,14 +120,14 @@ classify_dlbcl_chapuy <- function(
 
     # CNV matrix
     if(projection=="grch37"){
-        arm_coordinates <- GAMBLR::chromosome_arms_grch37
+        arm_coordinates <- GAMBLR.data::chromosome_arms_grch37
         cytoband_coordinates <- cytobands_grch37 %>%
             `names<-`(c("chr", "start", "end", "cytoband", "extra")) %>%
             dplyr::mutate(chr = gsub("chr", "", chr)) %>%
             dplyr::mutate(cytoband=paste0(chr,cytoband)) %>%
             dplyr::select(-extra)
     }else{
-        arm_coordinates <- GAMBLR::chromosome_arms_hg38
+        arm_coordinates <- GAMBLR.data::chromosome_arms_hg38
         cytoband_coordinates <- cytobands_hg38 %>%
             `names<-`(c("chr", "start", "end", "cytoband", "extra")) %>%
             dplyr::mutate(cytoband=paste0(chr,cytoband)) %>%
@@ -354,7 +354,7 @@ classify_dlbcl_chapuy <- function(
 #' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
 #' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
 #' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
+#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to N1 group as described in Runge et al (2021). Defaults to FALSE.
 #' @return data frame with classification, binary matrix used in classification, or both
@@ -721,11 +721,11 @@ classify_dlbcl_lacy <- function(
 #' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
 #' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments. Must be already adjusted for ploidy.
 #' @param seq_type String of the seq type for the sample set.
-#' @param projection String of projection of the samples. Only used to retrieve data through GAMBLR when it is not provided. Defaults to grch37.
+#' @param projection String of projection of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to grch37.
 #' @param output The output to be returned. Currently only matrix is supported.
 #' @param drop_after_flattening Boolean on whether to remove features (rows) after flattening. Defaults to FALSE.
 #' @return binary matrix
-#' @import GAMBLR dplyr readr tibble
+#' @import GAMBLR.data dplyr readr tibble
 #'
 classify_dlbcl_lymphgenerator <- function(
 	these_samples_metadata,

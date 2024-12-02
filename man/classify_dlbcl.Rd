@@ -29,9 +29,9 @@ classify_dlbcl(
 
 \item{sv_data}{The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.}
 
-\item{this_seq_type}{The seq_type of the samples. Only used to retrieve data through GAMBLR when it is not provided. Defaults to genome.}
+\item{this_seq_type}{The seq_type of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to genome.}
 
-\item{projection}{The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.}
+\item{projection}{The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.}
 
 \item{output}{The output to be returned after the prediction is done. Can be one of predictions, matrix, or both. Defaults to both.}
 
@@ -45,11 +45,11 @@ classify_dlbcl(
 data frame with classification, binary matrix used in classification, or both
 }
 \description{
-Using the user-provided or GAMBLR-retrieved data, this function will assemble the matrix according to the approach of
+Using the user-provided or GAMBLR.data-retrieved data, this function will assemble the matrix according to the approach of
 Chapuy et al (2018) or Lacy et al (2020) classifiers. Since neither of this classifiers is publicly released, we have implemented a solution
 that closely (> 92\% accuracy) recapitulates each of these systems. For the classifier of Chapuy et al, the constructed matrix will be
 used to calculate class probability using the bundled feature weights obtained from our reproduction of the classifier. For the Lacy et al
-classifier, the matrix will be used for prediction of random forest model, which is supplied with the GAMBLR package. Following the modification
+classifier, the matrix will be used for prediction of random forest model, which is supplied with the GAMBLR.predict package. Following the modification
 of Lacy classifier described in Runge et al (PMID 33010029), specifying the method of this function as hmrn will also consider
 truncating mutations in NOTCH1 for the separate N1 subgroup.
 }

@@ -26,7 +26,7 @@ classify_dlbcl_lymphgenerator(
 
 \item{seq_type}{String of the seq type for the sample set.}
 
-\item{projection}{String of projection of the samples. Only used to retrieve data through GAMBLR when it is not provided. Defaults to grch37.}
+\item{projection}{String of projection of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to grch37.}
 
 \item{output}{The output to be returned. Currently only matrix is supported.}
 

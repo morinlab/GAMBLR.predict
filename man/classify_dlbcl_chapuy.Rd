@@ -22,7 +22,7 @@ classify_dlbcl_chapuy(
 
 \item{sv_data}{The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.}
 
-\item{projection}{The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.}
+\item{projection}{The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.}
 
 \item{output}{The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.}
 }

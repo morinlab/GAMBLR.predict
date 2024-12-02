@@ -21,7 +21,6 @@ Depends:
 LazyData: true
 Imports:
     dplyr,
-    GAMBLR (>= 0.0.0.9500),
     GAMBLR.data (>= 0.1),
     randomForest,
     readr,
