@@ -309,7 +309,7 @@ classify_fl <- function(
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import data.table circlize dplyr readr
+#' @import data.table dplyr readr
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set = "DLBCL-unembargoed")

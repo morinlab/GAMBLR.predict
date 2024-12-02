@@ -58,7 +58,7 @@ check_for_missing_features <- function(
 #' @param projection The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @return data frame with classification, binary matrix used in classification, or both
-#' @import data.table circlize dplyr readr
+#' @import data.table dplyr readr
 #'
 classify_dlbcl_chapuy <- function(
     these_samples_metadata,
@@ -121,14 +121,14 @@ classify_dlbcl_chapuy <- function(
     # CNV matrix
     if(projection=="grch37"){
         arm_coordinates <- GAMBLR::chromosome_arms_grch37
-        cytoband_coordinates <- circlize::read.cytoband(species = "hg19")$df %>%
+        cytoband_coordinates <- cytobands_grch37 %>%
             `names<-`(c("chr", "start", "end", "cytoband", "extra")) %>%
             dplyr::mutate(chr = gsub("chr", "", chr)) %>%
             dplyr::mutate(cytoband=paste0(chr,cytoband)) %>%
             dplyr::select(-extra)
     }else{
         arm_coordinates <- GAMBLR::chromosome_arms_hg38
-        cytoband_coordinates <- circlize::read.cytoband(species = "hg38")$df %>%
+        cytoband_coordinates <- cytobands_hg38 %>%
             `names<-`(c("chr", "start", "end", "cytoband", "extra")) %>%
             dplyr::mutate(cytoband=paste0(chr,cytoband)) %>%
             dplyr::select(-extra)
