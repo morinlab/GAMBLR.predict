@@ -18,7 +18,8 @@
 #'
 #' @return data frame, binary matrix, or both
 #' @export
-#' @import dplyr readr randomForest GAMBLR.data tidyr tibble
+#' @rawNamespace import(randomForest, except = c("combine"))
+#' @import dplyr readr GAMBLR.data tidyr tibble
 #'
 #' @examples
 #' meta <- GAMBLR.data::sample_data$meta %>%
@@ -503,7 +504,8 @@ classify_dlbcl <- function(
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import dplyr randomForest GAMBLR.data tidyr tibble
+#' @rawNamespace import(randomForest, except = c("combine"))
+#' @import dplyr GAMBLR.data tidyr tibble
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set = "BL-DLBCL-manuscript-HTMCP")

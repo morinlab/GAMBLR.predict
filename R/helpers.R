@@ -358,7 +358,8 @@ classify_dlbcl_chapuy <- function(
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to N1 group as described in Runge et al (2021). Defaults to FALSE.
 #' @return data frame with classification, binary matrix used in classification, or both
-#' @import randomForest dplyr readr
+#' @rawNamespace import(randomForest, except = c("combine"))
+#' @import dplyr readr
 #'
 classify_dlbcl_lacy <- function(
     these_samples_metadata,
