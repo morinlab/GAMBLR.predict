@@ -1,0 +1,49 @@
+name: GAMBLR.predict build check
+
+on:
+  pull_request:
+    branches: [master]
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Conda
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.11
+
+    - name: Create conda environment
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        activate-environment: r
+        channels: anaconda,conda-forge,defaults
+        python-version: 3.11
+        auto-activate-base: false
+        environment-file: envs/r.yaml
+
+    - name: Build package
+      run:
+        Rscript -e "devtools::install()"
+
+    - name: Check package
+      run:
+        Rscript -e "devtools::check(vignettes = FALSE, args = '--no-examples')"
+
+    - name: Upload check results
+      if: failure()
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ runner.os }}-r${{ matrix.config.r }}-results
+        path: check

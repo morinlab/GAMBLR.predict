@@ -18,7 +18,8 @@
 #'
 #' @return data frame, binary matrix, or both
 #' @export
-#' @import dplyr readr stringr randomForest GAMBLR.data tidyr tibble
+#' @rawNamespace import(randomForest, except = c("combine"))
+#' @import dplyr readr GAMBLR.data tidyr tibble
 #'
 #' @examples
 #' meta <- GAMBLR.data::sample_data$meta %>%
@@ -132,7 +133,7 @@ classify_fl <- function(
                 paste0(
                     "Did not find SSM for all samples. Only the data for ",
                     found_samples,
-                    " was available through GAMBLR. The missing samples are: "
+                    " was available through GAMBLR.data. The missing samples are: "
                 )
             )
             message(
@@ -287,11 +288,11 @@ classify_fl <- function(
 
 #' Classify DLBCLs according to genetic subgroups.
 #'
-#' Using the user-provided or GAMBLR-retrieved data, this function will assemble the matrix according to the approach of
+#' Using the user-provided or GAMBLR.data-retrieved data, this function will assemble the matrix according to the approach of
 #' Chapuy et al (2018) or Lacy et al (2020) classifiers. Since neither of this classifiers is publicly released, we have implemented a solution
 #' that closely (> 92% accuracy) recapitulates each of these systems. For the classifier of Chapuy et al, the constructed matrix will be
 #' used to calculate class probability using the bundled feature weights obtained from our reproduction of the classifier. For the Lacy et al
-#' classifier, the matrix will be used for prediction of random forest model, which is supplied with the GAMBLR package. Following the modification
+#' classifier, the matrix will be used for prediction of random forest model, which is supplied with the GAMBLR.predict package. Following the modification
 #' of Lacy classifier described in Runge et al (PMID 33010029), specifying the method of this function as hmrn will also consider
 #' truncating mutations in NOTCH1 for the separate N1 subgroup.
 #'
@@ -300,8 +301,8 @@ classify_fl <- function(
 #' @param only_maf_data Whether to restrict matrix generation to maf data only. Only supported in the lymphgenerator mode. Default is FALSE (use SV and CNV).
 #' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
 #' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param this_seq_type The seq_type of the samples. Only used to retrieve data through GAMBLR when it is not provided. Defaults to genome.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR when it is not provided. Defaults to grch37.
+#' @param this_seq_type The seq_type of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to genome.
+#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
 #' @param output The output to be returned after the prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @param method Classification method. One of chapuy (used as default), lacy, or hmrn.
 #' @param adjust_ploidy Whether to perform ploidy adjustment for the CNV data. Defaults to TRUE (recommended).
@@ -309,7 +310,7 @@ classify_fl <- function(
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import data.table circlize dplyr readr stringr
+#' @import dplyr readr
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set = "DLBCL-unembargoed")
@@ -419,8 +420,7 @@ classify_dlbcl <- function(
         }
 
         seg_data <- seg_data %>%
-            as.data.table %>%
-            setkey(chrom, start, end)
+            as.data.frame
 
         if(annotate_sv){
             sv_data <- sv_data %>%
@@ -497,14 +497,15 @@ classify_dlbcl <- function(
 #'
 #' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
 #' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param this_seq_type The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR. Defaults to genome.
+#' @param this_seq_type The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR.data. Defaults to genome.
 #' @param projection The projection of the samples. Defaults to grch37.
 #' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
 #' @param ashm_cutoff Numeric value indicating number of mutations for binarizing aSHM feature. Recommended to use the default value (3).
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
-#' @import dplyr randomForest GAMBLR GAMBLR.data tidyr tibble
+#' @rawNamespace import(randomForest, except = c("combine"))
+#' @import dplyr GAMBLR.data tidyr tibble
 #'
 #' @examples
 #' test_meta <- get_gambl_metadata(case_set = "BL-DLBCL-manuscript-HTMCP")
@@ -788,7 +789,7 @@ complete_missing_from_matrix = function(
 #'
 #' @return A matrix compatible with NMF input.
 #' @export
-#' @import dplyr stringr
+#' @import dplyr
 #'
 #' @examples
 #' data = system.file("extdata", "sample_matrix.tsv", package = "GAMBLR.predict") %>% read_tsv() %>% column_to_rownames("Feature")

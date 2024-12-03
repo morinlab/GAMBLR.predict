@@ -18,7 +18,7 @@ classify_bl(
 
 \item{maf_data}{The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.}
 
-\item{this_seq_type}{The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR. Defaults to genome.}
+\item{this_seq_type}{The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR.data. Defaults to genome.}
 
 \item{projection}{The projection of the samples. Defaults to grch37.}
 
