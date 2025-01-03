@@ -395,8 +395,7 @@ classify_dlbcl <- function(
         message("Will retreive segments available through GAMBL.")
 
         seg_data = get_sample_cn_segments(
-            sample_list = these_samples_metadata$sample_id,
-            multiple_samples = TRUE,
+            these_samples_metadata = these_samples_metadata,
             projection = projection)
     }
 
