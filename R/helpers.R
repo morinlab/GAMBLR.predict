@@ -726,7 +726,7 @@ classify_dlbcl_lacy <- function(
 #' @param output The output to be returned. Currently only matrix is supported.
 #' @param drop_after_flattening Boolean on whether to remove features (rows) after flattening. Defaults to FALSE.
 #' @return binary matrix
-#' @import GAMBLR.data dplyr readr tibble
+#' @import GAMBLR.data dplyr readr tibble GAMBLR.helpers
 #'
 classify_dlbcl_lymphgenerator <- function(
 	these_samples_metadata,
