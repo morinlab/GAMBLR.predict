@@ -1,6 +1,6 @@
 Package: GAMBLR.predict
 Title: ML functionality for classification of B-cell lymphomas
-Version: 1.0
+Version: 1.1
 Authors@R:
     person(
         given = "Kostiantyn",
