@@ -160,7 +160,7 @@ classify_fl <- function(
         )
 
         # Generate binary matrix for SSMs and hotspots
-        ssm_matrix <- GAMBLR.data::get_coding_ssm_status(
+        ssm_matrix <- tabulate_ssm_status(
             gene_symbols = ssm_features,
             these_samples_metadata = these_samples_metadata,
             maf_data = maf_data,
