@@ -1,6 +1,6 @@
 Package: GAMBLR.predict
 Title: ML functionality for classification of B-cell lymphomas
-Version: 1.0
+Version: 1.1
 Authors@R:
     person(
         given = "Kostiantyn",
@@ -15,13 +15,14 @@ Description: Collection of functions and helpers to classify different B-cell ly
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 Depends:
     R (>= 3.5.0)
 LazyData: true
 Imports:
     dplyr,
-    GAMBLR.data (>= 0.1),
+    GAMBLR.data (>= 1.3),
+    GAMBLR.helpers (>= 1.3),
     randomForest,
     readr,
     tibble,
@@ -29,4 +30,4 @@ Imports:
     tidyselect
 Remotes:
     morinlab/GAMBLR.data,
-    morinlab/GAMBLR
+    morinlab/GAMBLR.helpers

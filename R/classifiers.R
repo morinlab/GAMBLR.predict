@@ -19,7 +19,7 @@
 #' @return data frame, binary matrix, or both
 #' @export
 #' @rawNamespace import(randomForest, except = c("combine"))
-#' @import dplyr readr GAMBLR.data tidyr tibble
+#' @import dplyr readr GAMBLR.data tidyr tibble GAMBLR.helpers
 #'
 #' @examples
 #' meta <- GAMBLR.data::sample_data$meta %>%
@@ -160,7 +160,7 @@ classify_fl <- function(
         )
 
         # Generate binary matrix for SSMs and hotspots
-        ssm_matrix <- GAMBLR.data::get_coding_ssm_status(
+        ssm_matrix <- tabulate_ssm_status(
             gene_symbols = ssm_features,
             these_samples_metadata = these_samples_metadata,
             maf_data = maf_data,
@@ -183,7 +183,7 @@ classify_fl <- function(
 
 
         # Generate binary matrix for ashm
-        overlap <- GAMBLR.data::cool_overlaps(
+        overlap <- cool_overlaps(
             data1 = maf_data,
             data2 = ashm_features_bed,
             columns2 = c("chrom", "start", "end")
