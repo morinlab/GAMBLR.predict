@@ -223,10 +223,9 @@ classify_fl <- function(
 
 
         # Combine together the SSM, hotspots, and aSHM
-        assembled_matrix <- bind_cols(
-                ssm_matrix,
-                ashm_matrix
-            )
+        assembled_matrix <- rownames_to_column(ssm_matrix, "sample_id") %>%
+            left_join(ashm_matrix %>% rownames_to_column("sample_id"), by = "sample_id") %>%
+            column_to_rownames("sample_id")
 
             # Check for missing features
         assembled_matrix <- check_for_missing_features(
