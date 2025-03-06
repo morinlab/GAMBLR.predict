@@ -54,6 +54,11 @@ classify_fl <- function(
             )
         }
 
+        # Ensure maf is in grch37 genome build
+        maf_build = unique(maf_data$NCBI_Build)
+        if(maf_build != "GRCh37"){
+            stop("The provided maf data must be in the grch37 projection.")
+        }
         # Ensure maf data has correct formatting
         maf_data <- maf_data %>%
             dplyr::mutate(
@@ -133,7 +138,7 @@ classify_fl <- function(
                 paste0(
                     "Did not find SSM for all samples. Only the data for ",
                     found_samples,
-                    " was available through GAMBLR.data. The missing samples are: "
+                    " was available in the maf. The missing samples are: "
                 )
             )
             message(
@@ -164,6 +169,7 @@ classify_fl <- function(
             gene_symbols = ssm_features,
             these_samples_metadata = these_samples_metadata,
             maf_data = maf_data,
+            genome_build = "grch37",
             genes_of_interest = gsub(
                 "HOTSPOT|inKATdomain",
                 "",
@@ -217,10 +223,9 @@ classify_fl <- function(
 
 
         # Combine together the SSM, hotspots, and aSHM
-        assembled_matrix <- bind_cols(
-                ssm_matrix,
-                ashm_matrix
-            )
+        assembled_matrix <- rownames_to_column(ssm_matrix, "sample_id") %>%
+            left_join(ashm_matrix %>% rownames_to_column("sample_id"), by = "sample_id") %>%
+            column_to_rownames("sample_id")
 
             # Check for missing features
         assembled_matrix <- check_for_missing_features(
