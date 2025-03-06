@@ -169,7 +169,7 @@ classify_fl <- function(
             gene_symbols = ssm_features,
             these_samples_metadata = these_samples_metadata,
             maf_data = maf_data,
-            genome_build = "grch37"
+            genome_build = "grch37",
             genes_of_interest = gsub(
                 "HOTSPOT|inKATdomain",
                 "",
