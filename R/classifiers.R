@@ -340,11 +340,12 @@ classify_dlbcl <- function(
     # If no metadata is provided, just get all DLBCLs
     if(missing(these_samples_metadata)){
         message("No metadata is provided.")
-        message("Will retreive metadata for all DLBCL genomes in GAMBL.")
-        these_samples_metadata <- get_gambl_metadata(
-            seq_type_filter = this_seq_type
-        ) %>%
-        dplyr::filter(pathology == "DLBCL")
+        stop(
+            "Please provide sample metadata."
+        )
+    }else{
+        these_samples_metadata <- these_samples_metadata %>%
+            dplyr::filter(pathology == "DLBCL")
     }
 
     # If no maf data is provided, get the SSMs from GAMBL
@@ -527,11 +528,12 @@ classify_bl <- function(
     # If no metadata is provided, just get all BLs
     if(missing(these_samples_metadata)){
         message("No metadata is provided.")
-        message("Will retreive metadata for all BL genomes in GAMBL.")
-        these_samples_metadata <- get_gambl_metadata(
-            seq_type_filter = this_seq_type
-        ) %>%
-        dplyr::filter(pathology == "BL")
+        stop(
+            "Please provide sample metadata."
+        )
+    }else{
+        these_samples_metadata <- these_samples_metadata %>%
+            dplyr::filter(pathology == "BL")
     }
 
 
