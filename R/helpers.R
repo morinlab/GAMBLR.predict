@@ -1270,7 +1270,9 @@ tabulate_ssm_status = function(
     }
 
     if(missing(these_samples_metadata)){
-        these_samples_metadata <- get_gambl_metadata()
+        stop(
+            "Please provide sample metadata."
+        )
     }
 
     coding_var <- c(
