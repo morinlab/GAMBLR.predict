@@ -14,11 +14,14 @@ classify_fl(
 }
 \arguments{
 \item{these_samples_metadata}{The metadata data frame that contains sample_id
-column with ids for the samples to be classified. Required argument.}
+column with ids for the samples to be classified. Required input.}
 
-\item{maf_data}{The MAF data frame to be used for matrix assembling. At least
-must contain the first 45 columns of standard MAF format. Required
-argument. The maf data must be in the grch37 projection.}
+\item{maf_data}{The MAF data frame to be used for matrix assembling. The maf
+data must be in the grch37 projection. The \code{chr} prefix is discarded if
+present. Any maf columns can be provided, but the required are "Hugo_Symbol",
+"NCBI_Build", "Chromosome", "Start_Position", "End_Position",
+"Variant_Classification", "HGVSp_Short", and "Tumor_Sample_Barcode".
+Required input.}
 
 \item{matrix}{Optionally, if the binary feature matrix is already prepared,
 it can be provided in this argument.}
@@ -38,11 +41,12 @@ Use the random forest prediction model to assemble the binary matrix and use
 it to classify FL tummors into cFL/dFL
 }
 \examples{
-meta <- GAMBLR.data::sample_data$meta \%>\%
+meta <- get_gambl_metadata() \%>\%
     filter(pathology == "FL")
 
-maf <- GAMBLR.data::get_coding_ssm(
-    these_samples_metadata = meta
+maf <- get_coding_ssm(
+    these_samples_metadata = meta,
+    tool_name = "publication"
 )
 
 classify_fl(

@@ -4,10 +4,13 @@
 #' it to classify FL tummors into cFL/dFL
 #'
 #' @param these_samples_metadata The metadata data frame that contains sample_id
-#'      column with ids for the samples to be classified. Required argument.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least
-#'      must contain the first 45 columns of standard MAF format. Required
-#'      argument. The maf data must be in the grch37 projection.
+#'      column with ids for the samples to be classified. Required input.
+#' @param maf_data The MAF data frame to be used for matrix assembling. The maf
+#'      data must be in the grch37 projection. The `chr` prefix is discarded if
+#'      present. Any maf columns can be provided, but the required are "Hugo_Symbol",
+#'      "NCBI_Build", "Chromosome", "Start_Position", "End_Position",
+#'      "Variant_Classification", "HGVSp_Short", and "Tumor_Sample_Barcode".
+#'      Required input.
 #' @param matrix Optionally, if the binary feature matrix is already prepared,
 #'      it can be provided in this argument.
 #' @param output The output to be returned after prediction is done. Can be one
@@ -22,11 +25,12 @@
 #' @import dplyr readr GAMBLR.data tidyr tibble GAMBLR.helpers
 #'
 #' @examples
-#' meta <- GAMBLR.data::sample_data$meta %>%
+#' meta <- get_gambl_metadata() %>%
 #'     filter(pathology == "FL")
 #'
-#' maf <- GAMBLR.data::get_coding_ssm(
-#'     these_samples_metadata = meta
+#' maf <- get_coding_ssm(
+#'     these_samples_metadata = meta,
+#'     tool_name = "publication"
 #' )
 #'
 #' classify_fl(
@@ -55,15 +59,37 @@ classify_fl <- function(
         }
 
         # Ensure maf is in grch37 genome build
-        maf_build = unique(maf_data$NCBI_Build)
+        maf_build <- unique(maf_data$NCBI_Build)
         if(maf_build != "GRCh37"){
             stop("The provided maf data must be in the grch37 projection.")
         }
         # Ensure maf data has correct formatting
+        min_req_columns <- c(
+            "Hugo_Symbol", "NCBI_Build",
+            "Chromosome", "Start_Position", "End_Position",
+            "Variant_Classification", "HGVSp_Short",
+            "Tumor_Sample_Barcode"
+        )
+        columns_not_present <- setdiff(
+            min_req_columns,
+            colnames(maf_data)
+        )
+        if(length(columns_not_present) > 0){
+            message("The provided maf data is missing required columns")
+            stop(
+                "The columns not present in maf are: ",
+                paste0(columns_not_present, collapse=",")
+            )
+        }
         maf_data <- maf_data %>%
             dplyr::mutate(
                 Start_Position = as.numeric(Start_Position),
                 End_Position = as.numeric(End_Position)
+            )
+        # Ensure chr prefix is handled for edge cases
+        maf_data <- maf_data %>%
+            dplyr::mutate(
+                Chromosome = gsub("chr", "", Chromosome)
             )
 
         # Establish minimum required set of genes
