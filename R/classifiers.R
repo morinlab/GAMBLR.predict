@@ -351,13 +351,8 @@ classify_dlbcl <- function(
     # If no maf data is provided, get the SSMs from GAMBL
     if(missing(maf_data)){
         message("No maf data is provided.")
-        message("Retreiving the mutations data from GAMBL...")
-        maf_data =  get_ssm_by_samples(
-            these_samples_metadata = these_samples_metadata,
-            seq_type = this_seq_type,
-            projection = projection,
-            subset_from_merge = TRUE,
-            augmented = FALSE
+        stop(
+            "Please provide SSM data in standard maf format."
         )
     }
 
@@ -398,22 +393,21 @@ classify_dlbcl <- function(
     # If no seg data is provided, get the CNVs from GAMBL
     if(!only_maf_data & missing(seg_data)){
         message("No CNV data is provided.")
-        message("Will retreive segments available through GAMBL.")
 
-        seg_data = get_sample_cn_segments(
-            these_samples_metadata = these_samples_metadata,
-            projection = projection)
+        stop(
+            "Please provide CNV data in standard seg format."
+        )
+
     }
 
     # If no SV data is provided, get the SVs from GAMBL
     if(!only_maf_data & missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
         message("No SV data is provided.")
-        message("Will retreive SVs available through GAMBL.")
+        
+        stop(
+            "Please provide SV data in standard bedpe format."
+        )
 
-        sv_data <- get_manta_sv() %>%
-                dplyr::filter(
-                tumour_sample_id %in% these_samples_metadata$sample_id
-            )
     }
 
     if(!only_maf_data){
@@ -542,13 +536,8 @@ classify_bl <- function(
     # If no maf data is provided, get the SSMs from GAMBL
     if(missing(maf_data)){
         message("No maf data is provided.")
-        message("Retreiving the mutations data from GAMBL...")
-        maf_data =  get_ssm_by_samples(
-            these_samples_metadata = these_samples_metadata,
-            seq_type = this_seq_type,
-            projection = projection,
-            subset_from_merge = TRUE,
-            augmented = FALSE
+        stop(
+            "Please provide SSM data in standard maf format."
         )
     }
 
