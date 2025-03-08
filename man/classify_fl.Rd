@@ -38,7 +38,8 @@ data frame, binary matrix, or both
 }
 \description{
 Use the random forest prediction model to assemble the binary matrix and use
-it to classify FL tummors into cFL/dFL
+it to classify FL tummors into cFL/dFL. Please see PMID 37084389 for more
+details on FL genetic subgroups.
 }
 \examples{
 meta <- get_gambl_metadata() \%>\%

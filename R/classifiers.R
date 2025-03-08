@@ -1,7 +1,8 @@
 #' Classify FL samples into cFL/dFL subgroups.
 #'
 #' Use the random forest prediction model to assemble the binary matrix and use
-#' it to classify FL tummors into cFL/dFL
+#' it to classify FL tummors into cFL/dFL. Please see PMID 37084389 for more
+#' details on FL genetic subgroups.
 #'
 #' @param these_samples_metadata The metadata data frame that contains sample_id
 #'      column with ids for the samples to be classified. Required input.
@@ -429,7 +430,7 @@ classify_dlbcl <- function(
     # If no SV data is provided, get the SVs from GAMBL
     if(!only_maf_data & missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
         message("No SV data is provided.")
-        
+
         stop(
             "Please provide SV data in standard bedpe format."
         )
@@ -518,14 +519,22 @@ classify_dlbcl <- function(
 
 #' Classify BL samples into genetic subgroups.
 #'
-#' Use the random forest prediction model to assemble the binary matrix and use it to classify BL tummors into genetic subgroups
+#' Assemble the binary feature matrix and use the random forest prediction model
+#' to classify BL tumors into genetic subgroups. Please see PMID 36201743 on
+#' genetic subgroups of BL.
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param this_seq_type The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR.data. Defaults to genome.
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified. Required input.
+#' @param maf_data The MAF data frame to be used for matrix assembling. Any maf
+#'      columns can be provided, but the required are "Hugo_Symbol",
+#'      "NCBI_Build", "Chromosome", "Start_Position", "End_Position",
+#'      "Variant_Classification", "HGVSp_Short", and "Tumor_Sample_Barcode".
+#'      Required input.
 #' @param projection The projection of the samples. Defaults to grch37.
-#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
-#' @param ashm_cutoff Numeric value indicating number of mutations for binarizing aSHM feature. Recommended to use the default value (3).
+#' @param output The output to be returned after prediction is done. Can be one
+#'      of predictions, matrix, or both. Defaults to both.
+#' @param ashm_cutoff Numeric value indicating number of mutations for
+#'      binarizing aSHM feature. Recommended to use the default value (3).
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
@@ -533,33 +542,39 @@ classify_dlbcl <- function(
 #' @import dplyr GAMBLR.data tidyr tibble
 #'
 #' @examples
-#' test_meta <- get_gambl_metadata(case_set = "BL-DLBCL-manuscript-HTMCP")
-#' predictions <- classify_bl(these_samples_metadata = test_meta)
-#' predictions <- classify_bl(these_samples_metadata = test_meta, output = "predictions")
+#' test_meta <- get_gambl_metadata()  %>%
+#'     filter(pathology == "BL")
+#' maf <- get_ssm_by_samples(
+#'     these_samples_metadata = test_meta
+#' )
+#' predictions <- classify_bl(
+#'      these_samples_metadata = test_meta,
+#'      maf_data = maf
+#' )
+#' predictions <- classify_bl(
+#'      these_samples_metadata = test_meta,
+#'      maf_data = maf,
+#'      output = "predictions"
+#' )
 #'
 classify_bl <- function(
     these_samples_metadata,
     maf_data,
-    this_seq_type = "genome",
     projection = "grch37",
     output = "both",
     ashm_cutoff = 3
 ){
-    # If no metadata is provided, just get all BLs
+    # Check for required inputs
     if(missing(these_samples_metadata)){
         message("No metadata is provided.")
         stop(
             "Please provide sample metadata."
         )
-    }else{
-        these_samples_metadata <- these_samples_metadata %>%
-            dplyr::filter(pathology == "BL")
     }
 
 
     projection <- handle_genome_build(projection)
 
-    # If no maf data is provided, get the SSMs from GAMBL
     if(missing(maf_data)){
         message("No maf data is provided.")
         stop(
@@ -567,6 +582,29 @@ classify_bl <- function(
         )
     }
 
+    # Ensure maf data has correct formatting
+    min_req_columns <- c(
+            "Hugo_Symbol",
+            "Chromosome", "Start_Position", "End_Position",
+            "Variant_Classification",
+            "Tumor_Sample_Barcode"
+        )
+    columns_not_present <- setdiff(
+            min_req_columns,
+            colnames(maf_data)
+        )
+    if(length(columns_not_present) > 0){
+        message("The provided maf data is missing required columns")
+        stop(
+            "The columns not present in maf are: ",
+            paste0(columns_not_present, collapse=",")
+        )
+    }
+    maf_data <- maf_data %>%
+        dplyr::mutate(
+            Start_Position = as.numeric(Start_Position),
+            End_Position = as.numeric(End_Position)
+        )
 
     # Confirm all samples have mutations
     found_samples <- length(unique(maf_data$Tumor_Sample_Barcode))
@@ -612,29 +650,47 @@ classify_bl <- function(
         include_hotspots = FALSE
     )
 
-    ssm_matrix <- ssm_matrix %>%
-        column_to_rownames("sample_id")
-
     # Generate binary matrix for aSHM
     ashm_bed <- base::get(
         paste0(
             projection, "_ashm_regions"
         )
     ) %>%
+    mutate(
+        name = paste(
+            gene, region, sep = "-"
+        )
+    ) %>%
     dplyr::filter(name %in% c(
         "LPP_TSS-1",
         "LPP-TSS-1"
         )
+    ) %>%
+    mutate(
+        chr_name = ifelse(
+            projection == "grch37",
+            gsub("chr", "", chr_name),
+            chr_name
+        )
     )
+    names(ashm_bed)[1:3] <- c("chrom", "start", "end")
 
     # Generate binary matrix for ashm
-    ashm_matrix <- get_ashm_count_matrix(
-        maf_data = maf,
-        these_samples_metadata = these_samples_metadata,
-        regions_bed = ashm_bed
-    )
-
-    colnames(ashm_matrix) <- c("LPPTSS1")
+    ashm_matrix <- cool_overlaps(
+        maf,
+        ashm_bed,
+        columns2 = c("chrom", "start", "end")
+    ) %>%
+        group_by(Tumor_Sample_Barcode, name) %>%
+        summarize(n = n()) %>%
+        pivot_wider(
+            id_cols = Tumor_Sample_Barcode,
+            names_from = name,
+            values_from = n,
+            values_fill = 0
+        ) %>%
+        ungroup
+    colnames(ashm_matrix) <- c("sample_id", "LPPTSS1")
 
     ashm_matrix <- ashm_matrix %>%
         mutate("LPPTSS1" = ifelse(
@@ -645,10 +701,16 @@ classify_bl <- function(
     )
 
     # Combine together the SSM, hotspots, and aSHM
-    assembled_matrix <- bind_cols(
+    assembled_matrix <- left_join(
             ssm_matrix,
             ashm_matrix
-        )
+        ) %>%
+        mutate(
+            across(
+                where(is.numeric), ~ replace_na(.x, 0)
+            )
+        ) %>%
+        column_to_rownames("sample_id")
 
     # Prepare for random forest
     colnames(assembled_matrix) <- (gsub(
