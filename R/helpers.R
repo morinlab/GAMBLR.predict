@@ -79,13 +79,14 @@ classify_dlbcl_chapuy <- function(
     # Mutations matrix
     chapuy_feature_matrix$ssm_matrix <- maf_data %>%
         dplyr::filter(
-          Hugo_Symbol %in% chapuy_features$ssm_features
+            Hugo_Symbol %in% chapuy_features$ssm_features
         ) %>%
         dplyr::filter(
-          Variant_Classification %in% c(
-            "Silent",
-            GAMBLR.data:::coding_class
-        )) %>%
+            Variant_Classification %in% c(
+                "Silent",
+                GAMBLR.data:::coding_class
+            )
+        ) %>%
         dplyr::select(
             Tumor_Sample_Barcode,
             Hugo_Symbol,
@@ -102,8 +103,9 @@ classify_dlbcl_chapuy <- function(
         group_by(Tumor_Sample_Barcode,Hugo_Symbol) %>%
         dplyr::arrange(Tumor_Sample_Barcode, desc(mutated)) %>%
         dplyr::filter( # if both syn and nonsyn are present, prioritize nonsyn
-          mutated==max(mutated)
+            mutated==max(mutated)
         ) %>%
+        group_by(Tumor_Sample_Barcode,Hugo_Symbol) %>%
         slice_head %>%
         ungroup %>%
         pivot_wider(
@@ -136,68 +138,70 @@ classify_dlbcl_chapuy <- function(
 
     # First the arm features
     cnv_features_arm <- arm_coordinates %>%
-        mutate(arm = paste0(
+        mutate(
+            arm = paste0(
                 chromosome,
-                arm)
-            ) %>%
-        left_join(
-                chapuy_features$cnv_features_arm,
-                .,
-                by="arm"
+                arm
             )
+        ) %>%
+        left_join(
+            chapuy_features$cnv_features_arm,
+            .,
+            by="arm"
+        )
 
     # Next, the cytoband features
     cnv_features_cytoband <- cytoband_coordinates %>%
         left_join(
-                chapuy_features$cnv_features_cytoband,
-                .,
-                by="cytoband"
-            )
+            chapuy_features$cnv_features_cytoband,
+            .,
+            by="cytoband"
+        )
 
     cnv_arms <- cool_overlaps(
-          seg_data,
-          cnv_features_arm,
-          columns1 = c("chrom", "start", "end"),
-          columns2 = c("chromosome", "start", "end")
+            seg_data,
+            cnv_features_arm,
+            columns1 = c("chrom", "start", "end"),
+            columns2 = c("chromosome", "start", "end")
         ) %>%
         dplyr::select(sample, arm, CNV, log.ratio) %>%
         dplyr::rename("feature"="arm")
 
     cnv_cytobands <-  cool_overlaps(
-          seg_data,
-          cnv_features_cytoband,
-          columns1 = c("chrom", "start", "end"),
-          columns2 = c("chr", "start", "end")
+            seg_data,
+            cnv_features_cytoband,
+            columns1 = c("chrom", "start", "end"),
+            columns2 = c("chr", "start", "end")
         ) %>%
         select(sample, cytoband, CNV, log.ratio) %>%
         rename("feature"="cytoband")
 
     chapuy_feature_matrix$cnv_matrix <- bind_rows(
-          cnv_arms,
-          cnv_cytobands
+            cnv_arms,
+            cnv_cytobands
         ) %>%
         group_by(sample, feature, CNV) %>%
         summarise(
-          featuremean = mean(log.ratio)
+            featuremean = mean(log.ratio)
         ) %>%
         # get rid of neutrals
         dplyr::filter(
-          !featuremean == 0
+            !featuremean == 0
         ) %>%
         # ensure the same direction
         dplyr::filter(
-          (featuremean>0 & CNV=="AMP") | (featuremean<0 & CNV=="DEL")
+            (featuremean>0 & CNV=="AMP") | (featuremean<0 & CNV=="DEL")
         ) %>%
         dplyr::mutate(
-          CN = 2*2^featuremean,
-          mutated = case_when(
-            CNV=="AMP" & CN >=3.7 ~ 2,
-            CNV=="AMP" & CN >=2.2 ~ 1,
-            CN > 1.6 ~ 0,
-            CNV=="DEL" & CN >1.1 ~ 1,
-            CNV=="DEL" & CN <=1.1 ~ 2
-            ),
-          featurename = paste0(feature,":",CNV)
+            CN = 2*2^featuremean,
+            mutated = case_when(
+                CNV=="AMP" & CN >=3.7 ~ 2,
+                CNV=="AMP" & CN >=2.2 ~ 1,
+                CN > 1.6 ~ 0,
+                CNV=="DEL" & CN >1.1 ~ 1,
+                CNV=="DEL" & CN <=1.1 ~ 2
+                ),
+            featurename = paste0(feature,":",CNV)
         ) %>%
         ungroup %>%
         dplyr::select(sample, mutated, featurename) %>%
@@ -216,19 +220,20 @@ classify_dlbcl_chapuy <- function(
     # SV matrix
     chapuy_feature_matrix$sv_matrix <- sv_data %>%
         dplyr::filter(
-          gene %in% chapuy_features$sv_features |
-          partner %in% chapuy_features$sv_features
+            gene %in% chapuy_features$sv_features |
+            partner %in% chapuy_features$sv_features
         ) %>%
         dplyr::mutate(
-          feature = case_when(
-            gene %in% chapuy_features$sv_features ~ paste0("SV:",gene),
-            partner %in% chapuy_features$sv_features ~ paste0("SV:",partner)
-        )) %>%
+            feature = case_when(
+                gene %in% chapuy_features$sv_features ~ paste0("SV:",gene),
+                partner %in% chapuy_features$sv_features ~ paste0("SV:",partner)
+            )
+        ) %>%
         dplyr::mutate(
-          mutated=3
+            mutated=3
         ) %>%
         distinct(
-          tumour_sample_id, feature, mutated
+            tumour_sample_id, feature, mutated
         ) %>%
         ungroup %>%
         pivot_wider(
@@ -244,8 +249,8 @@ classify_dlbcl_chapuy <- function(
     )
 
     if("SV:CD274" %in% colnames(chapuy_feature_matrix$sv_matrix)){
-      chapuy_feature_matrix$sv_matrix <- chapuy_feature_matrix$sv_matrix %>%
-        dplyr::rename("SV:CD274/PDCD1LG2" = "SV:CD274")
+        chapuy_feature_matrix$sv_matrix <- chapuy_feature_matrix$sv_matrix %>%
+            dplyr::rename("SV:CD274/PDCD1LG2" = "SV:CD274")
     }
 
 
@@ -258,44 +263,44 @@ classify_dlbcl_chapuy <- function(
 
     # Check if any features are missing
     chapuy_feature_matrix$complete_matrix <- check_for_missing_features(
-      chapuy_feature_matrix$complete_matrix,
-      chapuy_features$feature_weights$Feature
+        chapuy_feature_matrix$complete_matrix,
+        chapuy_features$feature_weights$Feature
     )
 
     # This is to ensure consistent ordering for a fool-proof downstream calculations
     chapuy_feature_matrix$complete_matrix <- chapuy_feature_matrix$complete_matrix %>%
-      dplyr::select(chapuy_features$feature_weights$Feature)
+        dplyr::select(chapuy_features$feature_weights$Feature)
 
     # If user only wants matrix, return it here and do not perform the
     # subsequent analysis
     if(output=="matrix"){
-      return(chapuy_feature_matrix$complete_matrix)
+        return(chapuy_feature_matrix$complete_matrix)
     }
 
     # Classify the samples
     message("Assembled the matrix, classifying the samples ...")
     features_weights_matrix <- chapuy_features$feature_weights %>%
-      column_to_rownames("Feature") %>%
-      as.data.frame
+        column_to_rownames("Feature") %>%
+        as.data.frame
 
     compute_cluster_probability <- function(Row) {
-      ((Row %>% t) * features_weights_matrix) %>%
-      colSums %>%
-      as.data.frame %>%
-      `names<-`(
-        rownames(Row)
-      )
+        ((Row %>% t) * features_weights_matrix) %>%
+        colSums %>%
+        as.data.frame %>%
+        `names<-`(
+            rownames(Row)
+        )
     }
 
     predictions <- apply(
-      chapuy_feature_matrix$complete_matrix,
-      1,
-      compute_cluster_probability
+        chapuy_feature_matrix$complete_matrix,
+        1,
+        compute_cluster_probability
     )
 
     predictions <- do.call(
-      cbind,
-      predictions
+        cbind,
+        predictions
     ) %>%
     as.data.frame %>%
     t %>% # The output is wide so convert it to have 1 row/sample
@@ -306,41 +311,42 @@ classify_dlbcl_chapuy <- function(
     predictions$predict <- colnames(predictions)[apply(predictions,1,which.max)]
 
     predictions <- predictions %>%
-      rownames_to_column("sample_id")
+        rownames_to_column("sample_id")
 
     # Account for C0 samples, which will have all weights calculated as 0
     predictions <- predictions %>%
-      rowwise() %>%
-      dplyr::mutate(
-        predict = ifelse(
-          sum(C1:C5)==0,
-          "C0",
-          predict
-      )) %>%
-      ungroup %>%
-      as.data.frame %>%
-      dplyr::rename(
-        "Chapuy_cluster"="predict"
-      )
+        rowwise() %>%
+        dplyr::mutate(
+            predict = ifelse(
+                sum(C1:C5)==0,
+                "C0",
+                predict
+            )
+        ) %>%
+        ungroup %>%
+        as.data.frame %>%
+        dplyr::rename(
+            "Chapuy_cluster"="predict"
+        )
 
     if(output == "predictions"){
-      return(predictions)
+        return(predictions)
     }else if (output == "both") {
-      return(
-        list(
-          chapuy_matrix = chapuy_feature_matrix$complete_matrix,
-          chapuy_predictons = predictions
+        return(
+            list(
+                chapuy_matrix = chapuy_feature_matrix$complete_matrix,
+                chapuy_predictons = predictions
+            )
         )
-      )
     }else{
-      stop(
-        paste0(
-          "You requested to return ",
-          output,
-          ", which is not supported.\n",
-          "Please specify one of matrix, predictions, or both."
+        stop(
+            paste0(
+                "You requested to return ",
+                output,
+                ", which is not supported.\n",
+                "Please specify one of matrix, predictions, or both."
+            )
         )
-      )
     }
 
 }

@@ -320,33 +320,70 @@ classify_fl <- function(
 
 #' Classify DLBCLs according to genetic subgroups.
 #'
-#' Using the user-provided or GAMBLR.data-retrieved data, this function will assemble the matrix according to the approach of
-#' Chapuy et al (2018) or Lacy et al (2020) classifiers. Since neither of this classifiers is publicly released, we have implemented a solution
-#' that closely (> 92% accuracy) recapitulates each of these systems. For the classifier of Chapuy et al, the constructed matrix will be
-#' used to calculate class probability using the bundled feature weights obtained from our reproduction of the classifier. For the Lacy et al
-#' classifier, the matrix will be used for prediction of random forest model, which is supplied with the GAMBLR.predict package. Following the modification
-#' of Lacy classifier described in Runge et al (PMID 33010029), specifying the method of this function as hmrn will also consider
+#' Using the user-provided or GAMBLR.data-retrieved data, this function will
+#' assemble the matrix according to the approach of Chapuy et al (2018) or Lacy
+#' et al (2020) classifiers. Since neither of this classifiers is publicly
+#' released, we have implemented a solution that closely (> 92% accuracy)
+#' recapitulates each of these systems. For the classifier of Chapuy et al, the
+#' constructed matrix will be used to calculate class probability using the
+#' bundled feature weights obtained from our reproduction of the classifier. For
+#' the Lacy et al classifier, the matrix will be used for prediction of random
+#' forest model, which is supplied with the GAMBLR.predict package. Following
+#' the modification of Lacy classifier described in Runge et al (PMID 33010029),
+#' specifying the method of this function as `hmrn` will also consider
 #' truncating mutations in NOTCH1 for the separate N1 subgroup.
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param only_maf_data Whether to restrict matrix generation to maf data only. Only supported in the lymphgenerator mode. Default is FALSE (use SV and CNV).
-#' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
-#' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param this_seq_type The seq_type of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to genome.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
-#' @param output The output to be returned after the prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
-#' @param method Classification method. One of chapuy (used as default), lacy, or hmrn.
-#' @param adjust_ploidy Whether to perform ploidy adjustment for the CNV data. Defaults to TRUE (recommended).
-#' @param annotate_sv Whether to perform SV annotation on the supplied SV data frame. Defaults to TRUE.
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least
+#'      must contain the first 45 columns of standard MAF format.
+#' @param only_maf_data Whether to restrict matrix generation to maf data only.
+#'      Only supported in the lymphgenerator mode. Default is FALSE (use SV and
+#'      CNV).
+#' @param seg_data The SEG data frame to be used for matrix assembling. Must be
+#'      of standard SEG formatting, for example, as returned by
+#'      get_sample_cn_segments. Expected to be in grch37 projection.
+#' @param sv_data The SV data frame to be used for matrix assembling. Must be of
+#'      standard BEDPE formatting, for example, as returned by get_manta_sv.
+#'      Expected to be in grch37 projection.
+#' @param projection The projection of the samples. Used to adjust ploidy
+#'      when seg data is provided and annotate SVs when necessary. Defaults to
+#'      grch37.
+#' @param output The output to be returned after the prediction is done. Can be
+#'      one of predictions, matrix, or both. Defaults to both.
+#' @param method Classification method. One of chapuy (used as default), lacy,
+#'      or hmrn.
+#' @param adjust_ploidy Whether to perform ploidy adjustment for the CNV data.
+#'      Defaults to TRUE (recommended).
+#' @param annotate_sv Whether to perform SV annotation on the supplied SV data
+#'      frame. Defaults to TRUE.
 #'
-#' @return data frame with classification, binary matrix used in classification, or both
+#' @return data frame, binary matrix, or both
 #' @export
 #' @import dplyr readr
 #'
 #' @examples
-#' test_meta <- get_gambl_metadata(case_set = "DLBCL-unembargoed")
-#' predictions_chapuy <- classify_dlbcl(these_samples_metadata = test_meta, output = "predictions")
+#' metadata <- get_gambl_metadata() %>%
+#'     filter(pathology == "DLBCL")
+#' 
+#' maf <- get_ssm_by_samples(
+#'     these_samples_metadata = metadata
+#' )
+#' 
+#' cnv <- get_cn_segments(
+#'     these_samples_metadata = metadata
+#' )
+#' 
+#' bed <- get_manta_sv(
+#'     these_samples_metadata = metadata
+#' )
+#' predictions_chapuy <- classify_dlbcl(
+#'     these_samples_metadata = metadata,
+#'     maf_data = maf,
+#'     seg_data = cnv,
+#'     sv_data = bed,
+#'     output = "predictions"
+#' )
 #' predictions_lacy <- classify_dlbcl(these_samples_metadata = test_meta, method = "lacy")
 #' predictions_hmrn <- classify_dlbcl(these_samples_metadata = test_meta, method = "hmrn", output = "predictions")
 #' matrix_and_predictions <- classify_dlbcl(these_samples_metadata = test_meta)
@@ -357,25 +394,21 @@ classify_dlbcl <- function(
     only_maf_data = FALSE,
     seg_data,
     sv_data,
-    this_seq_type = "genome",
     projection = "grch37",
     output = "both",
     method = "chapuy",
     adjust_ploidy = TRUE,
     annotate_sv = TRUE
 ){
-    # If no metadata is provided, just get all DLBCLs
+
+    # Check for required inputs
     if(missing(these_samples_metadata)){
         message("No metadata is provided.")
         stop(
             "Please provide sample metadata."
         )
-    }else{
-        these_samples_metadata <- these_samples_metadata %>%
-            dplyr::filter(pathology == "DLBCL")
     }
 
-    # If no maf data is provided, get the SSMs from GAMBL
     if(missing(maf_data)){
         message("No maf data is provided.")
         stop(
@@ -383,12 +416,27 @@ classify_dlbcl <- function(
         )
     }
 
+    if(!only_maf_data & missing(seg_data)){
+        message("No CNV data is provided.")
+        stop(
+            "Please provide CNV data in standard seg format."
+        )
+
+    }
+
+    if(!only_maf_data & missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
+        message("No SV data is provided.")
+        stop(
+            "Please provide SV data in standard bedpe format."
+        )
+
+    }
 
     # Confirm all samples have mutations
     found_samples <- length(unique(maf_data$Tumor_Sample_Barcode))
     requested_samples <- length(unique(these_samples_metadata$sample_id))
 
-    if(!found_samples == requested_samples){
+    if(found_samples < requested_samples){
         message(
             paste0(
                 "WARNING! Did not find SSM for all samples. Only the data for ",
@@ -410,31 +458,32 @@ classify_dlbcl <- function(
             dplyr::filter(
                 sample_id %in% maf_data$Tumor_Sample_Barcode
             )
+    }else if(found_samples > requested_samples){
+        message(
+            paste0(
+                "WARNING! Found SSM for more samples then specified in metadata. ",
+                found_samples,
+                " was available in the maf. The samples not in the metadata are: "
+            )
+        )
+        message(
+            paste(
+              setdiff(
+                unique(maf_data$Tumor_Sample_Barcode),
+                unique(these_samples_metadata$sample_id)
+              ),
+              collapse=", "
+            )
+        )
+        # Drop extra samples from maf
+        maf_data <- maf_data %>%
+            dplyr::filter(
+                Tumor_Sample_Barcode %in% these_samples_metadata$sample_id
+            )
     }else{
         message(
             "Success! The SSM for all samples were found in maf."
         )
-    }
-
-
-    # If no seg data is provided, get the CNVs from GAMBL
-    if(!only_maf_data & missing(seg_data)){
-        message("No CNV data is provided.")
-
-        stop(
-            "Please provide CNV data in standard seg format."
-        )
-
-    }
-
-    # If no SV data is provided, get the SVs from GAMBL
-    if(!only_maf_data & missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
-        message("No SV data is provided.")
-
-        stop(
-            "Please provide SV data in standard bedpe format."
-        )
-
     }
 
     if(!only_maf_data){
@@ -445,8 +494,13 @@ classify_dlbcl <- function(
             )
         }
 
+        colnames(seg_data)[1] <- "sample"
+
         seg_data <- seg_data %>%
             as.data.frame
+        
+        seg_data <- seg_data %>%
+            filter(sample %in% these_samples_metadata$sample_id)
 
         if(annotate_sv){
             sv_data <- sv_data %>%
@@ -455,38 +509,41 @@ classify_dlbcl <- function(
                 ) %>%
                 dplyr::filter(!is.na(partner))
         }
+
+        sv_data <- sv_data %>%
+            filter(
+                tumour_sample_id %in% these_samples_metadata$sample_id
+            )
     }
 
     # Now use this data to classify the samples according to one of the systems
     if(method == "chapuy"){
-
-      predictions <- classify_dlbcl_chapuy(
-          these_samples_metadata,
-          maf_data,
-          seg_data,
-          sv_data,
-          projection = projection,
-          output = output
-      )
-
+        predictions <- classify_dlbcl_chapuy(
+            these_samples_metadata,
+            maf_data,
+            seg_data,
+            sv_data,
+            projection = projection,
+            output = output
+        )
     }else if (method == "lacy") {
-      predictions <- classify_dlbcl_lacy(
-          these_samples_metadata,
-          maf_data,
-          seg_data,
-          projection = projection,
-          output = output
-      )
+        predictions <- classify_dlbcl_lacy(
+            these_samples_metadata,
+            maf_data,
+            seg_data,
+            projection = projection,
+            output = output
+        )
 
     }else if (method == "hmrn") {
-      predictions <- classify_dlbcl_lacy(
-          these_samples_metadata,
-          maf_data,
-          seg_data,
-          projection = projection,
-          output = output,
-          include_N1 = TRUE
-      )
+        predictions <- classify_dlbcl_lacy(
+            these_samples_metadata,
+            maf_data,
+            seg_data,
+            projection = projection,
+            output = output,
+            include_N1 = TRUE
+        )
     }else if (method == "lymphgenerator") {
         if(only_maf_data){
             predictions <- classify_dlbcl_lymphgenerator(
@@ -510,7 +567,10 @@ classify_dlbcl <- function(
     }
 
     else{
-      stop("You requested an unvalid method. Please choose one of chapuy, lacy or hmrn")
+        message("You requested an unvalid method.")
+        stop(
+            "Please choose one of chapuy, lacy or hmrn"
+        )
     }
 
     return(predictions)
