@@ -1,11 +1,14 @@
 
 #' Check matrix against missing features.
 #'
-#' Operate on the matrix supplied by user and check it for any features missing compared to the provided set.
+#' Operate on the matrix supplied by user and check it for any features missing
+#'      compared to the provided set.
 #'
-#' @param incoming_matrix The incoming matrix to be checked for any missing features.
+#' @param incoming_matrix The incoming matrix to be checked for any missing
+#'      features.
 #' @param feature_set The feature set.
-#' @return matrix where column names correspond to all features from the provided set
+#' @return matrix where column names correspond to all features from the
+#'      provided set
 #'
 check_for_missing_features <- function(
     incoming_matrix,
@@ -49,15 +52,23 @@ check_for_missing_features <- function(
 
 #' Classify DLBCLs according to genetic subgroups of Chapuy et al.
 #'
-#' Use the feature weights from NMF model to assemble the binary matrix and classify DLBCL tumors based on C0-C5 system of Chapuy et al
+#' Use the feature weights from NMF model to assemble the binary matrix and
+#'      classify DLBCL tumors based on C0-C5 system of Chapuy et al
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
-#' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
-#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
-#' @return data frame with classification, binary matrix used in classification, or both
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least
+#'      must contain the first 45 columns of standard MAF format.
+#' @param seg_data The SEG data frame to be used for matrix assembling. Must be
+#'      of standard SEG formatting, for example, as returned by get_cn_segments.
+#' @param sv_data The SV data frame to be used for matrix assembling. Must be of
+#'      standard BEDPE formatting, for example, as returned by get_combined_sv.
+#' @param projection The projection of the samples. Only used to retrerive data
+#'      through GAMBLR.data when it is not provided. Defaults to grch37.
+#' @param output The output to be returned after prediction is done. Can be one
+#'      of predictions, matrix, or both. Defaults to both.
+#' 
+#' @return data frame, binary matrix, or both
 #' @import dplyr readr GAMBLR.data
 #'
 classify_dlbcl_chapuy <- function(
@@ -354,16 +365,26 @@ classify_dlbcl_chapuy <- function(
 
 #' Classify DLBCLs according to genetic subgroups of Lacy et al.
 #'
-#' Use the random forest model to classify DLBCL tumors based on system of Lacy et al
+#' Use the random forest model to classify DLBCL tumors based on system of
+#'      Lacy et al
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
-#' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
-#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
-#' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to N1 group as described in Runge et al (2021). Defaults to FALSE.
-#' @return data frame with classification, binary matrix used in classification, or both
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least
+#'      must contain the first 45 columns of standard MAF format.
+#' @param seg_data The SEG data frame to be used for matrix assembling. Must be
+#'      of standard SEG formatting, for example, as returned by get_cn_segments.
+#' @param sv_data The SV data frame to be used for matrix assembling. Must be of
+#'      standard BEDPE formatting, for example, as returned by get_combined_sv.
+#' @param projection The projection of the samples. Used to annotate hotspot
+#'      SSM mutations and retreive coordinates for shm features. Defaults to
+#'      grch37.
+#' @param output The output to be returned after prediction is done. Can be one
+#'      of predictions, matrix, or both. Defaults to both.
+#' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to
+#'      N1 group as described in Runge et al (2021). Defaults to FALSE.
+#' 
+#' @return data frame, binary matrix, or both
 #' @rawNamespace import(randomForest, except = c("combine"))
 #' @import dplyr readr
 #'
@@ -381,8 +402,7 @@ classify_dlbcl_lacy <- function(
     lacy_feature_matrix <- list()
 
     maf_data <- annotate_hotspots(
-        maf_data,
-        recurrence_min = 3
+        maf_data
     )
 
     # Mutations matrix
@@ -391,7 +411,8 @@ classify_dlbcl_lacy <- function(
             gene_symbols = lacy_features$ssm,
             these_samples_metadata = these_samples_metadata,
             maf_data = maf_data,
-            include_hotspots = FALSE
+            include_hotspots = FALSE,
+            genome_build = projection
         ) %>%
         column_to_rownames(
             "sample_id"
@@ -403,8 +424,7 @@ classify_dlbcl_lacy <- function(
     )
 
     # Hotspots matrix
-    lacy_feature_matrix$hotspots <-
-    maf_data %>%
+    lacy_feature_matrix$hotspots <- maf_data %>%
         dplyr::filter(
             Hugo_Symbol %in% lacy_features$hotspots
         ) %>%
@@ -448,13 +468,11 @@ classify_dlbcl_lacy <- function(
                 "_noncan"
             ),
             everything()
-        )
-
-    colnames(lacy_feature_matrix$hotspots)[4:6] <-
-        c(
-            "POU2F2_239",
-            "MYD88_265",
-            "EZH2_646"
+        ) %>%
+        rename(
+            POU2F2_239 = any_of("POU2F2"),
+            MYD88_265  = any_of("MYD88"),
+            EZH2_646   = any_of("EZH2")
         )
 
     lacy_feature_matrix$hotspots <- complete_missing_from_matrix(
@@ -477,12 +495,22 @@ classify_dlbcl_lacy <- function(
             name
         )
 
-    lacy_feature_matrix$shm <-
-    get_ashm_count_matrix(
-        regions_bed = ashm_features,
-        maf_data = maf_data,
-        these_samples_metadata = these_samples_metadata
-    )
+    lacy_feature_matrix$shm <- cool_overlaps(
+        maf_data,
+        ashm_features,
+        columns2 = colnames(ashm_features)[1:3]
+    ) %>%
+        group_by(Tumor_Sample_Barcode, name) %>%
+        summarize(n = n()) %>%
+        pivot_wider(
+            id_cols = Tumor_Sample_Barcode,
+            names_from = name,
+            values_from = n,
+            values_fill = 0
+        ) %>%
+        ungroup %>%
+        distinct %>%
+        column_to_rownames("Tumor_Sample_Barcode")
 
     lacy_feature_matrix$shm <- complete_missing_from_matrix(
         lacy_feature_matrix$shm,
@@ -491,7 +519,7 @@ classify_dlbcl_lacy <- function(
 
     lacy_feature_matrix$shm[lacy_feature_matrix$shm>0] = 1
 
-    #  Amplifications were classed as driver events if they targeted a known
+    # Amplifications were classed as driver events if they targeted a known
     # oncogene and resulted in predicted copy number of ≥ 6.
     # Deletions were classed as driver events if they targeted a known tumour
     # suppressor gene and resulted in heterozygous or homozygous loss
@@ -552,7 +580,7 @@ classify_dlbcl_lacy <- function(
 
     # Generate complete matrix
     lacy_feature_matrix$complete <- bind_cols(
-        lacy_feature_matrix$ssm,
+        lacy_feature_matrix$ssm %>% select(-any_of(lacy_features$hotspots)),
         lacy_feature_matrix$cnv,
         lacy_feature_matrix$shm,
         lacy_feature_matrix$hotspots
@@ -1463,6 +1491,7 @@ tabulate_ssm_status = function(
         }
 
     }
+    all_tabulated <- distinct(all_tabulated)
     return(all_tabulated)
 
 }
