@@ -349,6 +349,12 @@ classify_fl <- function(
 #' @param projection The projection of the samples. Used to adjust ploidy
 #'      when seg data is provided and annotate SVs when necessary. Defaults to
 #'      grch37.
+#' @param this_seq_type Only used for the lymphgenerator matrix generation. The
+#'      seq_type defines the cutoff to consider aSHM site mutate. For genomes,
+#'      it will assign status `mutated` based on the average pathology-adjusted 
+#'      number of mutations. For capture samples, any mutation at the aSHM site
+#'      will result in the `mutated` annotation. This argument is ignored in
+#'      any of `chapuy`, `lacy`, and `hmrn` methods.
 #' @param output The output to be returned after the prediction is done. Can be
 #'      one of predictions, matrix, or both. Defaults to both.
 #' @param method Classification method. One of chapuy (used as default), lacy,
@@ -395,6 +401,7 @@ classify_dlbcl <- function(
     seg_data,
     sv_data,
     projection = "grch37",
+    this_seq_type = "genome",
     output = "both",
     method = "chapuy",
     adjust_ploidy = TRUE,
@@ -409,6 +416,9 @@ classify_dlbcl <- function(
         )
     }
 
+    these_samples_metadata <- these_samples_metadata %>%
+        distinct(sample_id, .keep_all = TRUE)
+    
     if(missing(maf_data)){
         message("No maf data is provided.")
         stop(
@@ -952,38 +962,72 @@ massage_matrix_for_clustering = function(
     output_data = incoming_data
 
     for (g in feat_with_cnv_data){
-        this_feature = unlist(strsplit(g, split='_', fixed=TRUE))
-        red_features <- rownames(output_data)[grepl(this_feature[1], rownames(output_data))]
-        red_features <- red_features[!grepl(blacklisted_cnv_regex, red_features)] # these features to be kept separately
+        this_feature <- unlist(strsplit(g, split='_', fixed=TRUE))
+        red_features <- rownames(output_data)[
+                grepl(this_feature[1], rownames(output_data))
+            ]
+        red_features <- red_features[
+                !grepl(blacklisted_cnv_regex, red_features)
+            ] # these features to be kept separately
         if(length(red_features)>1){
-        message(paste0("Found redundant features for gene ", red_features[1], ", processing ..."))
-        output_data[,output_data[red_features[2],]>0][red_features,][red_features[1],] = 1
-        rownames(output_data)[rownames(output_data)==red_features[1]] = paste0(this_feature[1],
-                                                                "-MUTor",
-                                                                this_feature[2])
-        output_data = output_data[!rownames(output_data) %in% red_features[2],]
-
+            message(
+                paste0(
+                    "Found redundant features for gene ",
+                    red_features[1],
+                    ", processing ..."
+                )
+            )
+            massage_these_samples <- colnames(
+                output_data[,output_data[red_features[2],]>0,drop=FALSE]
+            )
+            output_data[red_features[1], massage_these_samples] = 1
+            rownames(output_data)[rownames(output_data)==red_features[1]] <- paste0(
+                this_feature[1],
+                "-MUTor",
+                this_feature[2]
+            )
+            output_data <- output_data[
+                !rownames(output_data) %in% red_features[2],
+            ]
         }
     }
-
     message("Success")
 
     # if there is a hotspot and SSM for same gene, give priority to hotspot
     message("Searching for overlapping HOTSPOT and mutation features to squish together ...")
-    feat_with_hotspot_data = rownames(output_data)[grepl("HOTSPOT", rownames(output_data))]
+    feat_with_hotspot_data <- rownames(output_data)[
+            grepl("HOTSPOT", rownames(output_data))
+        ]
+    # make sure there is also noncanonical mutation present at the first place
+    massage_these_genes <- gsub("HOTSPOT","", feat_with_hotspot_data)
+    for(g in massage_these_genes){
+        n_of_gene_features <- length(rownames(output_data)[
+            grepl(g, rownames(output_data))
+        ])
+        if(n_of_gene_features<2){
+            feat_with_hotspot_data <- feat_with_hotspot_data[
+                !grepl(g, feat_with_hotspot_data)
+            ]
+        }
+    }
     for (hot in feat_with_hotspot_data){
-        this_gene=gsub("HOTSPOT","", hot)
+        this_gene <- gsub("HOTSPOT","", hot)
         # this gene may also have CNV data already squished
-        maybe_cnv = grepl("MUTor",
-                        rownames(output_data[grepl(this_gene,
-                                            rownames(output_data)),]))
-        if("TRUE" %in% maybe_cnv){ # if it has the cnv data then use the name of gene with LOSS or AMP respectively
-        this_gene = rownames(output_data[grepl(this_gene, rownames(output_data)),])[maybe_cnv]
-        message(paste0("Found hotspot for gene ", this_gene, " that also has CNV data, processing ..."))
-        output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
-        }else{ # otherwise just use the gene nae
-        message(paste0("Found hotspot for gene ", this_gene, ", processing ..."))
-        output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
+        maybe_cnv <- grepl(
+            "MUTor",
+            rownames(
+                output_data[grepl(this_gene,rownames(output_data)),]
+            )
+        )
+        # if it has the cnv data then use the name of gene with LOSS or AMP respectively
+        if("TRUE" %in% maybe_cnv){
+            this_gene <- rownames(output_data[grepl(this_gene, rownames(output_data)),])[maybe_cnv]
+            message(paste0("Found hotspot for gene ", this_gene, " that also has CNV data, processing ..."))
+            output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
+        # otherwise just use the gene name
+        }else{
+            message(paste0("Found hotspot for gene ", this_gene, ", processing ..."))
+            output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
         }
         # if the above statement work, then there should be no overlaps between hotspot and any other mutations
         # for the same gene
