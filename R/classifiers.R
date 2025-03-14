@@ -1,13 +1,17 @@
 #' Classify FL samples into cFL/dFL subgroups.
 #'
 #' Use the random forest prediction model to assemble the binary matrix and use
-#' it to classify FL tummors into cFL/dFL
+#' it to classify FL tummors into cFL/dFL. Please see PMID 37084389 for more
+#' details on FL genetic subgroups.
 #'
 #' @param these_samples_metadata The metadata data frame that contains sample_id
-#'      column with ids for the samples to be classified. Required argument.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least
-#'      must contain the first 45 columns of standard MAF format. Required
-#'      argument. The maf data must be in the grch37 projection.
+#'      column with ids for the samples to be classified. Required input.
+#' @param maf_data The MAF data frame to be used for matrix assembling. The maf
+#'      data must be in the grch37 projection. The `chr` prefix is discarded if
+#'      present. Any maf columns can be provided, but the required are "Hugo_Symbol",
+#'      "NCBI_Build", "Chromosome", "Start_Position", "End_Position",
+#'      "Variant_Classification", "HGVSp_Short", and "Tumor_Sample_Barcode".
+#'      Required input.
 #' @param matrix Optionally, if the binary feature matrix is already prepared,
 #'      it can be provided in this argument.
 #' @param output The output to be returned after prediction is done. Can be one
@@ -22,11 +26,12 @@
 #' @import dplyr readr GAMBLR.data tidyr tibble GAMBLR.helpers
 #'
 #' @examples
-#' meta <- GAMBLR.data::sample_data$meta %>%
+#' meta <- get_gambl_metadata() %>%
 #'     filter(pathology == "FL")
 #'
-#' maf <- GAMBLR.data::get_coding_ssm(
-#'     these_samples_metadata = meta
+#' maf <- get_coding_ssm(
+#'     these_samples_metadata = meta,
+#'     tool_name = "publication"
 #' )
 #'
 #' classify_fl(
@@ -55,15 +60,37 @@ classify_fl <- function(
         }
 
         # Ensure maf is in grch37 genome build
-        maf_build = unique(maf_data$NCBI_Build)
+        maf_build <- unique(maf_data$NCBI_Build)
         if(maf_build != "GRCh37"){
             stop("The provided maf data must be in the grch37 projection.")
         }
         # Ensure maf data has correct formatting
+        min_req_columns <- c(
+            "Hugo_Symbol", "NCBI_Build",
+            "Chromosome", "Start_Position", "End_Position",
+            "Variant_Classification", "HGVSp_Short",
+            "Tumor_Sample_Barcode"
+        )
+        columns_not_present <- setdiff(
+            min_req_columns,
+            colnames(maf_data)
+        )
+        if(length(columns_not_present) > 0){
+            message("The provided maf data is missing required columns")
+            stop(
+                "The columns not present in maf are: ",
+                paste0(columns_not_present, collapse=",")
+            )
+        }
         maf_data <- maf_data %>%
             dplyr::mutate(
                 Start_Position = as.numeric(Start_Position),
                 End_Position = as.numeric(End_Position)
+            )
+        # Ensure chr prefix is handled for edge cases
+        maf_data <- maf_data %>%
+            dplyr::mutate(
+                Chromosome = gsub("chr", "", Chromosome)
             )
 
         # Establish minimum required set of genes
@@ -293,33 +320,76 @@ classify_fl <- function(
 
 #' Classify DLBCLs according to genetic subgroups.
 #'
-#' Using the user-provided or GAMBLR.data-retrieved data, this function will assemble the matrix according to the approach of
-#' Chapuy et al (2018) or Lacy et al (2020) classifiers. Since neither of this classifiers is publicly released, we have implemented a solution
-#' that closely (> 92% accuracy) recapitulates each of these systems. For the classifier of Chapuy et al, the constructed matrix will be
-#' used to calculate class probability using the bundled feature weights obtained from our reproduction of the classifier. For the Lacy et al
-#' classifier, the matrix will be used for prediction of random forest model, which is supplied with the GAMBLR.predict package. Following the modification
-#' of Lacy classifier described in Runge et al (PMID 33010029), specifying the method of this function as hmrn will also consider
+#' Using the user-provided or GAMBLR.data-retrieved data, this function will
+#' assemble the matrix according to the approach of Chapuy et al (2018) or Lacy
+#' et al (2020) classifiers. Since neither of this classifiers is publicly
+#' released, we have implemented a solution that closely (> 92% accuracy)
+#' recapitulates each of these systems. For the classifier of Chapuy et al, the
+#' constructed matrix will be used to calculate class probability using the
+#' bundled feature weights obtained from our reproduction of the classifier. For
+#' the Lacy et al classifier, the matrix will be used for prediction of random
+#' forest model, which is supplied with the GAMBLR.predict package. Following
+#' the modification of Lacy classifier described in Runge et al (PMID 33010029),
+#' specifying the method of this function as `hmrn` will also consider
 #' truncating mutations in NOTCH1 for the separate N1 subgroup.
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param only_maf_data Whether to restrict matrix generation to maf data only. Only supported in the lymphgenerator mode. Default is FALSE (use SV and CNV).
-#' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
-#' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param this_seq_type The seq_type of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to genome.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
-#' @param output The output to be returned after the prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
-#' @param method Classification method. One of chapuy (used as default), lacy, or hmrn.
-#' @param adjust_ploidy Whether to perform ploidy adjustment for the CNV data. Defaults to TRUE (recommended).
-#' @param annotate_sv Whether to perform SV annotation on the supplied SV data frame. Defaults to TRUE.
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least
+#'      must contain the first 45 columns of standard MAF format.
+#' @param only_maf_data Whether to restrict matrix generation to maf data only.
+#'      Only supported in the lymphgenerator mode. Default is FALSE (use SV and
+#'      CNV).
+#' @param seg_data The SEG data frame to be used for matrix assembling. Must be
+#'      of standard SEG formatting, for example, as returned by
+#'      get_sample_cn_segments. Expected to be in grch37 projection.
+#' @param sv_data The SV data frame to be used for matrix assembling. Must be of
+#'      standard BEDPE formatting, for example, as returned by get_manta_sv.
+#'      Expected to be in grch37 projection.
+#' @param projection The projection of the samples. Used to adjust ploidy
+#'      when seg data is provided and annotate SVs when necessary. Defaults to
+#'      grch37.
+#' @param this_seq_type Only used for the lymphgenerator matrix generation. The
+#'      seq_type defines the cutoff to consider aSHM site mutate. For genomes,
+#'      it will assign status `mutated` based on the average pathology-adjusted 
+#'      number of mutations. For capture samples, any mutation at the aSHM site
+#'      will result in the `mutated` annotation. This argument is ignored in
+#'      any of `chapuy`, `lacy`, and `hmrn` methods.
+#' @param output The output to be returned after the prediction is done. Can be
+#'      one of predictions, matrix, or both. Defaults to both.
+#' @param method Classification method. One of chapuy (used as default), lacy,
+#'      or hmrn.
+#' @param adjust_ploidy Whether to perform ploidy adjustment for the CNV data.
+#'      Defaults to TRUE (recommended).
+#' @param annotate_sv Whether to perform SV annotation on the supplied SV data
+#'      frame. Defaults to TRUE.
 #'
-#' @return data frame with classification, binary matrix used in classification, or both
+#' @return data frame, binary matrix, or both
 #' @export
 #' @import dplyr readr
 #'
 #' @examples
-#' test_meta <- get_gambl_metadata(case_set = "DLBCL-unembargoed")
-#' predictions_chapuy <- classify_dlbcl(these_samples_metadata = test_meta, output = "predictions")
+#' metadata <- get_gambl_metadata() %>%
+#'     filter(pathology == "DLBCL")
+#' 
+#' maf <- get_ssm_by_samples(
+#'     these_samples_metadata = metadata
+#' )
+#' 
+#' cnv <- get_cn_segments(
+#'     these_samples_metadata = metadata
+#' )
+#' 
+#' bed <- get_manta_sv(
+#'     these_samples_metadata = metadata
+#' )
+#' predictions_chapuy <- classify_dlbcl(
+#'     these_samples_metadata = metadata,
+#'     maf_data = maf,
+#'     seg_data = cnv,
+#'     sv_data = bed,
+#'     output = "predictions"
+#' )
 #' predictions_lacy <- classify_dlbcl(these_samples_metadata = test_meta, method = "lacy")
 #' predictions_hmrn <- classify_dlbcl(these_samples_metadata = test_meta, method = "hmrn", output = "predictions")
 #' matrix_and_predictions <- classify_dlbcl(these_samples_metadata = test_meta)
@@ -330,42 +400,53 @@ classify_dlbcl <- function(
     only_maf_data = FALSE,
     seg_data,
     sv_data,
-    this_seq_type = "genome",
     projection = "grch37",
+    this_seq_type = "genome",
     output = "both",
     method = "chapuy",
     adjust_ploidy = TRUE,
     annotate_sv = TRUE
 ){
-    # If no metadata is provided, just get all DLBCLs
+
+    # Check for required inputs
     if(missing(these_samples_metadata)){
         message("No metadata is provided.")
-        message("Will retreive metadata for all DLBCL genomes in GAMBL.")
-        these_samples_metadata <- get_gambl_metadata(
-            seq_type_filter = this_seq_type
-        ) %>%
-        dplyr::filter(pathology == "DLBCL")
-    }
-
-    # If no maf data is provided, get the SSMs from GAMBL
-    if(missing(maf_data)){
-        message("No maf data is provided.")
-        message("Retreiving the mutations data from GAMBL...")
-        maf_data =  get_ssm_by_samples(
-            these_samples_metadata = these_samples_metadata,
-            seq_type = this_seq_type,
-            projection = projection,
-            subset_from_merge = TRUE,
-            augmented = FALSE
+        stop(
+            "Please provide sample metadata."
         )
     }
 
+    these_samples_metadata <- these_samples_metadata %>%
+        distinct(sample_id, .keep_all = TRUE)
+    
+    if(missing(maf_data)){
+        message("No maf data is provided.")
+        stop(
+            "Please provide SSM data in standard maf format."
+        )
+    }
+
+    if(!only_maf_data & missing(seg_data)){
+        message("No CNV data is provided.")
+        stop(
+            "Please provide CNV data in standard seg format."
+        )
+
+    }
+
+    if(!only_maf_data & missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
+        message("No SV data is provided.")
+        stop(
+            "Please provide SV data in standard bedpe format."
+        )
+
+    }
 
     # Confirm all samples have mutations
     found_samples <- length(unique(maf_data$Tumor_Sample_Barcode))
     requested_samples <- length(unique(these_samples_metadata$sample_id))
 
-    if(!found_samples == requested_samples){
+    if(found_samples < requested_samples){
         message(
             paste0(
                 "WARNING! Did not find SSM for all samples. Only the data for ",
@@ -387,32 +468,32 @@ classify_dlbcl <- function(
             dplyr::filter(
                 sample_id %in% maf_data$Tumor_Sample_Barcode
             )
+    }else if(found_samples > requested_samples){
+        message(
+            paste0(
+                "WARNING! Found SSM for more samples then specified in metadata. ",
+                found_samples,
+                " was available in the maf. The samples not in the metadata are: "
+            )
+        )
+        message(
+            paste(
+              setdiff(
+                unique(maf_data$Tumor_Sample_Barcode),
+                unique(these_samples_metadata$sample_id)
+              ),
+              collapse=", "
+            )
+        )
+        # Drop extra samples from maf
+        maf_data <- maf_data %>%
+            dplyr::filter(
+                Tumor_Sample_Barcode %in% these_samples_metadata$sample_id
+            )
     }else{
         message(
             "Success! The SSM for all samples were found in maf."
         )
-    }
-
-
-    # If no seg data is provided, get the CNVs from GAMBL
-    if(!only_maf_data & missing(seg_data)){
-        message("No CNV data is provided.")
-        message("Will retreive segments available through GAMBL.")
-
-        seg_data = get_sample_cn_segments(
-            these_samples_metadata = these_samples_metadata,
-            projection = projection)
-    }
-
-    # If no SV data is provided, get the SVs from GAMBL
-    if(!only_maf_data & missing(sv_data) & method %in% c("chapuy", "lymphgenerator")){
-        message("No SV data is provided.")
-        message("Will retreive SVs available through GAMBL.")
-
-        sv_data <- get_manta_sv() %>%
-                dplyr::filter(
-                tumour_sample_id %in% these_samples_metadata$sample_id
-            )
     }
 
     if(!only_maf_data){
@@ -423,8 +504,13 @@ classify_dlbcl <- function(
             )
         }
 
+        colnames(seg_data)[1] <- "sample"
+
         seg_data <- seg_data %>%
             as.data.frame
+        
+        seg_data <- seg_data %>%
+            filter(sample %in% these_samples_metadata$sample_id)
 
         if(annotate_sv){
             sv_data <- sv_data %>%
@@ -433,38 +519,41 @@ classify_dlbcl <- function(
                 ) %>%
                 dplyr::filter(!is.na(partner))
         }
+
+        sv_data <- sv_data %>%
+            filter(
+                tumour_sample_id %in% these_samples_metadata$sample_id
+            )
     }
 
     # Now use this data to classify the samples according to one of the systems
     if(method == "chapuy"){
-
-      predictions <- classify_dlbcl_chapuy(
-          these_samples_metadata,
-          maf_data,
-          seg_data,
-          sv_data,
-          projection = projection,
-          output = output
-      )
-
+        predictions <- classify_dlbcl_chapuy(
+            these_samples_metadata,
+            maf_data,
+            seg_data,
+            sv_data,
+            projection = projection,
+            output = output
+        )
     }else if (method == "lacy") {
-      predictions <- classify_dlbcl_lacy(
-          these_samples_metadata,
-          maf_data,
-          seg_data,
-          projection = projection,
-          output = output
-      )
+        predictions <- classify_dlbcl_lacy(
+            these_samples_metadata,
+            maf_data,
+            seg_data,
+            projection = projection,
+            output = output
+        )
 
     }else if (method == "hmrn") {
-      predictions <- classify_dlbcl_lacy(
-          these_samples_metadata,
-          maf_data,
-          seg_data,
-          projection = projection,
-          output = output,
-          include_N1 = TRUE
-      )
+        predictions <- classify_dlbcl_lacy(
+            these_samples_metadata,
+            maf_data,
+            seg_data,
+            projection = projection,
+            output = output,
+            include_N1 = TRUE
+        )
     }else if (method == "lymphgenerator") {
         if(only_maf_data){
             predictions <- classify_dlbcl_lymphgenerator(
@@ -488,7 +577,10 @@ classify_dlbcl <- function(
     }
 
     else{
-      stop("You requested an unvalid method. Please choose one of chapuy, lacy or hmrn")
+        message("You requested an unvalid method.")
+        stop(
+            "Please choose one of chapuy, lacy or hmrn"
+        )
     }
 
     return(predictions)
@@ -497,14 +589,22 @@ classify_dlbcl <- function(
 
 #' Classify BL samples into genetic subgroups.
 #'
-#' Use the random forest prediction model to assemble the binary matrix and use it to classify BL tummors into genetic subgroups
+#' Assemble the binary feature matrix and use the random forest prediction model
+#' to classify BL tumors into genetic subgroups. Please see PMID 36201743 on
+#' genetic subgroups of BL.
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param this_seq_type The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR.data. Defaults to genome.
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified. Required input.
+#' @param maf_data The MAF data frame to be used for matrix assembling. Any maf
+#'      columns can be provided, but the required are "Hugo_Symbol",
+#'      "NCBI_Build", "Chromosome", "Start_Position", "End_Position",
+#'      "Variant_Classification", "HGVSp_Short", and "Tumor_Sample_Barcode".
+#'      Required input.
 #' @param projection The projection of the samples. Defaults to grch37.
-#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
-#' @param ashm_cutoff Numeric value indicating number of mutations for binarizing aSHM feature. Recommended to use the default value (3).
+#' @param output The output to be returned after prediction is done. Can be one
+#'      of predictions, matrix, or both. Defaults to both.
+#' @param ashm_cutoff Numeric value indicating number of mutations for
+#'      binarizing aSHM feature. Recommended to use the default value (3).
 #'
 #' @return data frame with classification, binary matrix used in classification, or both
 #' @export
@@ -512,44 +612,69 @@ classify_dlbcl <- function(
 #' @import dplyr GAMBLR.data tidyr tibble
 #'
 #' @examples
-#' test_meta <- get_gambl_metadata(case_set = "BL-DLBCL-manuscript-HTMCP")
-#' predictions <- classify_bl(these_samples_metadata = test_meta)
-#' predictions <- classify_bl(these_samples_metadata = test_meta, output = "predictions")
+#' test_meta <- get_gambl_metadata()  %>%
+#'     filter(pathology == "BL")
+#' maf <- get_ssm_by_samples(
+#'     these_samples_metadata = test_meta
+#' )
+#' predictions <- classify_bl(
+#'      these_samples_metadata = test_meta,
+#'      maf_data = maf
+#' )
+#' predictions <- classify_bl(
+#'      these_samples_metadata = test_meta,
+#'      maf_data = maf,
+#'      output = "predictions"
+#' )
 #'
 classify_bl <- function(
     these_samples_metadata,
     maf_data,
-    this_seq_type = "genome",
     projection = "grch37",
     output = "both",
     ashm_cutoff = 3
 ){
-    # If no metadata is provided, just get all BLs
+    # Check for required inputs
     if(missing(these_samples_metadata)){
         message("No metadata is provided.")
-        message("Will retreive metadata for all BL genomes in GAMBL.")
-        these_samples_metadata <- get_gambl_metadata(
-            seq_type_filter = this_seq_type
-        ) %>%
-        dplyr::filter(pathology == "BL")
+        stop(
+            "Please provide sample metadata."
+        )
     }
 
 
     projection <- handle_genome_build(projection)
 
-    # If no maf data is provided, get the SSMs from GAMBL
     if(missing(maf_data)){
         message("No maf data is provided.")
-        message("Retreiving the mutations data from GAMBL...")
-        maf_data =  get_ssm_by_samples(
-            these_samples_metadata = these_samples_metadata,
-            seq_type = this_seq_type,
-            projection = projection,
-            subset_from_merge = TRUE,
-            augmented = FALSE
+        stop(
+            "Please provide SSM data in standard maf format."
         )
     }
 
+    # Ensure maf data has correct formatting
+    min_req_columns <- c(
+            "Hugo_Symbol",
+            "Chromosome", "Start_Position", "End_Position",
+            "Variant_Classification",
+            "Tumor_Sample_Barcode"
+        )
+    columns_not_present <- setdiff(
+            min_req_columns,
+            colnames(maf_data)
+        )
+    if(length(columns_not_present) > 0){
+        message("The provided maf data is missing required columns")
+        stop(
+            "The columns not present in maf are: ",
+            paste0(columns_not_present, collapse=",")
+        )
+    }
+    maf_data <- maf_data %>%
+        dplyr::mutate(
+            Start_Position = as.numeric(Start_Position),
+            End_Position = as.numeric(End_Position)
+        )
 
     # Confirm all samples have mutations
     found_samples <- length(unique(maf_data$Tumor_Sample_Barcode))
@@ -595,29 +720,47 @@ classify_bl <- function(
         include_hotspots = FALSE
     )
 
-    ssm_matrix <- ssm_matrix %>%
-        column_to_rownames("sample_id")
-
     # Generate binary matrix for aSHM
     ashm_bed <- base::get(
         paste0(
             projection, "_ashm_regions"
         )
     ) %>%
+    mutate(
+        name = paste(
+            gene, region, sep = "-"
+        )
+    ) %>%
     dplyr::filter(name %in% c(
         "LPP_TSS-1",
         "LPP-TSS-1"
         )
+    ) %>%
+    mutate(
+        chr_name = ifelse(
+            projection == "grch37",
+            gsub("chr", "", chr_name),
+            chr_name
+        )
     )
+    names(ashm_bed)[1:3] <- c("chrom", "start", "end")
 
     # Generate binary matrix for ashm
-    ashm_matrix <- get_ashm_count_matrix(
-        maf_data = maf,
-        these_samples_metadata = these_samples_metadata,
-        regions_bed = ashm_bed
-    )
-
-    colnames(ashm_matrix) <- c("LPPTSS1")
+    ashm_matrix <- cool_overlaps(
+        maf,
+        ashm_bed,
+        columns2 = c("chrom", "start", "end")
+    ) %>%
+        group_by(Tumor_Sample_Barcode, name) %>%
+        summarize(n = n()) %>%
+        pivot_wider(
+            id_cols = Tumor_Sample_Barcode,
+            names_from = name,
+            values_from = n,
+            values_fill = 0
+        ) %>%
+        ungroup
+    colnames(ashm_matrix) <- c("sample_id", "LPPTSS1")
 
     ashm_matrix <- ashm_matrix %>%
         mutate("LPPTSS1" = ifelse(
@@ -628,10 +771,16 @@ classify_bl <- function(
     )
 
     # Combine together the SSM, hotspots, and aSHM
-    assembled_matrix <- bind_cols(
+    assembled_matrix <- left_join(
             ssm_matrix,
             ashm_matrix
-        )
+        ) %>%
+        mutate(
+            across(
+                where(is.numeric), ~ replace_na(.x, 0)
+            )
+        ) %>%
+        column_to_rownames("sample_id")
 
     # Prepare for random forest
     colnames(assembled_matrix) <- (gsub(
@@ -813,38 +962,72 @@ massage_matrix_for_clustering = function(
     output_data = incoming_data
 
     for (g in feat_with_cnv_data){
-        this_feature = unlist(strsplit(g, split='_', fixed=TRUE))
-        red_features <- rownames(output_data)[grepl(this_feature[1], rownames(output_data))]
-        red_features <- red_features[!grepl(blacklisted_cnv_regex, red_features)] # these features to be kept separately
+        this_feature <- unlist(strsplit(g, split='_', fixed=TRUE))
+        red_features <- rownames(output_data)[
+                grepl(this_feature[1], rownames(output_data))
+            ]
+        red_features <- red_features[
+                !grepl(blacklisted_cnv_regex, red_features)
+            ] # these features to be kept separately
         if(length(red_features)>1){
-        message(paste0("Found redundant features for gene ", red_features[1], ", processing ..."))
-        output_data[,output_data[red_features[2],]>0][red_features,][red_features[1],] = 1
-        rownames(output_data)[rownames(output_data)==red_features[1]] = paste0(this_feature[1],
-                                                                "-MUTor",
-                                                                this_feature[2])
-        output_data = output_data[!rownames(output_data) %in% red_features[2],]
-
+            message(
+                paste0(
+                    "Found redundant features for gene ",
+                    red_features[1],
+                    ", processing ..."
+                )
+            )
+            massage_these_samples <- colnames(
+                output_data[,output_data[red_features[2],]>0,drop=FALSE]
+            )
+            output_data[red_features[1], massage_these_samples] = 1
+            rownames(output_data)[rownames(output_data)==red_features[1]] <- paste0(
+                this_feature[1],
+                "-MUTor",
+                this_feature[2]
+            )
+            output_data <- output_data[
+                !rownames(output_data) %in% red_features[2],
+            ]
         }
     }
-
     message("Success")
 
     # if there is a hotspot and SSM for same gene, give priority to hotspot
     message("Searching for overlapping HOTSPOT and mutation features to squish together ...")
-    feat_with_hotspot_data = rownames(output_data)[grepl("HOTSPOT", rownames(output_data))]
+    feat_with_hotspot_data <- rownames(output_data)[
+            grepl("HOTSPOT", rownames(output_data))
+        ]
+    # make sure there is also noncanonical mutation present at the first place
+    massage_these_genes <- gsub("HOTSPOT","", feat_with_hotspot_data)
+    for(g in massage_these_genes){
+        n_of_gene_features <- length(rownames(output_data)[
+            grepl(g, rownames(output_data))
+        ])
+        if(n_of_gene_features<2){
+            feat_with_hotspot_data <- feat_with_hotspot_data[
+                !grepl(g, feat_with_hotspot_data)
+            ]
+        }
+    }
     for (hot in feat_with_hotspot_data){
-        this_gene=gsub("HOTSPOT","", hot)
+        this_gene <- gsub("HOTSPOT","", hot)
         # this gene may also have CNV data already squished
-        maybe_cnv = grepl("MUTor",
-                        rownames(output_data[grepl(this_gene,
-                                            rownames(output_data)),]))
-        if("TRUE" %in% maybe_cnv){ # if it has the cnv data then use the name of gene with LOSS or AMP respectively
-        this_gene = rownames(output_data[grepl(this_gene, rownames(output_data)),])[maybe_cnv]
-        message(paste0("Found hotspot for gene ", this_gene, " that also has CNV data, processing ..."))
-        output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
-        }else{ # otherwise just use the gene nae
-        message(paste0("Found hotspot for gene ", this_gene, ", processing ..."))
-        output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
+        maybe_cnv <- grepl(
+            "MUTor",
+            rownames(
+                output_data[grepl(this_gene,rownames(output_data)),]
+            )
+        )
+        # if it has the cnv data then use the name of gene with LOSS or AMP respectively
+        if("TRUE" %in% maybe_cnv){
+            this_gene <- rownames(output_data[grepl(this_gene, rownames(output_data)),])[maybe_cnv]
+            message(paste0("Found hotspot for gene ", this_gene, " that also has CNV data, processing ..."))
+            output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
+        # otherwise just use the gene name
+        }else{
+            message(paste0("Found hotspot for gene ", this_gene, ", processing ..."))
+            output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
         }
         # if the above statement work, then there should be no overlaps between hotspot and any other mutations
         # for the same gene

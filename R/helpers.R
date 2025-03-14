@@ -1,11 +1,14 @@
 
 #' Check matrix against missing features.
 #'
-#' Operate on the matrix supplied by user and check it for any features missing compared to the provided set.
+#' Operate on the matrix supplied by user and check it for any features missing
+#'      compared to the provided set.
 #'
-#' @param incoming_matrix The incoming matrix to be checked for any missing features.
+#' @param incoming_matrix The incoming matrix to be checked for any missing
+#'      features.
 #' @param feature_set The feature set.
-#' @return matrix where column names correspond to all features from the provided set
+#' @return matrix where column names correspond to all features from the
+#'      provided set
 #'
 check_for_missing_features <- function(
     incoming_matrix,
@@ -49,15 +52,23 @@ check_for_missing_features <- function(
 
 #' Classify DLBCLs according to genetic subgroups of Chapuy et al.
 #'
-#' Use the feature weights from NMF model to assemble the binary matrix and classify DLBCL tumors based on C0-C5 system of Chapuy et al
+#' Use the feature weights from NMF model to assemble the binary matrix and
+#'      classify DLBCL tumors based on C0-C5 system of Chapuy et al
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
-#' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
-#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
-#' @return data frame with classification, binary matrix used in classification, or both
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least
+#'      must contain the first 45 columns of standard MAF format.
+#' @param seg_data The SEG data frame to be used for matrix assembling. Must be
+#'      of standard SEG formatting, for example, as returned by get_cn_segments.
+#' @param sv_data The SV data frame to be used for matrix assembling. Must be of
+#'      standard BEDPE formatting, for example, as returned by get_combined_sv.
+#' @param projection The projection of the samples. Only used to retrerive data
+#'      through GAMBLR.data when it is not provided. Defaults to grch37.
+#' @param output The output to be returned after prediction is done. Can be one
+#'      of predictions, matrix, or both. Defaults to both.
+#' 
+#' @return data frame, binary matrix, or both
 #' @import dplyr readr GAMBLR.data
 #'
 classify_dlbcl_chapuy <- function(
@@ -79,13 +90,14 @@ classify_dlbcl_chapuy <- function(
     # Mutations matrix
     chapuy_feature_matrix$ssm_matrix <- maf_data %>%
         dplyr::filter(
-          Hugo_Symbol %in% chapuy_features$ssm_features
+            Hugo_Symbol %in% chapuy_features$ssm_features
         ) %>%
         dplyr::filter(
-          Variant_Classification %in% c(
-            "Silent",
-            GAMBLR.data:::coding_class
-        )) %>%
+            Variant_Classification %in% c(
+                "Silent",
+                GAMBLR.data:::coding_class
+            )
+        ) %>%
         dplyr::select(
             Tumor_Sample_Barcode,
             Hugo_Symbol,
@@ -102,8 +114,9 @@ classify_dlbcl_chapuy <- function(
         group_by(Tumor_Sample_Barcode,Hugo_Symbol) %>%
         dplyr::arrange(Tumor_Sample_Barcode, desc(mutated)) %>%
         dplyr::filter( # if both syn and nonsyn are present, prioritize nonsyn
-          mutated==max(mutated)
+            mutated==max(mutated)
         ) %>%
+        group_by(Tumor_Sample_Barcode,Hugo_Symbol) %>%
         slice_head %>%
         ungroup %>%
         pivot_wider(
@@ -136,68 +149,70 @@ classify_dlbcl_chapuy <- function(
 
     # First the arm features
     cnv_features_arm <- arm_coordinates %>%
-        mutate(arm = paste0(
+        mutate(
+            arm = paste0(
                 chromosome,
-                arm)
-            ) %>%
-        left_join(
-                chapuy_features$cnv_features_arm,
-                .,
-                by="arm"
+                arm
             )
+        ) %>%
+        left_join(
+            chapuy_features$cnv_features_arm,
+            .,
+            by="arm"
+        )
 
     # Next, the cytoband features
     cnv_features_cytoband <- cytoband_coordinates %>%
         left_join(
-                chapuy_features$cnv_features_cytoband,
-                .,
-                by="cytoband"
-            )
+            chapuy_features$cnv_features_cytoband,
+            .,
+            by="cytoband"
+        )
 
     cnv_arms <- cool_overlaps(
-          seg_data,
-          cnv_features_arm,
-          columns1 = c("chrom", "start", "end"),
-          columns2 = c("chromosome", "start", "end")
+            seg_data,
+            cnv_features_arm,
+            columns1 = c("chrom", "start", "end"),
+            columns2 = c("chromosome", "start", "end")
         ) %>%
         dplyr::select(sample, arm, CNV, log.ratio) %>%
         dplyr::rename("feature"="arm")
 
     cnv_cytobands <-  cool_overlaps(
-          seg_data,
-          cnv_features_cytoband,
-          columns1 = c("chrom", "start", "end"),
-          columns2 = c("chr", "start", "end")
+            seg_data,
+            cnv_features_cytoband,
+            columns1 = c("chrom", "start", "end"),
+            columns2 = c("chr", "start", "end")
         ) %>%
         select(sample, cytoband, CNV, log.ratio) %>%
         rename("feature"="cytoband")
 
     chapuy_feature_matrix$cnv_matrix <- bind_rows(
-          cnv_arms,
-          cnv_cytobands
+            cnv_arms,
+            cnv_cytobands
         ) %>%
         group_by(sample, feature, CNV) %>%
         summarise(
-          featuremean = mean(log.ratio)
+            featuremean = mean(log.ratio)
         ) %>%
         # get rid of neutrals
         dplyr::filter(
-          !featuremean == 0
+            !featuremean == 0
         ) %>%
         # ensure the same direction
         dplyr::filter(
-          (featuremean>0 & CNV=="AMP") | (featuremean<0 & CNV=="DEL")
+            (featuremean>0 & CNV=="AMP") | (featuremean<0 & CNV=="DEL")
         ) %>%
         dplyr::mutate(
-          CN = 2*2^featuremean,
-          mutated = case_when(
-            CNV=="AMP" & CN >=3.7 ~ 2,
-            CNV=="AMP" & CN >=2.2 ~ 1,
-            CN > 1.6 ~ 0,
-            CNV=="DEL" & CN >1.1 ~ 1,
-            CNV=="DEL" & CN <=1.1 ~ 2
-            ),
-          featurename = paste0(feature,":",CNV)
+            CN = 2*2^featuremean,
+            mutated = case_when(
+                CNV=="AMP" & CN >=3.7 ~ 2,
+                CNV=="AMP" & CN >=2.2 ~ 1,
+                CN > 1.6 ~ 0,
+                CNV=="DEL" & CN >1.1 ~ 1,
+                CNV=="DEL" & CN <=1.1 ~ 2
+                ),
+            featurename = paste0(feature,":",CNV)
         ) %>%
         ungroup %>%
         dplyr::select(sample, mutated, featurename) %>%
@@ -216,19 +231,20 @@ classify_dlbcl_chapuy <- function(
     # SV matrix
     chapuy_feature_matrix$sv_matrix <- sv_data %>%
         dplyr::filter(
-          gene %in% chapuy_features$sv_features |
-          partner %in% chapuy_features$sv_features
+            gene %in% chapuy_features$sv_features |
+            partner %in% chapuy_features$sv_features
         ) %>%
         dplyr::mutate(
-          feature = case_when(
-            gene %in% chapuy_features$sv_features ~ paste0("SV:",gene),
-            partner %in% chapuy_features$sv_features ~ paste0("SV:",partner)
-        )) %>%
+            feature = case_when(
+                gene %in% chapuy_features$sv_features ~ paste0("SV:",gene),
+                partner %in% chapuy_features$sv_features ~ paste0("SV:",partner)
+            )
+        ) %>%
         dplyr::mutate(
-          mutated=3
+            mutated=3
         ) %>%
         distinct(
-          tumour_sample_id, feature, mutated
+            tumour_sample_id, feature, mutated
         ) %>%
         ungroup %>%
         pivot_wider(
@@ -244,8 +260,8 @@ classify_dlbcl_chapuy <- function(
     )
 
     if("SV:CD274" %in% colnames(chapuy_feature_matrix$sv_matrix)){
-      chapuy_feature_matrix$sv_matrix <- chapuy_feature_matrix$sv_matrix %>%
-        dplyr::rename("SV:CD274/PDCD1LG2" = "SV:CD274")
+        chapuy_feature_matrix$sv_matrix <- chapuy_feature_matrix$sv_matrix %>%
+            dplyr::rename("SV:CD274/PDCD1LG2" = "SV:CD274")
     }
 
 
@@ -258,44 +274,44 @@ classify_dlbcl_chapuy <- function(
 
     # Check if any features are missing
     chapuy_feature_matrix$complete_matrix <- check_for_missing_features(
-      chapuy_feature_matrix$complete_matrix,
-      chapuy_features$feature_weights$Feature
+        chapuy_feature_matrix$complete_matrix,
+        chapuy_features$feature_weights$Feature
     )
 
     # This is to ensure consistent ordering for a fool-proof downstream calculations
     chapuy_feature_matrix$complete_matrix <- chapuy_feature_matrix$complete_matrix %>%
-      dplyr::select(chapuy_features$feature_weights$Feature)
+        dplyr::select(chapuy_features$feature_weights$Feature)
 
     # If user only wants matrix, return it here and do not perform the
     # subsequent analysis
     if(output=="matrix"){
-      return(chapuy_feature_matrix$complete_matrix)
+        return(chapuy_feature_matrix$complete_matrix)
     }
 
     # Classify the samples
     message("Assembled the matrix, classifying the samples ...")
     features_weights_matrix <- chapuy_features$feature_weights %>%
-      column_to_rownames("Feature") %>%
-      as.data.frame
+        column_to_rownames("Feature") %>%
+        as.data.frame
 
     compute_cluster_probability <- function(Row) {
-      ((Row %>% t) * features_weights_matrix) %>%
-      colSums %>%
-      as.data.frame %>%
-      `names<-`(
-        rownames(Row)
-      )
+        ((Row %>% t) * features_weights_matrix) %>%
+        colSums %>%
+        as.data.frame %>%
+        `names<-`(
+            rownames(Row)
+        )
     }
 
     predictions <- apply(
-      chapuy_feature_matrix$complete_matrix,
-      1,
-      compute_cluster_probability
+        chapuy_feature_matrix$complete_matrix,
+        1,
+        compute_cluster_probability
     )
 
     predictions <- do.call(
-      cbind,
-      predictions
+        cbind,
+        predictions
     ) %>%
     as.data.frame %>%
     t %>% # The output is wide so convert it to have 1 row/sample
@@ -306,41 +322,42 @@ classify_dlbcl_chapuy <- function(
     predictions$predict <- colnames(predictions)[apply(predictions,1,which.max)]
 
     predictions <- predictions %>%
-      rownames_to_column("sample_id")
+        rownames_to_column("sample_id")
 
     # Account for C0 samples, which will have all weights calculated as 0
     predictions <- predictions %>%
-      rowwise() %>%
-      dplyr::mutate(
-        predict = ifelse(
-          sum(C1:C5)==0,
-          "C0",
-          predict
-      )) %>%
-      ungroup %>%
-      as.data.frame %>%
-      dplyr::rename(
-        "Chapuy_cluster"="predict"
-      )
+        rowwise() %>%
+        dplyr::mutate(
+            predict = ifelse(
+                sum(C1:C5)==0,
+                "C0",
+                predict
+            )
+        ) %>%
+        ungroup %>%
+        as.data.frame %>%
+        dplyr::rename(
+            "Chapuy_cluster"="predict"
+        )
 
     if(output == "predictions"){
-      return(predictions)
+        return(predictions)
     }else if (output == "both") {
-      return(
-        list(
-          chapuy_matrix = chapuy_feature_matrix$complete_matrix,
-          chapuy_predictons = predictions
+        return(
+            list(
+                chapuy_matrix = chapuy_feature_matrix$complete_matrix,
+                chapuy_predictons = predictions
+            )
         )
-      )
     }else{
-      stop(
-        paste0(
-          "You requested to return ",
-          output,
-          ", which is not supported.\n",
-          "Please specify one of matrix, predictions, or both."
+        stop(
+            paste0(
+                "You requested to return ",
+                output,
+                ", which is not supported.\n",
+                "Please specify one of matrix, predictions, or both."
+            )
         )
-      )
     }
 
 }
@@ -348,16 +365,26 @@ classify_dlbcl_chapuy <- function(
 
 #' Classify DLBCLs according to genetic subgroups of Lacy et al.
 #'
-#' Use the random forest model to classify DLBCL tumors based on system of Lacy et al
+#' Use the random forest model to classify DLBCL tumors based on system of
+#'      Lacy et al
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.
-#' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param projection The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.
-#' @param output The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.
-#' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to N1 group as described in Runge et al (2021). Defaults to FALSE.
-#' @return data frame with classification, binary matrix used in classification, or both
+#' @param these_samples_metadata The metadata data frame that contains sample_id
+#'      column with ids for the samples to be classified.
+#' @param maf_data The MAF data frame to be used for matrix assembling. At least
+#'      must contain the first 45 columns of standard MAF format.
+#' @param seg_data The SEG data frame to be used for matrix assembling. Must be
+#'      of standard SEG formatting, for example, as returned by get_cn_segments.
+#' @param sv_data The SV data frame to be used for matrix assembling. Must be of
+#'      standard BEDPE formatting, for example, as returned by get_combined_sv.
+#' @param projection The projection of the samples. Used to annotate hotspot
+#'      SSM mutations and retreive coordinates for shm features. Defaults to
+#'      grch37.
+#' @param output The output to be returned after prediction is done. Can be one
+#'      of predictions, matrix, or both. Defaults to both.
+#' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to
+#'      N1 group as described in Runge et al (2021). Defaults to FALSE.
+#' 
+#' @return data frame, binary matrix, or both
 #' @rawNamespace import(randomForest, except = c("combine"))
 #' @import dplyr readr
 #'
@@ -375,8 +402,7 @@ classify_dlbcl_lacy <- function(
     lacy_feature_matrix <- list()
 
     maf_data <- annotate_hotspots(
-        maf_data,
-        recurrence_min = 3
+        maf_data
     )
 
     # Mutations matrix
@@ -385,7 +411,8 @@ classify_dlbcl_lacy <- function(
             gene_symbols = lacy_features$ssm,
             these_samples_metadata = these_samples_metadata,
             maf_data = maf_data,
-            include_hotspots = FALSE
+            include_hotspots = FALSE,
+            genome_build = projection
         ) %>%
         column_to_rownames(
             "sample_id"
@@ -397,8 +424,7 @@ classify_dlbcl_lacy <- function(
     )
 
     # Hotspots matrix
-    lacy_feature_matrix$hotspots <-
-    maf_data %>%
+    lacy_feature_matrix$hotspots <- maf_data %>%
         dplyr::filter(
             Hugo_Symbol %in% lacy_features$hotspots
         ) %>%
@@ -442,13 +468,11 @@ classify_dlbcl_lacy <- function(
                 "_noncan"
             ),
             everything()
-        )
-
-    colnames(lacy_feature_matrix$hotspots)[4:6] <-
-        c(
-            "POU2F2_239",
-            "MYD88_265",
-            "EZH2_646"
+        ) %>%
+        rename(
+            POU2F2_239 = any_of("POU2F2"),
+            MYD88_265  = any_of("MYD88"),
+            EZH2_646   = any_of("EZH2")
         )
 
     lacy_feature_matrix$hotspots <- complete_missing_from_matrix(
@@ -471,12 +495,22 @@ classify_dlbcl_lacy <- function(
             name
         )
 
-    lacy_feature_matrix$shm <-
-    get_ashm_count_matrix(
-        regions_bed = ashm_features,
-        maf_data = maf_data,
-        these_samples_metadata = these_samples_metadata
-    )
+    lacy_feature_matrix$shm <- cool_overlaps(
+        maf_data,
+        ashm_features,
+        columns2 = colnames(ashm_features)[1:3]
+    ) %>%
+        group_by(Tumor_Sample_Barcode, name) %>%
+        summarize(n = n()) %>%
+        pivot_wider(
+            id_cols = Tumor_Sample_Barcode,
+            names_from = name,
+            values_from = n,
+            values_fill = 0
+        ) %>%
+        ungroup %>%
+        distinct %>%
+        column_to_rownames("Tumor_Sample_Barcode")
 
     lacy_feature_matrix$shm <- complete_missing_from_matrix(
         lacy_feature_matrix$shm,
@@ -485,7 +519,7 @@ classify_dlbcl_lacy <- function(
 
     lacy_feature_matrix$shm[lacy_feature_matrix$shm>0] = 1
 
-    #  Amplifications were classed as driver events if they targeted a known
+    # Amplifications were classed as driver events if they targeted a known
     # oncogene and resulted in predicted copy number of ≥ 6.
     # Deletions were classed as driver events if they targeted a known tumour
     # suppressor gene and resulted in heterozygous or homozygous loss
@@ -546,7 +580,7 @@ classify_dlbcl_lacy <- function(
 
     # Generate complete matrix
     lacy_feature_matrix$complete <- bind_cols(
-        lacy_feature_matrix$ssm,
+        lacy_feature_matrix$ssm %>% select(-any_of(lacy_features$hotspots)),
         lacy_feature_matrix$cnv,
         lacy_feature_matrix$shm,
         lacy_feature_matrix$hotspots
@@ -890,7 +924,8 @@ classify_dlbcl_lymphgenerator <- function(
         these_samples_metadata = these_samples_metadata,
         maf_data = maf_data,
         include_hotspots = FALSE,
-        include_silent = FALSE
+        include_silent = FALSE,
+        genome_build = projection
     ) %>%
     column_to_rownames("sample_id")
 
@@ -943,16 +978,48 @@ classify_dlbcl_lymphgenerator <- function(
             seq_type
         )
     )
-    matrix$ashm <- get_ashm_count_matrix(
-        regions_bed = grch37_ashm_regions %>%
-            filter(name %in% lymphgenerator_features$aSHM),
-        maf_data = maf_data,
-        these_samples_metadata = these_samples_metadata
+
+    ashm_bed <- base::get(
+        paste0(
+            projection, "_ashm_regions"
+        )
+    ) %>%
+    mutate(
+        name = paste(
+            gene, region, sep = "-"
+        )
+    ) %>%
+    dplyr::filter(name %in% lymphgenerator_features$aSHM) %>%
+    mutate(
+        chr_name = ifelse(
+            projection == "grch37",
+            gsub("chr", "", chr_name),
+            chr_name
+        )
     )
+    names(ashm_bed)[1:3] <- c("chrom", "start", "end")
+
+    matrix$ashm <- cool_overlaps(
+        maf_data,
+        ashm_bed,
+        columns2 = colnames(ashm_bed)[1:3]
+    ) %>%
+        group_by(Tumor_Sample_Barcode, name) %>%
+        summarize(n = n()) %>%
+        pivot_wider(
+            id_cols = Tumor_Sample_Barcode,
+            names_from = name,
+            values_from = n,
+            values_fill = 0
+        ) %>%
+        ungroup %>%
+        distinct %>%
+        column_to_rownames("Tumor_Sample_Barcode")
+
 
     matrix$ashm <- complete_missing_from_matrix(
         matrix$ashm,
-        these_samples_metadata$Tumor_Sample_Barcode
+        these_samples_metadata$sample_id
     )
 
     # Binarizing the matrix
@@ -1270,7 +1337,9 @@ tabulate_ssm_status = function(
     }
 
     if(missing(these_samples_metadata)){
-        these_samples_metadata <- get_gambl_metadata()
+        stop(
+            "Please provide sample metadata."
+        )
     }
 
     coding_var <- c(
@@ -1455,6 +1524,7 @@ tabulate_ssm_status = function(
         }
 
     }
+    all_tabulated <- distinct(all_tabulated)
     return(all_tabulated)
 
 }

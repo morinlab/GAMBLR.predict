@@ -7,13 +7,16 @@
 check_for_missing_features(incoming_matrix, feature_set)
 }
 \arguments{
-\item{incoming_matrix}{The incoming matrix to be checked for any missing features.}
+\item{incoming_matrix}{The incoming matrix to be checked for any missing
+features.}
 
 \item{feature_set}{The feature set.}
 }
 \value{
-matrix where column names correspond to all features from the provided set
+matrix where column names correspond to all features from the
+provided set
 }
 \description{
-Operate on the matrix supplied by user and check it for any features missing compared to the provided set.
+Operate on the matrix supplied by user and check it for any features missing
+compared to the provided set.
 }

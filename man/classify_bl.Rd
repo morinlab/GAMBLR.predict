@@ -7,34 +7,51 @@
 classify_bl(
   these_samples_metadata,
   maf_data,
-  this_seq_type = "genome",
   projection = "grch37",
   output = "both",
   ashm_cutoff = 3
 )
 }
 \arguments{
-\item{these_samples_metadata}{The metadata data frame that contains sample_id column with ids for the samples to be classified.}
+\item{these_samples_metadata}{The metadata data frame that contains sample_id
+column with ids for the samples to be classified. Required input.}
 
-\item{maf_data}{The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.}
-
-\item{this_seq_type}{The seq_type of the samples. Only really used to retrerive mutations when maf data is not provided and to be retreived through GAMBLR.data. Defaults to genome.}
+\item{maf_data}{The MAF data frame to be used for matrix assembling. Any maf
+columns can be provided, but the required are "Hugo_Symbol",
+"NCBI_Build", "Chromosome", "Start_Position", "End_Position",
+"Variant_Classification", "HGVSp_Short", and "Tumor_Sample_Barcode".
+Required input.}
 
 \item{projection}{The projection of the samples. Defaults to grch37.}
 
-\item{output}{The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.}
+\item{output}{The output to be returned after prediction is done. Can be one
+of predictions, matrix, or both. Defaults to both.}
 
-\item{ashm_cutoff}{Numeric value indicating number of mutations for binarizing aSHM feature. Recommended to use the default value (3).}
+\item{ashm_cutoff}{Numeric value indicating number of mutations for
+binarizing aSHM feature. Recommended to use the default value (3).}
 }
 \value{
 data frame with classification, binary matrix used in classification, or both
 }
 \description{
-Use the random forest prediction model to assemble the binary matrix and use it to classify BL tummors into genetic subgroups
+Assemble the binary feature matrix and use the random forest prediction model
+to classify BL tumors into genetic subgroups. Please see PMID 36201743 on
+genetic subgroups of BL.
 }
 \examples{
-test_meta <- get_gambl_metadata(case_set = "BL-DLBCL-manuscript-HTMCP")
-predictions <- classify_bl(these_samples_metadata = test_meta)
-predictions <- classify_bl(these_samples_metadata = test_meta, output = "predictions")
+test_meta <- get_gambl_metadata()  \%>\%
+    filter(pathology == "BL")
+maf <- get_ssm_by_samples(
+    these_samples_metadata = test_meta
+)
+predictions <- classify_bl(
+     these_samples_metadata = test_meta,
+     maf_data = maf
+)
+predictions <- classify_bl(
+     these_samples_metadata = test_meta,
+     maf_data = maf,
+     output = "predictions"
+)
 
 }
