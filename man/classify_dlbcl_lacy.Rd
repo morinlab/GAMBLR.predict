@@ -15,23 +15,32 @@ classify_dlbcl_lacy(
 )
 }
 \arguments{
-\item{these_samples_metadata}{The metadata data frame that contains sample_id column with ids for the samples to be classified.}
+\item{these_samples_metadata}{The metadata data frame that contains sample_id
+column with ids for the samples to be classified.}
 
-\item{maf_data}{The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.}
+\item{maf_data}{The MAF data frame to be used for matrix assembling. At least
+must contain the first 45 columns of standard MAF format.}
 
-\item{seg_data}{The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.}
+\item{seg_data}{The SEG data frame to be used for matrix assembling. Must be
+of standard SEG formatting, for example, as returned by get_cn_segments.}
 
-\item{sv_data}{The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.}
+\item{sv_data}{The SV data frame to be used for matrix assembling. Must be of
+standard BEDPE formatting, for example, as returned by get_combined_sv.}
 
-\item{projection}{The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.}
+\item{projection}{The projection of the samples. Used to annotate hotspot
+SSM mutations and retreive coordinates for shm features. Defaults to
+grch37.}
 
-\item{output}{The output to be returned after prediction is done. Can be one of predictions, matrix, or both. Defaults to both.}
+\item{output}{The output to be returned after prediction is done. Can be one
+of predictions, matrix, or both. Defaults to both.}
 
-\item{include_N1}{Whether to set samples with NOTCH1 truncating mutations to N1 group as described in Runge et al (2021). Defaults to FALSE.}
+\item{include_N1}{Whether to set samples with NOTCH1 truncating mutations to
+N1 group as described in Runge et al (2021). Defaults to FALSE.}
 }
 \value{
-data frame with classification, binary matrix used in classification, or both
+data frame, binary matrix, or both
 }
 \description{
-Use the random forest model to classify DLBCL tumors based on system of Lacy et al
+Use the random forest model to classify DLBCL tumors based on system of
+Lacy et al
 }

@@ -10,8 +10,8 @@ classify_dlbcl(
   only_maf_data = FALSE,
   seg_data,
   sv_data,
-  this_seq_type = "genome",
   projection = "grch37",
+  this_seq_type = "genome",
   output = "both",
   method = "chapuy",
   adjust_ploidy = TRUE,
@@ -19,43 +19,86 @@ classify_dlbcl(
 )
 }
 \arguments{
-\item{these_samples_metadata}{The metadata data frame that contains sample_id column with ids for the samples to be classified.}
+\item{these_samples_metadata}{The metadata data frame that contains sample_id
+column with ids for the samples to be classified.}
 
-\item{maf_data}{The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.}
+\item{maf_data}{The MAF data frame to be used for matrix assembling. At least
+must contain the first 45 columns of standard MAF format.}
 
-\item{only_maf_data}{Whether to restrict matrix generation to maf data only. Only supported in the lymphgenerator mode. Default is FALSE (use SV and CNV).}
+\item{only_maf_data}{Whether to restrict matrix generation to maf data only.
+Only supported in the lymphgenerator mode. Default is FALSE (use SV and
+CNV).}
 
-\item{seg_data}{The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments.}
+\item{seg_data}{The SEG data frame to be used for matrix assembling. Must be
+of standard SEG formatting, for example, as returned by
+get_sample_cn_segments. Expected to be in grch37 projection.}
 
-\item{sv_data}{The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.}
+\item{sv_data}{The SV data frame to be used for matrix assembling. Must be of
+standard BEDPE formatting, for example, as returned by get_manta_sv.
+Expected to be in grch37 projection.}
 
-\item{this_seq_type}{The seq_type of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to genome.}
+\item{projection}{The projection of the samples. Used to adjust ploidy
+when seg data is provided and annotate SVs when necessary. Defaults to
+grch37.}
 
-\item{projection}{The projection of the samples. Only used to retrerive data through GAMBLR.data when it is not provided. Defaults to grch37.}
+\item{this_seq_type}{Only used for the lymphgenerator matrix generation. The
+seq_type defines the cutoff to consider aSHM site mutate. For genomes,
+it will assign status \code{mutated} based on the average pathology-adjusted
+number of mutations. For capture samples, any mutation at the aSHM site
+will result in the \code{mutated} annotation. This argument is ignored in
+any of \code{chapuy}, \code{lacy}, and \code{hmrn} methods.}
 
-\item{output}{The output to be returned after the prediction is done. Can be one of predictions, matrix, or both. Defaults to both.}
+\item{output}{The output to be returned after the prediction is done. Can be
+one of predictions, matrix, or both. Defaults to both.}
 
-\item{method}{Classification method. One of chapuy (used as default), lacy, or hmrn.}
+\item{method}{Classification method. One of chapuy (used as default), lacy,
+or hmrn.}
 
-\item{adjust_ploidy}{Whether to perform ploidy adjustment for the CNV data. Defaults to TRUE (recommended).}
+\item{adjust_ploidy}{Whether to perform ploidy adjustment for the CNV data.
+Defaults to TRUE (recommended).}
 
-\item{annotate_sv}{Whether to perform SV annotation on the supplied SV data frame. Defaults to TRUE.}
+\item{annotate_sv}{Whether to perform SV annotation on the supplied SV data
+frame. Defaults to TRUE.}
 }
 \value{
-data frame with classification, binary matrix used in classification, or both
+data frame, binary matrix, or both
 }
 \description{
-Using the user-provided or GAMBLR.data-retrieved data, this function will assemble the matrix according to the approach of
-Chapuy et al (2018) or Lacy et al (2020) classifiers. Since neither of this classifiers is publicly released, we have implemented a solution
-that closely (> 92\% accuracy) recapitulates each of these systems. For the classifier of Chapuy et al, the constructed matrix will be
-used to calculate class probability using the bundled feature weights obtained from our reproduction of the classifier. For the Lacy et al
-classifier, the matrix will be used for prediction of random forest model, which is supplied with the GAMBLR.predict package. Following the modification
-of Lacy classifier described in Runge et al (PMID 33010029), specifying the method of this function as hmrn will also consider
+Using the user-provided or GAMBLR.data-retrieved data, this function will
+assemble the matrix according to the approach of Chapuy et al (2018) or Lacy
+et al (2020) classifiers. Since neither of this classifiers is publicly
+released, we have implemented a solution that closely (> 92\% accuracy)
+recapitulates each of these systems. For the classifier of Chapuy et al, the
+constructed matrix will be used to calculate class probability using the
+bundled feature weights obtained from our reproduction of the classifier. For
+the Lacy et al classifier, the matrix will be used for prediction of random
+forest model, which is supplied with the GAMBLR.predict package. Following
+the modification of Lacy classifier described in Runge et al (PMID 33010029),
+specifying the method of this function as \code{hmrn} will also consider
 truncating mutations in NOTCH1 for the separate N1 subgroup.
 }
 \examples{
-test_meta <- get_gambl_metadata(case_set = "DLBCL-unembargoed")
-predictions_chapuy <- classify_dlbcl(these_samples_metadata = test_meta, output = "predictions")
+metadata <- get_gambl_metadata() \%>\%
+    filter(pathology == "DLBCL")
+
+maf <- get_ssm_by_samples(
+    these_samples_metadata = metadata
+)
+
+cnv <- get_cn_segments(
+    these_samples_metadata = metadata
+)
+
+bed <- get_manta_sv(
+    these_samples_metadata = metadata
+)
+predictions_chapuy <- classify_dlbcl(
+    these_samples_metadata = metadata,
+    maf_data = maf,
+    seg_data = cnv,
+    sv_data = bed,
+    output = "predictions"
+)
 predictions_lacy <- classify_dlbcl(these_samples_metadata = test_meta, method = "lacy")
 predictions_hmrn <- classify_dlbcl(these_samples_metadata = test_meta, method = "hmrn", output = "predictions")
 matrix_and_predictions <- classify_dlbcl(these_samples_metadata = test_meta)
