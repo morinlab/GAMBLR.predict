@@ -924,7 +924,8 @@ classify_dlbcl_lymphgenerator <- function(
         these_samples_metadata = these_samples_metadata,
         maf_data = maf_data,
         include_hotspots = FALSE,
-        include_silent = FALSE
+        include_silent = FALSE,
+        genome_build = projection
     ) %>%
     column_to_rownames("sample_id")
 
@@ -977,16 +978,48 @@ classify_dlbcl_lymphgenerator <- function(
             seq_type
         )
     )
-    matrix$ashm <- get_ashm_count_matrix(
-        regions_bed = grch37_ashm_regions %>%
-            filter(name %in% lymphgenerator_features$aSHM),
-        maf_data = maf_data,
-        these_samples_metadata = these_samples_metadata
+
+    ashm_bed <- base::get(
+        paste0(
+            projection, "_ashm_regions"
+        )
+    ) %>%
+    mutate(
+        name = paste(
+            gene, region, sep = "-"
+        )
+    ) %>%
+    dplyr::filter(name %in% lymphgenerator_features$aSHM) %>%
+    mutate(
+        chr_name = ifelse(
+            projection == "grch37",
+            gsub("chr", "", chr_name),
+            chr_name
+        )
     )
+    names(ashm_bed)[1:3] <- c("chrom", "start", "end")
+
+    matrix$ashm <- cool_overlaps(
+        maf_data,
+        ashm_bed,
+        columns2 = colnames(ashm_bed)[1:3]
+    ) %>%
+        group_by(Tumor_Sample_Barcode, name) %>%
+        summarize(n = n()) %>%
+        pivot_wider(
+            id_cols = Tumor_Sample_Barcode,
+            names_from = name,
+            values_from = n,
+            values_fill = 0
+        ) %>%
+        ungroup %>%
+        distinct %>%
+        column_to_rownames("Tumor_Sample_Barcode")
+
 
     matrix$ashm <- complete_missing_from_matrix(
         matrix$ashm,
-        these_samples_metadata$Tumor_Sample_Barcode
+        these_samples_metadata$sample_id
     )
 
     # Binarizing the matrix
