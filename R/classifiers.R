@@ -717,7 +717,8 @@ classify_bl <- function(
         ),
         these_samples_metadata = these_samples_metadata,
         maf_data = maf_data,
-        include_hotspots = FALSE
+        include_hotspots = FALSE,
+        genome_build = projection
     )
 
     # Generate binary matrix for aSHM
@@ -747,7 +748,7 @@ classify_bl <- function(
 
     # Generate binary matrix for ashm
     ashm_matrix <- cool_overlaps(
-        maf,
+        maf_data,
         ashm_bed,
         columns2 = c("chrom", "start", "end")
     ) %>%
