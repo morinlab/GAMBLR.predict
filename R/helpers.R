@@ -687,39 +687,53 @@ classify_dlbcl_lacy <- function(
 
     # Manually set samples to N1 if user chooses to do so
     if(include_N1){
-      n1_samples = maf_data %>%
-          dplyr::filter(
-            Hugo_Symbol=="NOTCH1"
-          ) %>%
-          dplyr::filter(
-            grepl(
-              "Frame_Shift",
-              Variant_Classification
+        n1_samples = maf_data %>%
+            dplyr::filter(
+                Hugo_Symbol=="NOTCH1"
+            ) %>%
+            dplyr::filter(
+                grepl(
+                "Frame_Shift",
+                Variant_Classification
+                )
+            )  %>%
+            pull(
+                Tumor_Sample_Barcode
             )
-          )  %>%
-          pull(
-            Tumor_Sample_Barcode
-          )
 
-      predictions <- predictions %>%
-        dplyr::mutate(
-          Lacy_cluster = ifelse(
-            sample_id %in% n1_samples,
-            "NOTCH1",
-            as.character(Lacy_cluster)
-          )
-        ) %>%
-        dplyr::rename(
-          "hmrn_cluster" = "Lacy_cluster"
-        )
-      if (output == "both") {
-      return(
-        list(
-          hmrn_matrix = lacy_feature_matrix$complete,
-          hmrn_predictons = predictions
-        )
-      )
-      }
+        predictions <- predictions %>%
+            dplyr::mutate(
+                Lacy_cluster = ifelse(
+                    sample_id %in% n1_samples,
+                    "NOTCH1",
+                    as.character(Lacy_cluster)
+                )
+            ) %>%
+            dplyr::rename(
+                "hmrn_cluster" = "Lacy_cluster"
+            ) %>%
+            dplyr::mutate(
+                NOTCH1 = ifelse(
+                    sample_id %in% n1_samples,
+                    1,
+                    0
+                ),
+                .before = "hmrn_cluster"
+            )  %>%
+            mutate(
+                across(
+                    where(is.numeric) & !c(NOTCH1),
+                    ~ ifelse(NOTCH1 == 1, 0, .)
+                )
+            )
+        if (output == "both") {
+            return(
+                list(
+                    hmrn_matrix = lacy_feature_matrix$complete,
+                    hmrn_predictons = predictions
+                )
+            )
+        }
 
     }
 
