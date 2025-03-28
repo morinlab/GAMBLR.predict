@@ -307,8 +307,9 @@ classify_fl <- function(
     }else if(output == "both"){
         return(
             list(
-                predictions = prediction,
-                matrix = assembled_matrix)
+                matrix = assembled_matrix,
+                predictions = prediction
+            )
         )
     }else{
         stop(
@@ -830,8 +831,9 @@ classify_bl <- function(
     }else if(output == "both"){
         return(
             list(
-                predictions = prediction,
-                matrix = assembled_matrix)
+                matrix = assembled_matrix,
+                predictions = prediction
+            )
         )
     }else{
         stop("Invalid output type. Please specify predictions, matrix, or both.")

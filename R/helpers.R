@@ -345,8 +345,8 @@ classify_dlbcl_chapuy <- function(
     }else if (output == "both") {
         return(
             list(
-                chapuy_matrix = chapuy_feature_matrix$complete_matrix,
-                chapuy_predictons = predictions
+                matrix = chapuy_feature_matrix$complete_matrix,
+                predictions = predictions
             )
         )
     }else{
@@ -729,8 +729,8 @@ classify_dlbcl_lacy <- function(
         if (output == "both") {
             return(
                 list(
-                    hmrn_matrix = lacy_feature_matrix$complete,
-                    hmrn_predictons = predictions
+                    matrix = lacy_feature_matrix$complete,
+                    predictions = predictions
                 )
             )
         }
@@ -742,8 +742,8 @@ classify_dlbcl_lacy <- function(
     }else if (output == "both") {
       return(
         list(
-          lacy_matrix = lacy_feature_matrix$complete,
-          lacy_predictons = predictions
+          matrix = lacy_feature_matrix$complete,
+          predictions = predictions
         )
       )
     }else{
