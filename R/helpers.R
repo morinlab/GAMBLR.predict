@@ -67,7 +67,7 @@ check_for_missing_features <- function(
 #'      through GAMBLR.data when it is not provided. Defaults to grch37.
 #' @param output The output to be returned after prediction is done. Can be one
 #'      of predictions, matrix, or both. Defaults to both.
-#' 
+#'
 #' @return data frame, binary matrix, or both
 #' @import dplyr readr GAMBLR.data
 #'
@@ -317,24 +317,38 @@ classify_dlbcl_chapuy <- function(
     t %>% # The output is wide so convert it to have 1 row/sample
     as.data.frame
 
+    predictions <- predictions %>%
+        rownames_to_column("sample_id") %>%
+        rowwise() %>%
+        dplyr::mutate(
+            C0 = ifelse(
+                sum(C1:C5)==0,
+                1,
+                0
+            ),
+            .before = "C1"
+        ) %>%
+        ungroup %>%
+        column_to_rownames("sample_id")
+
+    # Scale sum of weights to arrive to vote confidence in [0,1] range
+    predictions <- predictions %>%
+        mutate(
+            across(everything(), ~ . / pmax(rowSums(across(everything())), 1))
+    )
+
     # Layer in which cluster the sample belongs to
     # by taking the highest sum of weights
-    predictions$predict <- colnames(predictions)[apply(predictions,1,which.max)]
+    predictions <- predictions %>%
+        mutate(
+            predict = colnames(.)[max.col(across(everything()))]
+        )
 
     predictions <- predictions %>%
         rownames_to_column("sample_id")
 
     # Account for C0 samples, which will have all weights calculated as 0
     predictions <- predictions %>%
-        rowwise() %>%
-        dplyr::mutate(
-            predict = ifelse(
-                sum(C1:C5)==0,
-                "C0",
-                predict
-            )
-        ) %>%
-        ungroup %>%
         as.data.frame %>%
         dplyr::rename(
             "Chapuy_cluster"="predict"
@@ -383,7 +397,7 @@ classify_dlbcl_chapuy <- function(
 #'      of predictions, matrix, or both. Defaults to both.
 #' @param include_N1 Whether to set samples with NOTCH1 truncating mutations to
 #'      N1 group as described in Runge et al (2021). Defaults to FALSE.
-#' 
+#'
 #' @return data frame, binary matrix, or both
 #' @rawNamespace import(randomForest, except = c("combine"))
 #' @import dplyr readr
@@ -1271,7 +1285,7 @@ flatten_feature <- function(
 #' @param genes_of_interest A vector of genes for hotspot review. Currently only
 #'      FOXO1, MYD88, and CREBBP are supported.
 #' @param genome_build Reference genome build for the coordinates in the MAF
-#'      file. The default is inferred from maf_data. 
+#'      file. The default is inferred from maf_data.
 #' @param include_silent Logical parameter indicating whether to include silent
 #'      mutations into coding mutations. Default is FALSE.
 #' @param include_silent_genes Optionally, provide a list of genes for which the
@@ -1290,15 +1304,15 @@ flatten_feature <- function(
 #'  gene_symbols = c("EZH2","KMT2D","CREBBP","MYC")
 #' )
 #'
-#' 
+#'
 #'
 #' #all lymphoma genes from bundled NHL gene list
 #' coding_tabulated_df = tabulate_ssm_status()
-#' 
+#'
 #' #this example will fail because hg38 is not supported by this function (yet)
 #' coding_tabulated_df = tabulate_ssm_status(maf_data=
 #'                         get_coding_ssm(projection = "hg38"))
-#' # Error in tabulate_ssm_status(maf_data = get_coding_ssm(projection = "hg38")) : 
+#' # Error in tabulate_ssm_status(maf_data = get_coding_ssm(projection = "hg38")) :
 #' # Currently only grch37 projection (hg19 genome build) is supported.
 #'
 tabulate_ssm_status = function(
@@ -1377,7 +1391,7 @@ tabulate_ssm_status = function(
         message(
             strwrap(
                 prefix = " ",
-                initial = "", 
+                initial = "",
                 "You have provided gene list with argument include_silent_genes.
                 The Silent variants will be included even if the include_silent
                 argument is set to FALSE.
