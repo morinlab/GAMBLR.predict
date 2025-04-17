@@ -464,10 +464,14 @@ classify_dlbcl <- function(
               collapse=", "
             )
         )
-        # Drop missing samples from metadata
+        # Align metadata and maf
         these_samples_metadata <- these_samples_metadata %>%
             dplyr::filter(
                 sample_id %in% maf_data$Tumor_Sample_Barcode
+            )
+        maf_data <- maf_data %>%
+            dplyr::filter(
+                Tumor_Sample_Barcode %in% these_samples_metadata$sample_id
             )
     }else if(found_samples > requested_samples){
         message(
