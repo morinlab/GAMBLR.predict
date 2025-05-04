@@ -352,7 +352,7 @@ classify_fl <- function(
 #'      grch37.
 #' @param this_seq_type Only used for the lymphgenerator matrix generation. The
 #'      seq_type defines the cutoff to consider aSHM site mutate. For genomes,
-#'      it will assign status `mutated` based on the average pathology-adjusted 
+#'      it will assign status `mutated` based on the average pathology-adjusted
 #'      number of mutations. For capture samples, any mutation at the aSHM site
 #'      will result in the `mutated` annotation. This argument is ignored in
 #'      any of `chapuy`, `lacy`, and `hmrn` methods.
@@ -372,15 +372,15 @@ classify_fl <- function(
 #' @examples
 #' metadata <- get_gambl_metadata() %>%
 #'     filter(pathology == "DLBCL")
-#' 
+#'
 #' maf <- get_ssm_by_samples(
 #'     these_samples_metadata = metadata
 #' )
-#' 
+#'
 #' cnv <- get_cn_segments(
 #'     these_samples_metadata = metadata
 #' )
-#' 
+#'
 #' bed <- get_manta_sv(
 #'     these_samples_metadata = metadata
 #' )
@@ -419,7 +419,7 @@ classify_dlbcl <- function(
 
     these_samples_metadata <- these_samples_metadata %>%
         distinct(sample_id, .keep_all = TRUE)
-    
+
     if(missing(maf_data)){
         message("No maf data is provided.")
         stop(
@@ -513,7 +513,7 @@ classify_dlbcl <- function(
 
         seg_data <- seg_data %>%
             as.data.frame
-        
+
         seg_data <- seg_data %>%
             filter(sample %in% these_samples_metadata$sample_id)
 
@@ -1034,7 +1034,8 @@ massage_matrix_for_clustering = function(
         # otherwise just use the gene name
         }else{
             message(paste0("Found hotspot for gene ", this_gene, ", processing ..."))
-            output_data[,(output_data[c(this_gene),]>0 & output_data[c(hot),]==1)][c(this_gene, hot),][c(this_gene),] = 0
+            set_to_zero <- output_data[this_gene, ] > 0 & output_data[hot, ] == 1
+            output_data[this_gene, set_to_zero] <- 0
         }
         # if the above statement work, then there should be no overlaps between hotspot and any other mutations
         # for the same gene
