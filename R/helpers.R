@@ -1018,13 +1018,16 @@ classify_dlbcl_lymphgenerator <- function(
         )
     ) %>%
     dplyr::filter(name %in% lymphgenerator_features$aSHM) %>%
+    rowwise %>%
     mutate(
         chr_name = ifelse(
             projection == "grch37",
             gsub("chr", "", chr_name),
             chr_name
         )
-    )
+    ) %>%
+    ungroup %>%
+    as.data.frame
     names(ashm_bed)[1:3] <- c("chrom", "start", "end")
 
     matrix$ashm <- cool_overlaps(
