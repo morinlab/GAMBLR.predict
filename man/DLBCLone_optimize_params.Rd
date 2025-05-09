@@ -21,9 +21,19 @@ DLBCLone_optimize_params(
 
 \item{metadata_df}{Data frame of metadata with one row per sample and three required columns: sample_id, dataset and lymphgen}
 
+\item{umap_out}{additional argument}
+
 \item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")}
 
 \item{eval_group}{Specify whether certain rows will be evaluated and held out from training rather than using all samples.}
+
+\item{min_k}{additional argument}
+
+\item{max_k}{additional argument}
+
+\item{verbose}{additional argument}
+
+\item{seed}{additional argument}
 }
 \value{
 List of data frames with the results of the parameter optimization
@@ -34,9 +44,9 @@ Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 }
 \examples{
 
-lymphgen_A53_DLBCLone =  DLBCLone_optimize_params( 
+lymphgen_A53_DLBCLone =  DLBCLone_optimize_params(
    lgen_feat_status, #our binary feature matrix
-   a53_meta, #our metadata 
+   a53_meta, #our metadata
    umap_out = lymphgen_A53_all_feat_gambl, # force use existing UMAP fit
    eval_group = NULL, # use all samples for evaluating accuracy
    truth_classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"))
