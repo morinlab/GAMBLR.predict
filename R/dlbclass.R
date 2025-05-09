@@ -12,6 +12,9 @@
 #' @export
 #'
 #' @examples
+#' 
+#' original_dlbclass_features = construct_reduced_winning_version()
+#' 
 construct_reduced_winning_version <- function(mutations = "inst/extdata/DLBCL.699.fullGSM.Sep_23_2022.tsv",
                                               fisher_test_result = "inst/extdata/fisher_exact_5x2.Sep_23_2022.combined.tsv",
                                               add_missing_features = FALSE) {

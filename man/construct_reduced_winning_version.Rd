@@ -25,3 +25,8 @@ a list of data frames with the full mutation features, collapsed
 This function is an R port of some of the pre-processing code
 in DLBCLass https://github.com/getzlab/DLBCL-Classifier
 }
+\examples{
+
+original_dlbclass_features = construct_reduced_winning_version()
+
+}
