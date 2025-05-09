@@ -370,18 +370,23 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     }
     for(use_w in weights_opt){
       for(k in ks){
+        
         for (threshold in threshs){
           if(is.null(eval_group)){
             test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+
           }else{
 
-            test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
+            test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
             train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
           }
-
+          if(verbose){
+            print(paste("k:",k,"threshold:",threshold,"use_weights:",use_w,"na_option:",na_option))
+          }
+          
           pred = weighted_knn_predict_with_conf(
             train_coords = train_coords,
             train_labels = train_labels,
@@ -390,12 +395,14 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             conf_threshold =threshold,
             na_label="Other",
             use_weights = use_w,
-            ignore_top = ignore_top)
+            ignore_top = ignore_top,
+            verbose = verbose)
+
           if(is.null(eval_group)){
             xx_d = bind_cols(filter(outs$df,lymphgen %in% truth_classes) ,pred)
             train_d = filter(outs$df,lymphgen %in% truth_classes)
           }else{
-            xx_d = bind_cols(filter(outs$df,dataset == eval_group,lymphgen %in% truth_classes) ,pred)
+            xx_d = bind_cols(filter(outs$df,dataset == eval_group) ,pred)
             train_d = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes)
           }
           if("Other" %in% truth_classes){
@@ -410,9 +417,9 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
               train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
             }
+            n_other = nrow(test_coords)
 
-
-            if(!"Other" %in% truth_classes){
+            if(!"Other" %in% truth_classes && n_other > 0){
               pred_other = weighted_knn_predict_with_conf(
                 train_coords = train_coords,
                 train_labels = train_labels,
@@ -421,7 +428,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 conf_threshold =threshold,
                 na_label="Other",
                 use_weights = use_w,
-                ignore_top = ignore_top)
+                ignore_top = ignore_top,
+                verbose = verbose)
 
               if(!is.null(eval_group)){
                 xx_o = bind_cols(filter(outs$df,dataset == eval_group,lymphgen =="Other") ,pred_other)
@@ -435,7 +443,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
           true_factor = factor(xx_d$lymphgen,levels = levels(xx_d$lymphgen))
           if(verbose){
+            print("true_factor")
             print(levels(true_factor ))
+            print("===")
+            print(levels(xx_d$predicted_label))
           }
 
           conf_matrix <- confusionMatrix(xx_d$predicted_label, true_factor)
@@ -472,7 +483,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
             best_fit = outs
             best_pred = xx_d
-            if(!"Other" %in% truth_classes){
+            if(!"Other" %in% truth_classes  && n_other > 0){
               other_pred = pred_other
             }
 
@@ -486,13 +497,28 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   best_params$num_classes = num_class
   best_params$num_features = ncol(best_fit$features)
   best_params$seed = seed
+
+  test_coords = outs$df %>% select(V1,V2)
+  train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
+  train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+  pred = weighted_knn_predict_with_conf(
+            train_coords = train_coords,
+            train_labels = train_labels,
+            test_coords = test_coords,
+            k=best_params$k,
+            conf_threshold =best_params$threshold,
+            na_label="Other",
+            use_weights = best_params$use_weights,
+            ignore_top = ignore_top,
+            verbose = verbose)
+  xx_d = bind_cols(outs$df,pred)
   to_ret = list(params=results,
                 best_params = best_params,
                 model=best_fit$model,
                 features=best_fit$features,
                 df=outs$df,
-                predictions=best_pred)
-  if(!"Other" %in% truth_classes){
+                predictions=xx_d)
+  if(!"Other" %in% truth_classes && n_other > 0){
     to_ret[["predictions_other"]] = xx_o
     to_ret[["predictions_combined"]] = bind_rows(xx_o,best_pred)
   }
@@ -538,6 +564,14 @@ weighted_knn_predict_with_conf <- function(train_coords,
                                            use_weights = TRUE,
                                            ignore_top = FALSE,
                                            track_neighbors = FALSE) {
+  if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
+    print("train_coords:")
+    print(nrow(train_coords))
+    print("test:")
+    print(nrow(test_coords))
+    stop("train_coords and test_coords must be data frames with at least one row")
+  }
+  
   nn <- get.knnx(train_coords, test_coords, k)
   all_neighbors = data.frame()
   preds <- character(nrow(test_coords))
