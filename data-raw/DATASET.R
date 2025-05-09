@@ -280,3 +280,19 @@ lymphgenerator_features$aSHM <- system.file(
   sort
 
 usethis::use_data(lymphgenerator_features, overwrite = TRUE)
+
+
+dlbclass_features_all  = construct_reduced_winning_version(
+  mutations = system.file("extdata","DLBCL.699.fullGSM.Sep_23_2022.tsv",package="GAMBLR.predict"),
+  fisher_test_result = system.file("extdata","fisher_exact_5x2.Sep_23_2022.combined.tsv",package="GAMBLR.predict"))
+dlbclass_features = list()
+dlbclass_features$SSM = dlbclass_features_all$feature_names$ssm_features
+
+dlbclass_features$SV = dlbclass_features_all$feature_names$sv_features
+
+dlbclass_features$CNV = dlbclass_features_all$feature_names$cnv_features
+
+dlbclass_features$hotspots = dlbclass_features_all$feature_names$hotspot_features
+
+usethis::use_data(dlbclass_features, overwrite = TRUE)
+
