@@ -39,7 +39,7 @@ it's neighbors. Below this value the sample will be assigned na_label instead}
 \item{na_label}{Class to assign all samples that are not confidently assigned.
 Default: Other}
 
-\item{verbose}{}
+\item{verbose}{Whether to print verbose outputs to console}
 
 \item{use_weights}{Set to FALSE for all neigbors to have equal weight when
 calculating the confidence}

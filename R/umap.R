@@ -11,7 +11,6 @@
 #' @returns a list of data frames with the predictions and the UMAP input
 #' @export
 #'
-#' @examples
 predict_single_sample = function(test_df,
                                  train_df,
                                  train_metadata,
@@ -43,7 +42,7 @@ predict_single_sample = function(test_df,
                             metric="cosine",
                             join_column="sample_id",
                             na_vals = best_params$na_option)
-  
+
   test_coords = dplyr::filter(outs$df,
                               #!sample_id %in% rownames(test_df),
                               is.na(lymphgen)) %>% select(sample_id,V1,V2) %>%
@@ -62,7 +61,7 @@ predict_single_sample = function(test_df,
    use_weights = best_params$use_w,
    ignore_top = FALSE)
   pred$sample_id = rownames(test_coords)
-  
+
   if(drop_unlabeled_from_training){
     pred = dplyr::filter(pred,sample_id %in% rownames(test_df))
   }
@@ -71,13 +70,13 @@ predict_single_sample = function(test_df,
     mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
   if(make_plot){
 
-    pp = ggplot(outs$df,aes(x=V1,y=V2,colour=lymphgen,label=sample_id)) + 
-      geom_point() + 
-      geom_point(data = anno_out,aes(colour=predicted_label)) +  
+    pp = ggplot(outs$df,aes(x=V1,y=V2,colour=lymphgen,label=sample_id)) +
+      geom_point() +
+      geom_point(data = anno_out,aes(colour=predicted_label)) +
       geom_label_repel(data = anno_out,
                     aes(x=V1,y=V2,label=label),
-                    nudge_x=1,nudge_y=1,colour="black") + 
-      scale_colour_manual(values=get_gambl_colours()) + 
+                    nudge_x=1,nudge_y=1,colour="black") +
+      scale_colour_manual(values=get_gambl_colours()) +
       ggtitle(paste("k:",best_params$k,"seed:",best_params$seed))
     print(pp)
   }
@@ -94,6 +93,9 @@ predict_single_sample = function(test_df,
 #' @param annotate_accuracy Set to true to add labels with accuracy values
 #' @param classes Vector of classes that were used in the training and testing
 #' @param label_offset Length of the label offset for the accuracy labels
+#' @param title1 additional argument
+#' @param title2 additional argument
+#' @param title3 additional argument
 #'
 #' @returns a ggplot object
 #' @export
@@ -110,7 +112,7 @@ predict_single_sample = function(test_df,
 #'  details = lymphgen_A53_DLBCLone$best_params,
 #'  classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"),
 #'  annotate_accuracy=TRUE,label_offset = 1)
-#' 
+#'
 DLBCLone_train_test_plot = function(test_df,
                            train_df,
                            predictions_df,
@@ -122,7 +124,7 @@ DLBCLone_train_test_plot = function(test_df,
                            title1="GAMBL",
                            title2="predicted_class_for_HighConf",
                            title3 ="predicted_class_for_Other"){
-  
+
   title = paste0("N_class:",details$num_classes," N_feats:",details$num_features," k=",details$k," threshold=",details$threshold," bacc=",round(details$accuracy,3))
   if("BN2" %in% classes){
     print(details)
@@ -157,16 +159,16 @@ DLBCLone_train_test_plot = function(test_df,
                       mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
                       )
   }
-  
-  pp = ggplot(in_df) + 
-    geom_point(aes(x=V1,y=V2,colour=lymphgen),alpha=0.8) + 
-    scale_colour_manual(values=get_gambl_colours()) + 
-    facet_wrap(~dataset,ncol=1) + 
+
+  pp = ggplot(in_df) +
+    geom_point(aes(x=V1,y=V2,colour=lymphgen),alpha=0.8) +
+    scale_colour_manual(values=get_gambl_colours()) +
+    facet_wrap(~dataset,ncol=1) +
     theme_Morons() + ggtitle(title)
   if(annotate_accuracy){
     #add labels and set nudge direction based on what quadrant each group sits in
-    centroids = filter(predictions_df,predicted_label %in% classes) %>% 
-      group_by(predicted_label) %>% 
+    centroids = filter(predictions_df,predicted_label %in% classes) %>%
+      group_by(predicted_label) %>%
       summarise(mean_V1=mean(V1),mean_V2=mean(V2)) %>%
       mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
       mutate(lymphgen=predicted_label)
@@ -200,17 +202,18 @@ DLBCLone_train_test_plot = function(test_df,
 #' @param min_dist Passed to UMAP2. The minimum distance between points in the UMAP embedding.
 #' @param metric Passed to UMAP2. The distance metric to use for calculating distances between points.
 #' @param n_epochs Passed to UMAP2. The number of epochs to run the UMAP algorithm.
-#' @param init Passed to UMAP2. The initialization method for the UMAP algorithm. 
+#' @param init Passed to UMAP2. The initialization method for the UMAP algorithm.
 #' @param na_vals How to deal with NA values. Two options are "drop", which
 #' will remove all columns containing at least one NA or "to_zero", which sets
-#' all NA to zero and leaves the column intact. 
+#' all NA to zero and leaves the column intact.
 #' @param seed Passed to UMAP2. The random seed for reproducibility.
+#' @param ret_model additional argument
 #'
-#' @returns
+#' @import uwot
 #' @export
 #'
 #' @examples
-#' 
+#'
 #' umap_outs = make_and_annotate_umap(df=gambl_train_lymphgen,
 #'                            min_dist = 0,
 #'                            n_neighbors = 55,
@@ -220,8 +223,8 @@ DLBCLone_train_test_plot = function(test_df,
 #'                            metadata=gambl_train_meta_dlbclass,
 #'                            ret_model=T,
 #'                            metric="cosine")
-#' 
-#' 
+#'
+#'
 make_and_annotate_umap = function(df,
                               metadata,
                               umap_out,
@@ -229,7 +232,7 @@ make_and_annotate_umap = function(df,
                               min_dist=0,
                               metric="cosine",
                               n_epochs=1500,
-                              init="spca", 
+                              init="spca",
                               ret_model=TRUE,
                               na_vals = "drop",
                               join_column="sample_id",
@@ -248,9 +251,9 @@ make_and_annotate_umap = function(df,
   if(missing(metadata)){
     stop("metadata is required and should contain a column sample_id that matches the row names of your mutation data frame")
   }
-  
+
   df= df[rownames(df) %in% metadata[[join_column]],]
- 
+
   if(missing(umap_out)){
     umap_out = umap2(df %>% as.matrix(),
                      n_neighbors = n_neighbors,
@@ -262,10 +265,10 @@ make_and_annotate_umap = function(df,
                      seed = seed,
                      n_threads = 1) # possibly add rng_type = "deterministic"
 #IMPORTANT: n_threads must not be changed because it will break reproducibility
-    
+
   }else{
-    umap_out = uwot::umap_transform(X=df,
-                                    model=umap_out$model) 
+    umap_out = umap_transform(X=df,
+                                    model=umap_out$model)
     ret_model = FALSE
   }
   if(ret_model){
@@ -274,7 +277,7 @@ make_and_annotate_umap = function(df,
     umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
   }
   umap_df = left_join(umap_df,metadata)
-  
+
   results = list()
   results[["df"]]=umap_df
   results[["features"]] = df
@@ -290,16 +293,21 @@ make_and_annotate_umap = function(df,
 #' @param metadata_df Data frame of metadata with one row per sample and three required columns: sample_id, dataset and lymphgen
 #' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")
 #' @param eval_group Specify whether certain rows will be evaluated and held out from training rather than using all samples.
+#' @param umap_out additional argument
+#' @param min_k additional argument
+#' @param max_k additional argument
+#' @param verbose additional argument
+#' @param seed additional argument
 #'
 #' @returns List of data frames with the results of the parameter optimization
 #' including the best model, the associated knn parameters and the annotated UMAP output
 #' @export
 #'
 #' @examples
-#' 
-#' lymphgen_A53_DLBCLone =  DLBCLone_optimize_params( 
+#'
+#' lymphgen_A53_DLBCLone =  DLBCLone_optimize_params(
 #'    lgen_feat_status, #our binary feature matrix
-#'    a53_meta, #our metadata 
+#'    a53_meta, #our metadata
 #'    umap_out = lymphgen_A53_all_feat_gambl, # force use existing UMAP fit
 #'    eval_group = NULL, # use all samples for evaluating accuracy
 #'    truth_classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"))
@@ -368,12 +376,12 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
           }else{
-            
+
             test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
           }
-        
+
           pred = weighted_knn_predict_with_conf(
             train_coords = train_coords,
             train_labels = train_labels,
@@ -391,7 +399,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             train_d = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes)
           }
           if("Other" %in% truth_classes){
-            xx_d$lymphgen = factor(xx_d$lymphgen)        
+            xx_d$lymphgen = factor(xx_d$lymphgen)
           }else{
             if(is.null(eval_group)){
               test_coords = filter(outs$df,lymphgen %in% "Other") %>% select(V1,V2)
@@ -402,8 +410,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
               train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
             }
-            
-            
+
+
             if(!"Other" %in% truth_classes){
               pred_other = weighted_knn_predict_with_conf(
                 train_coords = train_coords,
@@ -424,20 +432,20 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             xx_d$lymphgen = factor(xx_d$lymphgen,levels = c(unique(xx_d$lymphgen),"Other"))
 
           }
-          
+
           true_factor = factor(xx_d$lymphgen,levels = levels(xx_d$lymphgen))
           if(verbose){
             print(levels(true_factor ))
           }
-          
+
           conf_matrix <- confusionMatrix(xx_d$predicted_label, true_factor)
-          
+
           bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
           sn <- conf_matrix$byClass[, "Sensitivity"]  # one per class
           if(verbose){
             print(bal_acc)
           }
-          
+
           overall_balanced_accuracy <- mean(bal_acc, na.rm = TRUE)
           row <- data.frame(k = k,
                             threshold = threshold,
@@ -461,13 +469,13 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           if(overall_balanced_accuracy > best_acc){
             best_acc = overall_balanced_accuracy
             print(paste("best accuracy:",best_acc,"k:",k,"threshold:",threshold,"na:",na_option,"Balanced accuracy:",overall_balanced_accuracy))
-            
+
             best_fit = outs
             best_pred = xx_d
             if(!"Other" %in% truth_classes){
               other_pred = pred_other
             }
-            
+
             best_params = row
           }
           results <- rbind(results, row)
@@ -504,11 +512,11 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 #' @param k The number of neigbors to consider
 #' @param epsilon This value is added to the distances before applying weights
 #' when use_weights is TRUE. Default: 1e-5
-#' @param conf_threshold Minimum confidence for classifying a sample based on 
+#' @param conf_threshold Minimum confidence for classifying a sample based on
 #' it's neighbors. Below this value the sample will be assigned na_label instead
-#' @param na_label Class to assign all samples that are not confidently assigned. 
+#' @param na_label Class to assign all samples that are not confidently assigned.
 #' Default: Other
-#' @param verbose 
+#' @param verbose Whether to print verbose outputs to console
 #' @param use_weights Set to FALSE for all neigbors to have equal weight when
 #' calculating the confidence
 #' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
@@ -519,7 +527,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 #' @returns data frame with labels and confidence values for rows in test_coords
 #' @export
 #'
-#' @examples
 weighted_knn_predict_with_conf <- function(train_coords,
                                            train_labels,
                                            test_coords,
@@ -530,7 +537,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
                                            verbose = FALSE,
                                            use_weights = TRUE,
                                            ignore_top = FALSE,
-                                           track_neighbors = FALSE) {                             
+                                           track_neighbors = FALSE) {
   nn <- get.knnx(train_coords, test_coords, k)
   all_neighbors = data.frame()
   preds <- character(nrow(test_coords))
@@ -539,15 +546,15 @@ weighted_knn_predict_with_conf <- function(train_coords,
   train_labels = as.character(train_labels)
   for (i in 1:nrow(test_coords)) {
     neighbors <- nn$nn.index[i, ]
-    distances <- nn$nn.dist[i, ] 
+    distances <- nn$nn.dist[i, ]
     if(ignore_top){
-      #ignore a neighbor if it has identical V1 and V2 
+      #ignore a neighbor if it has identical V1 and V2
       distances <- nn$nn.dist[i, ]
       if(distances[1] == 0){
         neighbors = neighbors[-1]
         distances = distances[-1]
       }
-      
+
     }
     distances = distances +  epsilon
     weights <- 1 / distances
@@ -557,9 +564,9 @@ weighted_knn_predict_with_conf <- function(train_coords,
       weights <- rep(1,length(distances))
     }
 
-    
+
     neighbor_labels <- train_labels[neighbors]
-    
+
     if(verbose){
       print("neighbors:")
       print(neighbors)
@@ -569,7 +576,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
       print(weights)
       print("labels:")
       print(neighbor_labels)
-    } 
+    }
     # Remove NAs (just in case)
     valid <- !is.na(neighbor_labels)
     neighbor_labels <- neighbor_labels[valid]
@@ -579,7 +586,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
       confs[i] <- NA
       next
     }
-    
+
     weighted_votes <- tapply(weights, neighbor_labels, sum)
     if(track_neighbors){
       # Create a data frame to store neighbors, distances, and weights
@@ -600,7 +607,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
       total_weight <- sum(weighted_votes)
       pred_weight <- weighted_votes[predicted_label]
       confidence <- pred_weight / total_weight
-      
+
       # Confidence thresholding
       if (!is.null(conf_threshold) && confidence < conf_threshold) {
         preds[i] <- na_label

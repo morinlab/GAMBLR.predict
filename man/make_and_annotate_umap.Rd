@@ -39,6 +39,8 @@ for reproducibility and for using the same UMAP model on different datasets.}
 
 \item{init}{Passed to UMAP2. The initialization method for the UMAP algorithm.}
 
+\item{ret_model}{additional argument}
+
 \item{na_vals}{How to deal with NA values. Two options are "drop", which
 will remove all columns containing at least one NA or "to_zero", which sets
 all NA to zero and leaves the column intact.}

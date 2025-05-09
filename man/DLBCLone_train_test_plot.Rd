@@ -34,6 +34,12 @@ DLBCLone_train_test_plot(
 \item{classes}{Vector of classes that were used in the training and testing}
 
 \item{label_offset}{Length of the label offset for the accuracy labels}
+
+\item{title1}{additional argument}
+
+\item{title2}{additional argument}
+
+\item{title3}{additional argument}
 }
 \value{
 a ggplot object
