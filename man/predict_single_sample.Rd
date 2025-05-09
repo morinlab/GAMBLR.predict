@@ -15,13 +15,22 @@ predict_single_sample(
 )
 }
 \arguments{
-\item{test_df}{}
+\item{test_df}{Data frame containing the mutation status of the test sample}
 
-\item{train_df}{}
+\item{train_df}{Data frame containing the mutation status of the training samples}
 
-\item{train_metadata}{}
+\item{train_metadata}{Metadata for training samples with truth labels in lymphgen column}
 
-\item{best_params}{}
+\item{best_params}{Data frame from DLBCLone_optimize_params with the best parameters}
+
+\item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")}
+
+\item{drop_unlabeled_from_training}{Set to TRUE to drop unlabeled samples from the training data}
+
+\item{make_plot}{Set to TRUE to plot the UMAP projection and predictions}
+}
+\value{
+a list of data frames with the predictions and the UMAP input
 }
 \description{
 Predict class for a single sample without using umap_transform

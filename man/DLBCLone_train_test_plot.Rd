@@ -19,21 +19,21 @@ DLBCLone_train_test_plot(
 )
 }
 \arguments{
-\item{test_df}{}
+\item{test_df}{Data frame containing the test data with UMAP coordinates}
 
-\item{train_df}{}
+\item{train_df}{Data frame containing the training data with UMAP coordinates}
 
-\item{predictions_df}{}
+\item{predictions_df}{Data frame containing the predictions with UMAP coordinates}
 
-\item{other_df}{}
+\item{other_df}{Data frame containing the predictions for samples in the "Other" class}
 
-\item{details}{}
+\item{details}{Single-row data frame with the best parameters from DLBCLone_optimize_params}
 
-\item{annotate_accuracy}{}
+\item{annotate_accuracy}{Set to true to add labels with accuracy values}
 
-\item{classes}{}
+\item{classes}{Vector of classes that were used in the training and testing}
 
-\item{label_offset}{}
+\item{label_offset}{Length of the label offset for the accuracy labels}
 }
 \value{
 a ggplot object

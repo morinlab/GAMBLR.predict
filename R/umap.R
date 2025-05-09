@@ -1,11 +1,14 @@
 #' Predict class for a single sample without using umap_transform
 #'
-#' @param test_df 
-#' @param train_df 
-#' @param best_params 
-#' @param train_metadata 
+#' @param test_df Data frame containing the mutation status of the test sample
+#' @param train_df Data frame containing the mutation status of the training samples
+#' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
+#' @param train_metadata Metadata for training samples with truth labels in lymphgen column
+#' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")
+#' @param drop_unlabeled_from_training Set to TRUE to drop unlabeled samples from the training data
+#' @param make_plot Set to TRUE to plot the UMAP projection and predictions
 #'
-#' @returns
+#' @returns a list of data frames with the predictions and the UMAP input
 #' @export
 #'
 #' @examples
@@ -83,14 +86,14 @@ predict_single_sample = function(test_df,
 
 #' Plot the result of a lymphgen classification
 #'
-#' @param test_df 
-#' @param train_df 
-#' @param predictions_df 
-#' @param other_df 
-#' @param details 
-#' @param annotate_accuracy 
-#' @param classes 
-#' @param label_offset 
+#' @param test_df Data frame containing the test data with UMAP coordinates
+#' @param train_df Data frame containing the training data with UMAP coordinates
+#' @param predictions_df Data frame containing the predictions with UMAP coordinates
+#' @param other_df Data frame containing the predictions for samples in the "Other" class
+#' @param details Single-row data frame with the best parameters from DLBCLone_optimize_params
+#' @param annotate_accuracy Set to true to add labels with accuracy values
+#' @param classes Vector of classes that were used in the training and testing
+#' @param label_offset Length of the label offset for the accuracy labels
 #'
 #' @returns a ggplot object
 #' @export
@@ -283,10 +286,10 @@ make_and_annotate_umap = function(df,
 
 #' Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 #'
-#' @param combined_mutation_status_df 
-#' @param metadata_df 
-#' @param truth_classes 
-#' @param eval_group 
+#' @param combined_mutation_status_df Data frame with one row per sample and one column per mutation
+#' @param metadata_df Data frame of metadata with one row per sample and three required columns: sample_id, dataset and lymphgen
+#' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")
+#' @param eval_group Specify whether certain rows will be evaluated and held out from training rather than using all samples.
 #'
 #' @returns List of data frames with the results of the parameter optimization
 #' including the best model, the associated knn parameters and the annotated UMAP output

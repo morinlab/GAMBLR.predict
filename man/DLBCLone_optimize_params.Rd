@@ -17,13 +17,13 @@ DLBCLone_optimize_params(
 )
 }
 \arguments{
-\item{combined_mutation_status_df}{}
+\item{combined_mutation_status_df}{Data frame with one row per sample and one column per mutation}
 
-\item{metadata_df}{}
+\item{metadata_df}{Data frame of metadata with one row per sample and three required columns: sample_id, dataset and lymphgen}
 
-\item{truth_classes}{}
+\item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")}
 
-\item{eval_group}{}
+\item{eval_group}{Specify whether certain rows will be evaluated and held out from training rather than using all samples.}
 }
 \value{
 List of data frames with the results of the parameter optimization
