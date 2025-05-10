@@ -169,7 +169,7 @@ DLBCLone_train_test_plot = function(test_df,
     #add labels and set nudge direction based on what quadrant each group sits in
     centroids = filter(predictions_df,predicted_label %in% classes) %>%
       group_by(predicted_label) %>%
-      summarise(mean_V1=mean(V1),mean_V2=mean(V2)) %>%
+      summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
       mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
       mutate(lymphgen=predicted_label)
     centroids = left_join(centroids,acc_df) %>%
