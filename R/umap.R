@@ -11,76 +11,104 @@
 #' @returns a list of data frames with the predictions and the UMAP input
 #' @export
 #'
-predict_single_sample = function(test_df,
-                                 train_df,
-                                 train_metadata,
-                                 best_params,
-                                 truth_classes = c("EZB","MCD","ST2","N1","BN2"),
-                                 drop_unlabeled_from_training=TRUE,
-                                 make_plot = TRUE){
-  train_metadata_use = filter(train_metadata,lymphgen %in% truth_classes)
-  train_metadata_notuse = filter(train_metadata,!lymphgen %in% truth_classes)
+predict_single_sample = function(
+    test_df,
+    train_df,
+    train_metadata,
+    best_params,
+    truth_classes = c("EZB","MCD","ST2","N1","BN2"),
+    drop_unlabeled_from_training=TRUE,
+    make_plot = TRUE
+){
+    train_metadata_use = filter(train_metadata,lymphgen %in% truth_classes)
+    train_metadata_notuse = filter(train_metadata,!lymphgen %in% truth_classes)
 
-  if(nrow(test_df)>1){
-    message("Warning: you have supplied more than one sample to test with. Will proceed with all")
-  }
-  combined_mutation_status_df = bind_rows(test_df,train_df)
-  if(any(rownames(test_df) %in% train_metadata_use$sample_id)){
-    stop("one or more samples overlap with your training data!")
-  }
-  placeholder_meta = data.frame(sample_id = rownames(test_df))
-  train_metadata_use= bind_rows(placeholder_meta,train_metadata_use)
+    if(nrow(test_df)>1){
+        message("Warning: you have supplied more than one sample to test with. Will proceed with all")
+    }
+        
+    combined_mutation_status_df = bind_rows(test_df,train_df)
+  
+    if(any(test_df$sample_id %in% train_metadata_use$sample_id)){
+        stop("one or more samples overlap with your training data!")
+    }
+  
+    placeholder_meta = data.frame(sample_id = test_df$sample_id)
+    train_metadata_use= bind_rows(placeholder_meta,train_metadata_use)
 
-  outs = make_and_annotate_umap(df=combined_mutation_status_df,
-                            min_dist = 0,
-                            n_neighbors = 55,
-                            init="random",
-                            n_epochs = 1500,
-                            seed=best_params$seed,
-                            metadata=train_metadata_use,
-                            ret_model=T,
-                            metric="cosine",
-                            join_column="sample_id",
-                            na_vals = best_params$na_option)
+    outs = make_and_annotate_umap(
+        df=combined_mutation_status_df,
+        min_dist = 0,
+        n_neighbors = 55,
+        init="spca",
+        n_epochs = 1500,
+        seed=best_params$seed,
+        metadata=train_metadata_use,
+        ret_model=TRUE,
+        metric="cosine",
+        join_column="sample_id",
+        na_vals = best_params$na_option
+    )
 
-  test_coords = dplyr::filter(outs$df,
-                              #!sample_id %in% rownames(test_df),
-                              is.na(lymphgen)) %>% select(sample_id,V1,V2) %>%
+    train_coords = dplyr::filter(
+        outs$df,
+        sample_id %in% train_df$sample_id,
+    ) %>% 
+    select(sample_id,V1,V2) %>%
     column_to_rownames("sample_id")
-  pred = weighted_knn_predict_with_conf(
-    train_coords = dplyr::filter(outs$df,
-                                 #!sample_id %in% rownames(test_df),
-                                 !is.na(lymphgen)) %>% select(V1,V2),
-    train_labels = dplyr::filter(outs$df,
-                                 #!sample_id %in% rownames(test_df)
-                                 !is.na(lymphgen)) %>% pull(lymphgen),
-    test_coords = test_coords,
-   k=best_params$k,
-   conf_threshold = best_params$threshold,
-   na_label="Other",
-   use_weights = best_params$use_w,
-   ignore_top = FALSE)
-  pred$sample_id = rownames(test_coords)
+    #View(train_coords)
 
-  if(drop_unlabeled_from_training){
-    pred = dplyr::filter(pred,sample_id %in% rownames(test_df))
-  }
-  #print(head(outs$df))
-  anno_out = left_join(pred,outs$df,by="sample_id") %>%
+    train_labels = dplyr::filter(
+        outs$df,
+        sample_id %in% train_df$sample_id
+    ) %>% 
+    pull(lymphgen) 
+
+    test_coords = dplyr::filter(
+        outs$df,
+        sample_id %in% test_df$sample_id
+    ) %>% 
+    select(sample_id,V1,V2) %>%
+    column_to_rownames("sample_id")
+
+    pred = weighted_knn_predict_with_conf(
+        train_coords = train_coords,
+        train_labels = train_labels,
+        test_coords = test_coords,
+        k = best_params$k,
+        conf_threshold = best_params$threshold,
+        na_label = "Other",
+        use_weights = best_params$use_w,
+        ignore_top = FALSE
+    )
+  
+    pred$sample_id = test_df$sample_id
+
+    if(drop_unlabeled_from_training){
+        pred = dplyr::filter(pred,sample_id %in% test_df$sample_id)
+    }
+  
+    #print(head(outs$df))
+    anno_out = left_join(pred,outs$df,by="sample_id") %>%
     mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
-  if(make_plot){
-
-    pp = ggplot(outs$df,aes(x=V1,y=V2,colour=lymphgen,label=sample_id)) +
-      geom_point() +
-      geom_point(data = anno_out,aes(colour=predicted_label)) +
-      geom_label_repel(data = anno_out,
-                    aes(x=V1,y=V2,label=label),
-                    nudge_x=1,nudge_y=1,colour="black") +
-      scale_colour_manual(values=get_gambl_colours()) +
-      ggtitle(paste("k:",best_params$k,"seed:",best_params$seed))
-    print(pp)
-  }
-  return(list(prediction = pred, umap_input = outs$features, model=outs$model))
+  
+    if(make_plot){
+        pp = ggplot(outs$df,aes(x=V1,y=V2,colour=lymphgen,label=sample_id)) +
+            geom_point() +
+            geom_point(data = anno_out,aes(colour=predicted_label)) +
+            geom_label_repel(
+                data = anno_out,
+                aes(x=V1,y=V2,label=label),
+                nudge_x=1,
+                nudge_y=1,
+                colour="black"
+            ) +
+            scale_colour_manual(values=get_gambl_colours()) +
+            ggtitle(paste("k:",best_params$k,"seed:",best_params$seed))
+        print(pp)
+    }
+        
+    return(list(prediction = pred, umap_input = outs$features, model=outs$model))
 }
 
 #' Plot the result of a lymphgen classification
@@ -113,81 +141,128 @@ predict_single_sample = function(test_df,
 #'  classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"),
 #'  annotate_accuracy=TRUE,label_offset = 1)
 #'
-DLBCLone_train_test_plot = function(test_df,
-                           train_df,
-                           predictions_df,
-                           other_df,
-                           details,
-                           annotate_accuracy = FALSE,
-                           classes = c("BN2","ST2","MCD","EZB","N1"),
-                           label_offset = 2,
-                           title1="GAMBL",
-                           title2="predicted_class_for_HighConf",
-                           title3 ="predicted_class_for_Other"){
+DLBCLone_train_test_plot = function(
+    test_df,
+    train_df,
+    predictions_df,
+    other_df,
+    details,
+    annotate_accuracy = FALSE,
+    classes = c("BN2","ST2","MCD","EZB","N1"),
+    label_offset = 2,
+    title1="GAMBL",
+    title2="predicted_class_for_HighConf",
+    title3 ="predicted_class_for_Other"
+){
 
-  title = paste0("N_class:",details$num_classes," N_feats:",details$num_features," k=",details$k," threshold=",details$threshold," bacc=",round(details$accuracy,3))
-  if("BN2" %in% classes){
-    print(details)
-    acc_df = data.frame(lymphgen = c("N1","BN2","EZB","MCD","ST2","Other","A53"),
-                      accuracy = c(details$N1_bacc,
-                                   details$BN2_bacc,
-                                   details$EZB_bacc,
-                                   details$MCD_bacc,
-                                   details$ST2_bacc,
-                                   details$Other_bacc,
-                                   details$A53_bacc))
-  }else if("C1" %in% classes){
-    acc_df = data.frame(lymphgen = c("C1","C2","C3","C4","C5"),
-                      accuracy = c(details$C1_bacc,
-                                   details$C2_bacc,
-                                   details$C3_bacc,
-                                   details$C4_bacc,
-                                   details$C5_bacc))
-  }else{
-    stop("no labels to add?")
-  }
-  # Add the predicted labels for Other (unclassified) cases, if provided
-  if(!missing(other_df)){
-    in_df = bind_rows(train_df,
-                      test_df,
-                      mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
-                      mutate(other_df,dataset=title3,lymphgen=predicted_label)
-                      )
-  }else{
-    in_df = bind_rows(train_df,
-                      test_df,
-                      mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
-                      )
-  }
+    title = paste0("N_class:",details$num_classes," N_feats:",details$num_features," k=",details$k," threshold=",details$threshold," bacc=",round(details$accuracy,3))
+    if("BN2" %in% classes){
+        print(details)
+        acc_df = data.frame(
+            lymphgen = c(
+                "N1",
+                "BN2",
+                "EZB",
+                "MCD",
+                "ST2",
+                "Other",
+                "A53"),
+            accuracy = c(
+                details$N1_bacc,
+                details$BN2_bacc,
+                details$EZB_bacc,
+                details$MCD_bacc,
+                details$ST2_bacc,
+                details$Other_bacc,
+                details$A53_bacc
+            )
+        )
+    }else if("C1" %in% classes){
+        acc_df = data.frame(
+            lymphgen = c(
+                "C1",
+                "C2",
+                "C3",
+                "C4",
+                "C5"
+            ),
+            accuracy = c(
+                details$C1_bacc,
+                details$C2_bacc,
+                details$C3_bacc,
+                details$C4_bacc,
+                details$C5_bacc
+            )
+        )
+    }else{
+        stop("no labels to add?")
+    }
+    # Add the predicted labels for Other (unclassified) cases, if provided
+    if(!missing(other_df)){
+        in_df = bind_rows(
+            train_df,
+            test_df,
+            mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
+            mutate(other_df,dataset=title3,lymphgen=predicted_label)
+        )
+    }else{
+        in_df = bind_rows(
+            train_df,
+            test_df,
+            mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
+        )
+    }
 
-  pp = ggplot(in_df) +
-    geom_point(aes(x=V1,y=V2,colour=lymphgen),alpha=0.8) +
-    scale_colour_manual(values=get_gambl_colours()) +
-    facet_wrap(~dataset,ncol=1) +
-    theme_Morons() + ggtitle(title)
-  if(annotate_accuracy){
-    #add labels and set nudge direction based on what quadrant each group sits in
-    centroids = filter(predictions_df,predicted_label %in% classes) %>%
-      group_by(predicted_label) %>%
-      summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
-      mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
-      mutate(lymphgen=predicted_label)
-    centroids = left_join(centroids,acc_df) %>%
-      mutate(label=paste(lymphgen,":",round(accuracy,3)))
+    pp = ggplot(in_df) +
+        geom_point(aes(x=V1,y=V2,colour=lymphgen),alpha=0.8) +
+        scale_colour_manual(values=get_gambl_colours()) +
+        facet_wrap(~dataset,ncol=1) +
+        theme_Morons() + ggtitle(title)
+    if(annotate_accuracy){
+        #add labels and set nudge direction based on what quadrant each group sits in
+        centroids = filter(predictions_df,predicted_label %in% classes) %>%
+            group_by(predicted_label) %>%
+            summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
+            mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
+            mutate(lymphgen=predicted_label)
+            centroids = left_join(centroids,acc_df) %>%
+            mutate(label=paste(lymphgen,":",round(accuracy,3)))
 
     centroids$dataset = title2
-    pp = pp + geom_label_repel(data=filter(centroids,nudge_y < 0, nudge_x < 0),
-                              aes(x=mean_V1,y=mean_V2,label=label),fill="white",size=5,nudge_y = -1 * label_offset , nudge_x = -1 * label_offset) +
-      geom_label_repel(data=filter(centroids,nudge_y < 0, nudge_x > 0),
-                      aes(x=mean_V1,y=mean_V2,label=label),size=5,nudge_y = -1 * label_offset , nudge_x = 1 * label_offset) +
-      geom_label_repel(data=filter(centroids,nudge_y > 0, nudge_x < 0),
-                      aes(x=mean_V1,y=mean_V2,label=label),size=5,nudge_y = 1 * label_offset , nudge_x = -1 * label_offset) +
-      geom_label_repel(data=filter(centroids,nudge_y > 0, nudge_x > 0),
-                      aes(x=mean_V1,y=mean_V2,label=label),fill="white",size=5,nudge_y = 1 * label_offset , nudge_x = 1 * label_offset)
-  }
-  pp
+    pp = pp + 
+        geom_label_repel(
+            data=filter(centroids,nudge_y < 0, nudge_x < 0),
+            aes(x=mean_V1,y=mean_V2,label=label),
+            fill="white",
+            size=5,
+            nudge_y = -1 * label_offset, 
+            nudge_x = -1 * label_offset
+        ) +
+        geom_label_repel(
+            data=filter(centroids,nudge_y < 0, nudge_x > 0),
+            aes(x=mean_V1,y=mean_V2,label=label),
+            size=5,
+            nudge_y = -1 * label_offset, 
+            nudge_x = 1 * label_offset
+        ) +
+        geom_label_repel(
+            data=filter(centroids,nudge_y > 0, nudge_x < 0),
+            aes(x=mean_V1,y=mean_V2,label=label),
+            size=5,
+            nudge_y = 1 * label_offset, 
+            nudge_x = -1 * label_offset
+        ) +
+        geom_label_repel(
+            data=filter(centroids,nudge_y > 0, nudge_x > 0),
+            aes(x=mean_V1,y=mean_V2,label=label),
+            fill="white",
+            size=5,
+            nudge_y = 1 * label_offset, 
+            nudge_x = 1 * label_offset
+        )
+    }
+    pp
 }
-
 
 #' Run UMAP and attach result to metadata
 #'
@@ -225,66 +300,82 @@ DLBCLone_train_test_plot = function(test_df,
 #'                            metric="cosine")
 #'
 #'
-make_and_annotate_umap = function(df,
-                              metadata,
-                              umap_out,
-                              n_neighbors=55,
-                              min_dist=0,
-                              metric="cosine",
-                              n_epochs=1500,
-                              init="spca",
-                              ret_model=TRUE,
-                              na_vals = "drop",
-                              join_column="sample_id",
-                              seed=42){
-  original_n = nrow(df)
-  if(na_vals == "to_zero"){
-    df[is.na(df)] = 0
-  }else if(na_vals == "drop"){
-    df <- df[, colSums(is.na(df)) == 0]
-  }
-  rs = rowSums(df,na.rm=TRUE)
-  df = df[rs>0,]
-  if(missing(df)){
-    stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
-  }
-  if(missing(metadata)){
-    stop("metadata is required and should contain a column sample_id that matches the row names of your mutation data frame")
-  }
+make_and_annotate_umap = function(
+    df,
+    metadata,
+    umap_out,
+    n_neighbors = 55,
+    min_dist = 0,
+    metric = "cosine",
+    n_epochs = 1500,
+    init = "spca",
+    ret_model = TRUE,
+    na_vals = "drop",
+    join_column = "sample_id",
+    seed = 12345
+){
+    df = df %>% column_to_rownames(var = "sample_id")
+    original_n = nrow(df)
+    
+    if (na_vals == "to_zero") {
+        df[is.na(df)] = 0
+    } else if (na_vals == "drop") {
+        df <- df[, colSums(is.na(df)) == 0]
+    }
 
-  df= df[rownames(df) %in% metadata[[join_column]],]
+    rs = rowSums(df, na.rm = TRUE)
+    df = df[rs > 0, ]
 
-  if(missing(umap_out)){
-    umap_out = umap2(df %>% as.matrix(),
-                     n_neighbors = n_neighbors,
-                     min_dist = min_dist,
-                     metric = metric,
-                     ret_model = ret_model,
-                     n_epochs=n_epochs,
-                     init=init,
-                     seed = seed,
-                     n_threads = 1) # possibly add rng_type = "deterministic"
-#IMPORTANT: n_threads must not be changed because it will break reproducibility
+    if (missing(df)) {
+        stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
+    }
 
-  }else{
-    umap_out = umap_transform(X=df,
-                                    model=umap_out$model)
-    ret_model = FALSE
-  }
-  if(ret_model){
-    umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
-  }else{
-    umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
-  }
-  umap_df = left_join(umap_df,metadata)
+    if (ret_model && missing(metadata)) {
+        stop("metadata is required and should contain a column sample_id that matches the row names of your mutation data frame")
+    }
 
-  results = list()
-  results[["df"]]=umap_df
-  results[["features"]] = df
-  if(ret_model){
-    results[["model"]]= umap_out
-  }
-  return(results)
+    # Keep only samples in metadata for training mode
+    if (ret_model) {
+        df = df[rownames(df) %in% metadata[[join_column]], ]
+    }
+
+    if (missing(umap_out)) {
+        umap_out = umap2(
+            df %>% as.matrix(),
+            n_neighbors = n_neighbors,
+            min_dist = min_dist,
+            metric = metric,
+            ret_model = ret_model,
+            n_epochs = n_epochs,
+            init = init,
+            seed = seed,
+            n_threads = 1
+        )
+    } else {
+        umap_out = umap_transform(
+            X = df,
+            model = umap_out
+        )
+        ret_model = FALSE
+    }
+
+    if (ret_model) {
+        umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
+        umap_df = left_join(umap_df, metadata, by = join_column)
+    } else {
+        umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
+        # No metadata join for projection-only mode
+    }
+
+    results = list()
+    results[["df"]] = umap_df
+    results[["features"]] = df
+
+    if (ret_model) {
+        results[["model"]] = umap_out
+    }
+
+    return(results)
 }
 
 #' Optimize parameters for classifying samples using UMAP and k-nearest neighbor
@@ -311,221 +402,254 @@ make_and_annotate_umap = function(df,
 #'    umap_out = lymphgen_A53_all_feat_gambl, # force use existing UMAP fit
 #'    eval_group = NULL, # use all samples for evaluating accuracy
 #'    truth_classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"))
-
-DLBCLone_optimize_params = function(combined_mutation_status_df,
-                           metadata_df,
-                           umap_out,
-                           truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
-                           eval_group = "Lacy",
-                           min_k=3,
-                           max_k=30,
-                           verbose = FALSE,
-                           seed = 12345){
-  na_opt = c("drop")
-  num_class = length(truth_classes)
-  weights_opt = c(TRUE,FALSE)
-  threshs = seq(0,0.95,0.05)
-  #ks = seq(5,25,1)
-  ks = seq(min_k,max_k,1)
-  results <- data.frame()
-  best_params <- data.frame()
-  #best so far:
-  threshold = 0.3
-  k = 6
-  use_w = TRUE
-  best_acc = 0
-  best_fit = NULL
-
-  best_pred = NULL
-  other_pred = NULL
-  for(na_option in na_opt){
-    if(missing(umap_out)){
-      outs = make_and_annotate_umap(df=combined_mutation_status_df,
-                              min_dist = 0,
-                              n_neighbors = 55,
-                              n_epochs = 1500,
-                              seed=seed,
-                              metadata=metadata_df,
-                              ret_model=T,
-                              metric="cosine",
-                              join_column="sample_id",
-                              na_vals = na_option)
-    }else{
-      #project onto existing model instead of re-running UMAP
-      outs = make_and_annotate_umap(df=combined_mutation_status_df,
-                              umap_out = umap_out,
-                              min_dist = 0,
-                              n_neighbors = 55,
-                              n_epochs = 1500,
-                              seed=seed,
-                              metadata=metadata_df,
-                              ret_model=T,
-                              metric="cosine",
-                              join_column="sample_id",
-                              na_vals = na_option)
-    }
-    ignore_top = FALSE
-    if(is.null(eval_group)){
-      ignore_top = TRUE
-    }
-    for(use_w in weights_opt){
-      for(k in ks){
-        
-        for (threshold in threshs){
-          if(is.null(eval_group)){
-            test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-            train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-            train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-
-          }else{
-
-            test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
-            train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
-            train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
-          }
-          if(verbose){
-            print(paste("k:",k,"threshold:",threshold,"use_weights:",use_w,"na_option:",na_option))
-          }
-          
-          pred = weighted_knn_predict_with_conf(
-            train_coords = train_coords,
-            train_labels = train_labels,
-            test_coords = test_coords,
-            k=k,
-            conf_threshold =threshold,
-            na_label="Other",
-            use_weights = use_w,
-            ignore_top = ignore_top,
-            verbose = verbose)
-
-          if(is.null(eval_group)){
-            xx_d = bind_cols(filter(outs$df,lymphgen %in% truth_classes) ,pred)
-            train_d = filter(outs$df,lymphgen %in% truth_classes)
-          }else{
-            xx_d = bind_cols(filter(outs$df,dataset == eval_group) ,pred)
-            train_d = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes)
-          }
-          if("Other" %in% truth_classes){
-            xx_d$lymphgen = factor(xx_d$lymphgen)
-          }else{
-            if(is.null(eval_group)){
-              test_coords = filter(outs$df,lymphgen %in% "Other") %>% select(V1,V2)
-              train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-              train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-            }else{
-              test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% select(V1,V2)
-              train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
-              train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
-            }
-            n_other = nrow(test_coords)
-
-            if(!"Other" %in% truth_classes && n_other > 0){
-              pred_other = weighted_knn_predict_with_conf(
-                train_coords = train_coords,
-                train_labels = train_labels,
-                test_coords = test_coords,
-                k=k,
-                conf_threshold =threshold,
-                na_label="Other",
-                use_weights = use_w,
-                ignore_top = ignore_top,
-                verbose = verbose)
-
-              if(!is.null(eval_group)){
-                xx_o = bind_cols(filter(outs$df,dataset == eval_group,lymphgen =="Other") ,pred_other)
-              }else{
-                xx_o = bind_cols(filter(outs$df,lymphgen == "Other") ,pred_other)
-              }
-            }
-            xx_d$lymphgen = factor(xx_d$lymphgen,levels = c(unique(xx_d$lymphgen),"Other"))
-
-          }
-
-          true_factor = factor(xx_d$lymphgen,levels = levels(xx_d$lymphgen))
-          if(verbose){
-            print("true_factor")
-            print(levels(true_factor ))
-            print("===")
-            print(levels(xx_d$predicted_label))
-          }
-
-          conf_matrix <- confusionMatrix(xx_d$predicted_label, true_factor)
-
-          bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
-          sn <- conf_matrix$byClass[, "Sensitivity"]  # one per class
-          if(verbose){
-            print(bal_acc)
-          }
-
-          overall_balanced_accuracy <- mean(bal_acc, na.rm = TRUE)
-          row <- data.frame(k = k,
-                            threshold = threshold,
-                            use_weights = use_w,
-                            accuracy = overall_balanced_accuracy,
-                            N1_sn = unname(sn["Class: N1"]),
-                            BN2_sn= unname(sn["Class: BN2"]),
-                            ST2_sn = unname(sn["Class: ST2"]),
-                            N1_bacc = unname(bal_acc["Class: N1"]),
-                            BN2_bacc = unname(bal_acc["Class: BN2"]),
-                            MCD_bacc = unname(bal_acc["Class: MCD"]),
-                            EZB_bacc = unname(bal_acc["Class: EZB"]),
-                            A53_bacc = unname(bal_acc["Class: A53"]),
-                            Other_bacc = unname(bal_acc["Class: Other"]),
-                            C1_bacc = unname(bal_acc["Class: C1"]),
-                            C2_bacc = unname(bal_acc["Class: C2"]),
-                            C3_bacc = unname(bal_acc["Class: C3"]),
-                            C4_bacc = unname(bal_acc["Class: C4"]),
-                            C5_bacc = unname(bal_acc["Class: C5"]),
-                            ST2_bacc = unname(bal_acc["Class: ST2"]), na_option= na_option)
-          if(overall_balanced_accuracy > best_acc){
-            best_acc = overall_balanced_accuracy
-            print(paste("best accuracy:",best_acc,"k:",k,"threshold:",threshold,"na:",na_option,"Balanced accuracy:",overall_balanced_accuracy))
-
-            best_fit = outs
-            best_pred = xx_d
-            if(!"Other" %in% truth_classes  && n_other > 0){
-              other_pred = pred_other
-            }
-
-            best_params = row
-          }
-          results <- rbind(results, row)
+DLBCLone_optimize_params = function(
+    combined_mutation_status_df,
+    metadata_df,
+    umap_out,
+    truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
+    eval_group = "Lacy",
+    min_k=3,
+    max_k=30,
+    verbose = FALSE,
+    seed = 12345
+){
+    na_opt = c("drop")
+    num_class = length(truth_classes)
+    weights_opt = c(TRUE,FALSE)
+    threshs = seq(0,0.95,0.05)
+    ks = seq(min_k,max_k,1)
+    results <- data.frame()
+    best_params <- data.frame()
+    #best so far:
+    threshold = 0.3
+    k = 6
+    use_w = TRUE
+    best_acc = 0
+    best_fit = NULL
+    best_pred = NULL
+    other_pred = NULL
+  
+    for(na_option in na_opt){
+        if(missing(umap_out)){
+            outs = make_and_annotate_umap(
+                df=combined_mutation_status_df,
+                min_dist = 0,
+                n_neighbors = 55,
+                n_epochs = 1500,
+                init = "spca",
+                seed=seed,
+                metadata=metadata_df,
+                ret_model=T,
+                metric="cosine",
+                join_column="sample_id",
+                na_vals = na_option)
+        }else{
+        #project onto existing model instead of re-running UMAP
+            outs = make_and_annotate_umap(
+                df=combined_mutation_status_df,
+                umap_out = umap_out,
+                min_dist = 0,
+                n_neighbors = 55,
+                n_epochs = 1500,
+                init = "spca",
+                seed=seed,
+                metadata=metadata_df,
+                ret_model=T,
+                metric="cosine",
+                join_column="sample_id",
+                na_vals = na_option)
         }
-      }
+    
+        ignore_top = FALSE
+        if(is.null(eval_group)){
+            ignore_top = TRUE
+        }
+    
+        for(use_w in weights_opt){
+            for(k in ks){
+        
+                for (threshold in threshs){
+                    if(is.null(eval_group)){
+                        test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
+                        train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
+                        train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+                    }else{
+                        test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
+                        train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
+                        train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
+                    }
+          
+                    if(verbose){
+                        print(paste("k:",k,"threshold:",threshold,"use_weights:",use_w,"na_option:",na_option))
+                    }
+          
+                    pred = weighted_knn_predict_with_conf(
+                        train_coords = train_coords,
+                        train_labels = train_labels,
+                        test_coords = test_coords,
+                        k=k,
+                        conf_threshold =threshold,
+                        na_label="Other",
+                        use_weights = use_w,
+                        ignore_top = ignore_top,
+                        verbose = verbose
+                    )
+
+                    if(is.null(eval_group)){
+                        xx_d = bind_cols(filter(outs$df,lymphgen %in% truth_classes) ,pred)
+                        train_d = filter(outs$df,lymphgen %in% truth_classes)
+                    }else{
+                        xx_d = bind_cols(filter(outs$df,dataset == eval_group) ,pred)
+                        train_d = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes)
+                    }
+          
+                    if("Other" %in% truth_classes){
+                        xx_d$lymphgen = factor(xx_d$lymphgen)
+                    }else{
+                        if(is.null(eval_group)){
+                            test_coords = filter(outs$df,lymphgen %in% "Other") %>% select(V1,V2)
+                            train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
+                            train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+                        }else{
+                            test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% select(V1,V2)
+                            train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
+                            train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
+                        }
+            
+                        n_other = nrow(test_coords)
+
+                        if(!"Other" %in% truth_classes && n_other > 0){
+                            pred_other = weighted_knn_predict_with_conf(
+                                train_coords = train_coords,
+                                train_labels = train_labels,
+                                test_coords = test_coords,
+                                k=k,
+                                conf_threshold =threshold,
+                                na_label="Other",
+                                use_weights = use_w,
+                                ignore_top = ignore_top,
+                                verbose = verbose
+                            )
+
+                            if(!is.null(eval_group)){
+                                xx_o = bind_cols(filter(outs$df,dataset == eval_group,lymphgen =="Other") ,pred_other)
+                            }else{
+                                xx_o = bind_cols(filter(outs$df,lymphgen == "Other") ,pred_other)
+                            }
+                        }
+                
+                        xx_d$lymphgen = factor(xx_d$lymphgen,levels = c(unique(xx_d$lymphgen),"Other"))
+
+                    }
+
+                    true_factor = factor(xx_d$lymphgen,levels = levels(xx_d$lymphgen))
+          
+                    if(verbose){
+                        print("true_factor")
+                        print(levels(true_factor ))
+                        print("===")
+                        print(levels(xx_d$predicted_label))
+                    }
+
+                    conf_matrix <- confusionMatrix(xx_d$predicted_label, true_factor)
+
+                    bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
+                    sn <- conf_matrix$byClass[, "Sensitivity"]  # one per class
+          
+                    if(verbose){
+                        print(bal_acc)
+                    }
+
+                    overall_balanced_accuracy <- mean(bal_acc, na.rm = TRUE)
+                    row <- data.frame(
+                        k = k,
+                        threshold = threshold,
+                        use_weights = use_w,
+                        accuracy = overall_balanced_accuracy,
+                        N1_sn = unname(sn["Class: N1"]),
+                        BN2_sn= unname(sn["Class: BN2"]),
+                        ST2_sn = unname(sn["Class: ST2"]),
+                        N1_bacc = unname(bal_acc["Class: N1"]),
+                        BN2_bacc = unname(bal_acc["Class: BN2"]),
+                        MCD_bacc = unname(bal_acc["Class: MCD"]),
+                        EZB_bacc = unname(bal_acc["Class: EZB"]),
+                        A53_bacc = unname(bal_acc["Class: A53"]),
+                        Other_bacc = unname(bal_acc["Class: Other"]),
+                        C1_bacc = unname(bal_acc["Class: C1"]),
+                        C2_bacc = unname(bal_acc["Class: C2"]),
+                        C3_bacc = unname(bal_acc["Class: C3"]),
+                        C4_bacc = unname(bal_acc["Class: C4"]),
+                        C5_bacc = unname(bal_acc["Class: C5"]),
+                        ST2_bacc = unname(bal_acc["Class: ST2"]), 
+                        na_option= na_option
+                    )
+          
+                    if(overall_balanced_accuracy > best_acc){
+                        best_acc = overall_balanced_accuracy
+                        print(paste(
+                            "best accuracy:",
+                            best_acc,
+                            "k:",
+                            k,
+                            "threshold:",
+                            threshold,
+                            "na:",
+                            na_option,
+                            "Balanced accuracy:",
+                            overall_balanced_accuracy
+                        ))
+
+                        best_fit = outs
+                        best_pred = xx_d
+            
+                        if(!"Other" %in% truth_classes  && n_other > 0){
+                            other_pred = pred_other
+                        }
+
+                        best_params = row
+          
+                    }
+                    results <- rbind(results, row)
+                }
+            }
+        }
     }
-  }
-  best_params$num_classes = num_class
-  best_params$num_features = ncol(best_fit$features)
-  best_params$seed = seed
+    best_params$num_classes = num_class
+    best_params$num_features = ncol(best_fit$features)
+    best_params$seed = seed
 
-  test_coords = outs$df %>% select(V1,V2)
-  train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-  train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-  pred = weighted_knn_predict_with_conf(
-            train_coords = train_coords,
-            train_labels = train_labels,
-            test_coords = test_coords,
-            k=best_params$k,
-            conf_threshold =best_params$threshold,
-            na_label="Other",
-            use_weights = best_params$use_weights,
-            ignore_top = ignore_top,
-            verbose = verbose)
-  xx_d = bind_cols(outs$df,pred)
-  to_ret = list(params=results,
-                best_params = best_params,
-                model=best_fit$model,
-                features=best_fit$features,
-                df=outs$df,
-                predictions=xx_d)
-  if(!"Other" %in% truth_classes && n_other > 0){
-    to_ret[["predictions_other"]] = xx_o
-    to_ret[["predictions_combined"]] = bind_rows(xx_o,best_pred)
-  }
+    test_coords = outs$df %>% select(V1,V2)
+    train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
+    train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+    pred = weighted_knn_predict_with_conf(
+        train_coords = train_coords,
+        train_labels = train_labels,
+        test_coords = test_coords,
+        k=best_params$k,
+        conf_threshold =best_params$threshold,
+        na_label="Other",
+        use_weights = best_params$use_weights,
+        ignore_top = ignore_top,
+        verbose = verbose
+    )
+    xx_d = bind_cols(outs$df,pred)
+    to_ret = list(
+        params=results,
+        best_params = best_params,
+        model=best_fit$model,
+        features=best_fit$features,
+        df=outs$df,
+        predictions=xx_d
+    )
+  
+    if(!"Other" %in% truth_classes && n_other > 0){
+        to_ret[["predictions_other"]] = xx_o
+        to_ret[["predictions_combined"]] = bind_rows(xx_o,best_pred)
+    }
+
   return(to_ret)
+
 }
-
-
 
 #' Weighted k-nearest neighbor with confidence estimate
 #'
@@ -553,114 +677,380 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 #' @returns data frame with labels and confidence values for rows in test_coords
 #' @export
 #'
-weighted_knn_predict_with_conf <- function(train_coords,
-                                           train_labels,
-                                           test_coords,
-                                           k,
-                                           epsilon = 1e-5,
-                                           conf_threshold = NULL,
-                                           na_label = "Other",
-                                           verbose = FALSE,
-                                           use_weights = TRUE,
-                                           ignore_top = FALSE,
-                                           track_neighbors = FALSE) {
-  if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
-    print("train_coords:")
-    print(nrow(train_coords))
-    print("test:")
-    print(nrow(test_coords))
-    stop("train_coords and test_coords must be data frames with at least one row")
-  }
+weighted_knn_predict_with_conf <- function(
+    train_coords,
+    train_labels,
+    test_coords,
+    k,
+    epsilon = 1e-5,
+    conf_threshold = NULL,
+    na_label = "Other",
+    verbose = FALSE,
+    use_weights = TRUE,
+    ignore_top = FALSE,
+    track_neighbors = FALSE
+) {
+    if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
+        print("train_coords:")
+        print(nrow(train_coords))
+        print("test:")
+        print(nrow(test_coords))
+        stop("train_coords and test_coords must be data frames with at least one row")
+    }
   
-  nn <- get.knnx(train_coords, test_coords, k)
-  all_neighbors = data.frame()
-  preds <- character(nrow(test_coords))
-  confs <- numeric(nrow(test_coords))
+    nn <- get.knnx(train_coords, test_coords, k)
+    all_neighbors = data.frame()
+    preds <- character(nrow(test_coords))
+    confs <- numeric(nrow(test_coords))
 
-  train_labels = as.character(train_labels)
-  for (i in 1:nrow(test_coords)) {
-    neighbors <- nn$nn.index[i, ]
-    distances <- nn$nn.dist[i, ]
-    if(ignore_top){
-      #ignore a neighbor if it has identical V1 and V2
-      distances <- nn$nn.dist[i, ]
-      if(distances[1] == 0){
-        neighbors = neighbors[-1]
-        distances = distances[-1]
-      }
+    train_labels = as.character(train_labels)
+  
+    for (i in 1:nrow(test_coords)) {
+        neighbors <- nn$nn.index[i, ]
+        distances <- nn$nn.dist[i, ]
+        if(ignore_top){
+            #ignore a neighbor if it has identical V1 and V2
+            distances <- nn$nn.dist[i, ]
+            if(distances[1] == 0){
+                neighbors = neighbors[-1]
+                distances = distances[-1]
+            }
 
+        }
+        distances = distances +  epsilon
+        weights <- 1 / distances
+        
+        if(use_weights){
+            weights <- 1 / distances
+        }else{
+            weights <- rep(1,length(distances))
+        }
+
+
+        neighbor_labels <- train_labels[neighbors]
+
+        if(verbose){
+            print("neighbors:")
+            print(neighbors)
+            print("distances:")
+            print(distances)
+            print("weights:")
+            print(weights)
+            print("labels:")
+            print(neighbor_labels)
+        }
+        # Remove NAs (just in case)
+        valid <- !is.na(neighbor_labels)
+        neighbor_labels <- neighbor_labels[valid]
+        weights <- weights[valid]
+        
+        if (length(neighbor_labels) == 0) {
+            preds[i] <- na_label
+            confs[i] <- NA
+            next
+        }
+
+        weighted_votes <- tapply(weights, neighbor_labels, sum)
+        
+        if(track_neighbors){
+            # Create a data frame to store neighbors, distances, and weights
+            neighbor_info <- data.frame(
+                neighbor = paste(neighbors,collapse=","),
+                distance = paste(round(distances, 3),collapse=","),
+                #weight = paste(round(weights, 3),collapse=","),
+                label = paste(neighbor_labels,collapse=","),
+                weighted_votes = paste(weighted_votes,collapse=",")
+            )
+            all_neighbors = bind_rows(all_neighbors, neighbor_info)
+        }
+    
+        if (length(weighted_votes) == 0) {
+            preds[i] <- na_label
+            confs[i] <- NA
+        } else {
+            predicted_label <- names(which.max(weighted_votes))
+            total_weight <- sum(weighted_votes)
+            pred_weight <- weighted_votes[predicted_label]
+            confidence <- pred_weight / total_weight
+
+            # Confidence thresholding
+            if (!is.null(conf_threshold) && confidence < conf_threshold) {
+                preds[i] <- na_label
+                confs[i] <- confidence
+            } else {
+                preds[i] <- predicted_label
+                confs[i] <- confidence
+            }
+        }
     }
-    distances = distances +  epsilon
-    weights <- 1 / distances
-    if(use_weights){
-      weights <- 1 / distances
-    }else{
-      weights <- rep(1,length(distances))
-    }
-
-
-    neighbor_labels <- train_labels[neighbors]
-
-    if(verbose){
-      print("neighbors:")
-      print(neighbors)
-      print("distances:")
-      print(distances)
-      print("weights:")
-      print(weights)
-      print("labels:")
-      print(neighbor_labels)
-    }
-    # Remove NAs (just in case)
-    valid <- !is.na(neighbor_labels)
-    neighbor_labels <- neighbor_labels[valid]
-    weights <- weights[valid]
-    if (length(neighbor_labels) == 0) {
-      preds[i] <- na_label
-      confs[i] <- NA
-      next
-    }
-
-    weighted_votes <- tapply(weights, neighbor_labels, sum)
-    if(track_neighbors){
-      # Create a data frame to store neighbors, distances, and weights
-      neighbor_info <- data.frame(
-        neighbor = paste(neighbors,collapse=","),
-        distance = paste(round(distances, 3),collapse=","),
-        #weight = paste(round(weights, 3),collapse=","),
-        label = paste(neighbor_labels,collapse=","),
-        weighted_votes = paste(weighted_votes,collapse=",")
-      )
-      all_neighbors = bind_rows(all_neighbors, neighbor_info)
-    }
-    if (length(weighted_votes) == 0) {
-      preds[i] <- na_label
-      confs[i] <- NA
-    } else {
-      predicted_label <- names(which.max(weighted_votes))
-      total_weight <- sum(weighted_votes)
-      pred_weight <- weighted_votes[predicted_label]
-      confidence <- pred_weight / total_weight
-
-      # Confidence thresholding
-      if (!is.null(conf_threshold) && confidence < conf_threshold) {
-        preds[i] <- na_label
-        confs[i] <- confidence
-      } else {
-        preds[i] <- predicted_label
-        confs[i] <- confidence
-      }
-    }
-  }
-  to_return = data.frame(
+    
+    to_return = data.frame(
     predicted_label = factor(preds),
     confidence = confs)
-  if(track_neighbors){
-    print(dim(to_return))
-    print(dim(all_neighbors))
-    to_return = bind_cols(to_return,all_neighbors)
-  }
-  return(to_return)
+  
+    if(track_neighbors){
+        print(dim(to_return))
+        print(dim(all_neighbors))
+        to_return = bind_cols(to_return,all_neighbors)
+    }
+  
+    return(to_return)
+
 }
 
+#' Predict class for a single sample without using umap_transform and plot result of classification
+#'
+#' @param seed Random seed for reproducibility
+#' @param test_df Data frame containing the mutation status of the test sample
+#' @param train_df Data frame containing the mutation status of the training samples
+#' @param train_metadata Metadata for training samples with truth labels in lymphgen column
+#' @param umap_out UMAP output from a previous run. The function will use this model to project the data, useful
+#' for reproducibility and for using the same UMAP model on different datasets.
+#' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
+#' @param plot_metadata Data frame containing the training data with UMAP coordinates from DLBCLone_optimize_params
+#' @param predictions_df Data frame containing the predictions with UMAP coordinates from DLBCLone_optimize_params
+#' @param other_df Data frame containing the predictions for samples in the "Other" class
+#' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")
+#' @param drop_unlabeled_from_training Set to TRUE to drop unlabeled samples from the training data
+#' @param make_plot Set to TRUE to plot the UMAP projection and predictions
+#' @param annotate_accuracy Set to true to add labels with accuracy values
+#' @param classes Vector of classes that were used in the training and testing
+#' @param label_offset Length of the label offset for the accuracy labels
+#' @param title1 additional argument
+#' @param title2 additional argument
+#' @param title3 additional argument
+#'
+#' @returns a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
+#' @export
+#'
+#' @examples
+#' predict_single_sample_DLBCLone(
+#'    seed = 1234,
+#'    test_df = test_df,
+#'    train_df = train_df,
+#'    train_metadata = train_metadata,
+#'    umap_out = umap_out,
+#'    best_params = best_params,
+#'    plot_metadata = plot_metadata,
+#'    predictions_df = predictions_df,
+#'    annotate_accuracy = TRUE
+#' )
+#'
+predict_single_sample_DLBCLone <- function(
+    seed,
+    test_df,
+    train_df,
+    train_metadata,
+    umap_out,
+    best_params,
+    plot_metadata,
+    predictions_df,
+    other_df,
+    truth_classes = c("EZB","MCD","ST2","N1","BN2"),
+    drop_unlabeled_from_training=TRUE,
+    make_plot = TRUE,
+    annotate_accuracy = FALSE,
+    classes = c("BN2","ST2","MCD","EZB","N1"),
+    label_offset = 2,
+    title1="GAMBL",
+    title2="predicted_class_for_HighConf",
+    title3 ="predicted_class_for_Other"
+){
+    set.seed(seed)
 
+    train_metadata_use = filter(train_metadata,lymphgen %in% truth_classes)
+    train_metadata_notuse = filter(train_metadata,!lymphgen %in% truth_classes)
+
+    if(nrow(test_df)>1){
+        message("Warning: you have supplied more than one sample to test with. Will proceed with all")
+    }
+        
+    #combined_mutation_status_df = bind_rows(test_df,train_df)
+  
+    if(any(test_df$sample_id %in% train_metadata_use$sample_id)){
+        stop("one or more samples overlap with your training data!")
+    }
+  
+    placeholder_meta = data.frame(sample_id = test_df$sample_id)
+    train_metadata_use= bind_rows(placeholder_meta,train_metadata_use)
+
+    #project test data onto existing model instead of re-running UMAP
+    test_projection = make_and_annotate_umap(
+        df = test_df,
+        umap_out = umap_out$model,
+        ret_model = FALSE, # now projecting onto existing model
+        seed = seed,
+        join_column = "sample_id",
+        na_vals = best_params$na_option
+    )
+
+    train_coords = dplyr::filter(
+        umap_out$df,
+        sample_id %in% train_df$sample_id,
+    ) %>% 
+        select(sample_id,V1,V2) %>%
+        column_to_rownames("sample_id")
+
+    train_labels = dplyr::filter(
+        umap_out$df,
+        sample_id %in% train_df$sample_id
+    ) %>% 
+        pull(lymphgen) 
+
+    test_coords = dplyr::filter(
+        test_projection$df,
+        sample_id %in% test_df$sample_id
+    ) %>% 
+        select(sample_id,V1,V2) %>%
+        column_to_rownames("sample_id")
+
+    pred = weighted_knn_predict_with_conf(
+        train_coords = train_coords,
+        train_labels = train_labels,
+        test_coords = test_coords,
+        k = best_params$k,
+        conf_threshold = best_params$threshold,
+        na_label = "Other",
+        use_weights = best_params$use_w,
+        ignore_top = FALSE
+    )
+
+    pred$sample_id = test_df$sample_id
+
+    if(drop_unlabeled_from_training){
+        pred = dplyr::filter(pred,sample_id %in% test_df$sample_id)
+    }
+  
+    anno_umap <- select(test_projection$df, sample_id, V1, V2)
+
+    anno_out = left_join(pred,anno_umap,by="sample_id") %>%
+        mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
+
+    anno_out = anno_out %>%
+    mutate(
+        V1 = as.numeric(V1),
+        V2 = as.numeric(V2),
+        label = as.character(label)
+    )
+  
+    if(make_plot){
+        title = paste0("N_class:", best_params$num_classes," N_feats:",best_params$num_features," k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3))
+        if("BN2" %in% classes){
+            print(best_params)
+            acc_df = data.frame(
+                lymphgen = c(
+                    "N1",
+                    "BN2",
+                    "EZB",
+                    "MCD",
+                    "ST2",
+                    "Other",
+                    "A53"
+                ),
+                accuracy = c(
+                    best_params$N1_bacc,
+                    best_params$BN2_bacc,
+                    best_params$EZB_bacc,
+                    best_params$MCD_bacc,
+                    best_params$ST2_bacc,
+                    best_params$Other_bacc,
+                    best_params$A53_bacc
+                )
+            )
+        }else if("C1" %in% classes){
+            acc_df = data.frame(
+                lymphgen = c(
+                    "C1",
+                    "C2",
+                    "C3",
+                    "C4",
+                    "C5"
+                ),
+                accuracy = c(
+                    best_params$C1_bacc,
+                    best_params$C2_bacc,
+                    best_params$C3_bacc,
+                    best_params$C4_bacc,
+                    best_params$C5_bacc
+                )
+            )
+        }else{
+            stop("no labels to add?")
+        }
+        # Add the predicted labels for Other (unclassified) cases, if provided
+        if(!missing(other_df)){
+            in_df = bind_rows(
+                plot_metadata,
+                mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
+                mutate(other_df,dataset=title3,lymphgen=predicted_label)
+            )
+        }else{
+            in_df = bind_rows(
+                plot_metadata,
+                mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
+            )
+        }
+
+        pp = ggplot(in_df) +
+            geom_point(aes(x=V1,y=V2,colour=lymphgen),alpha=0.8) +
+            scale_colour_manual(values=get_gambl_colours()) +
+            facet_wrap(~dataset,ncol=1) +
+            theme_Morons() + ggtitle(title)
+
+        if(annotate_accuracy){
+            #add labels and set nudge direction based on what quadrant each group sits in
+            centroids = filter(predictions_df,predicted_label %in% classes) %>%
+                group_by(predicted_label) %>%
+                summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
+                mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
+                mutate(lymphgen=predicted_label)
+                centroids = left_join(centroids,acc_df) %>%
+                mutate(label=paste(lymphgen,":",round(accuracy,3)))
+
+            pp = pp + 
+                geom_label_repel(
+                    data=filter(centroids,nudge_y < 0, nudge_x < 0),
+                    aes(x=mean_V1,y=mean_V2,label=label),
+                    fill="white",
+                    size=5,
+                    nudge_y = -1 * label_offset, 
+                    nudge_x = -1 * label_offset
+                ) +
+                geom_label_repel(
+                    data=filter(centroids,nudge_y < 0, nudge_x > 0),
+                    aes(x=mean_V1,y=mean_V2,label=label),
+                    size=5,
+                    nudge_y = -1 * label_offset, 
+                    nudge_x = 1 * label_offset
+                ) +
+                geom_label_repel(
+                    data=filter(centroids,nudge_y > 0, nudge_x < 0),
+                    aes(x=mean_V1,y=mean_V2,label=label),
+                    size=5,
+                    nudge_y = 1 * label_offset, 
+                    nudge_x = -1 * label_offset
+                ) +
+                geom_label_repel(
+                    data=filter(centroids,nudge_y > 0, nudge_x > 0),
+                    aes(x=mean_V1,y=mean_V2,label=label),
+                    fill="white",
+                    size=5,
+                    nudge_y = 1 * label_offset, 
+                    nudge_x = 1 * label_offset
+                ) +
+                geom_label_repel(
+                    data = anno_out,
+                    aes(x=V1,y=V2,label=label),
+                    nudge_y = 1 * label_offset, 
+                    nudge_x = 1 * label_offset,
+                    colour="red"
+                ) 
+        }
+    }
+    return(list(
+        prediction = pred, 
+        umap_input = umap_out$features, 
+        model=umap_out$model,
+        plot = pp
+    ))
+}
