@@ -428,7 +428,7 @@ DLBCLone_optimize_params = function(
     best_fit = NULL
     best_pred = NULL
     other_pred = NULL
-  
+    
     for(na_option in na_opt){
         if(missing(umap_out)){
             outs = make_and_annotate_umap(
@@ -454,7 +454,6 @@ DLBCLone_optimize_params = function(
                 init = "spca",
                 seed=seed,
                 metadata=metadata_df,
-                ret_model=T,
                 metric="cosine",
                 join_column="sample_id",
                 na_vals = na_option)
@@ -807,7 +806,6 @@ weighted_knn_predict_with_conf <- function(
 #' @param umap_out UMAP output from a previous run. The function will use this model to project the data, useful
 #' for reproducibility and for using the same UMAP model on different datasets.
 #' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
-#' @param plot_metadata Data frame containing the training data with UMAP coordinates from DLBCLone_optimize_params
 #' @param predictions_df Data frame containing the predictions with UMAP coordinates from DLBCLone_optimize_params
 #' @param other_df Data frame containing the predictions for samples in the "Other" class
 #' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")
@@ -830,8 +828,7 @@ weighted_knn_predict_with_conf <- function(
 #'    train_df = train_df,
 #'    train_metadata = train_metadata,
 #'    umap_out = umap_out,
-#'    best_params = best_params,
-#'    plot_metadata = plot_metadata,
+#'    best_params = best_params
 #'    predictions_df = predictions_df,
 #'    annotate_accuracy = TRUE
 #' )
@@ -843,7 +840,6 @@ predict_single_sample_DLBCLone <- function(
     train_metadata,
     umap_out,
     best_params,
-    plot_metadata,
     predictions_df,
     other_df,
     truth_classes = c("EZB","MCD","ST2","N1","BN2"),
@@ -980,13 +976,13 @@ predict_single_sample_DLBCLone <- function(
         # Add the predicted labels for Other (unclassified) cases, if provided
         if(!missing(other_df)){
             in_df = bind_rows(
-                plot_metadata,
+                umap_out$df,
                 mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
                 mutate(other_df,dataset=title3,lymphgen=predicted_label)
             )
         }else{
             in_df = bind_rows(
-                plot_metadata,
+                umap_out$df,
                 mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
             )
         }
