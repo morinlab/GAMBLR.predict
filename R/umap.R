@@ -870,13 +870,13 @@ predict_single_sample_DLBCLone <- function(
 
     trained_features <- colnames(umap_out$features)
 
-    train_df <- train_df %>%
+    train_df = train_df %>%
         column_to_rownames("sample_id") %>%
         select(all_of(trained_features)) %>%
         rownames_to_column("sample_id")
 
     #project train data onto existing model instead of re-running UMAP
-    train_projection <- make_and_annotate_umap(
+    train_projection = make_and_annotate_umap(
         df = train_df,
         umap_out = umap_out$model,
         ret_model = FALSE,
@@ -885,7 +885,7 @@ predict_single_sample_DLBCLone <- function(
         na_vals = best_params$na_option
     )
 
-    test_df <- test_df %>%
+    test_df = test_df %>%
         column_to_rownames("sample_id") %>%
         select(all_of(trained_features)) %>%
         rownames_to_column("sample_id")
@@ -908,9 +908,17 @@ predict_single_sample_DLBCLone <- function(
         column_to_rownames("sample_id")
 
     train_labels = dplyr::filter(
-        umap_out$df,
+        train_projection$df,
         sample_id %in% train_df$sample_id
     ) %>% 
+        left_join(
+            umap_out$df %>% select(
+                sample_id, 
+                cohort, 
+                lymphgen
+            ), 
+            by = "sample_id"
+        ) %>%
         pull(lymphgen) 
 
     test_coords = dplyr::filter(
@@ -933,10 +941,6 @@ predict_single_sample_DLBCLone <- function(
 
     pred$sample_id = test_df$sample_id
 
-    if(drop_unlabeled_from_training){
-        pred = dplyr::filter(pred,sample_id %in% test_df$sample_id)
-    }
-  
     anno_umap <- select(test_projection$df, sample_id, V1, V2)
 
     anno_out = left_join(pred,anno_umap,by="sample_id") %>%
@@ -1070,3 +1074,4 @@ predict_single_sample_DLBCLone <- function(
         plot = pp
     ))
 }
+ 
