@@ -808,6 +808,9 @@ weighted_knn_predict_with_conf <- function(
 #' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
 #' @param predictions_df Data frame containing the predictions with UMAP coordinates from DLBCLone_optimize_params
 #' @param other_df Data frame containing the predictions for samples in the "Other" class
+#' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
+#' distance = 0. This is usually only relevant when re-classifying labeled
+#' samples to estimate overall accuracy
 #' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")
 #' @param drop_unlabeled_from_training Set to TRUE to drop unlabeled samples from the training data
 #' @param make_plot Set to TRUE to plot the UMAP projection and predictions
@@ -841,6 +844,7 @@ predict_single_sample_DLBCLone <- function(
     best_params,
     predictions_df,
     other_df,
+    ignore_top = FALSE,
     truth_classes = c("EZB","MCD","ST2","N1","BN2"),
     drop_unlabeled_from_training=TRUE,
     make_plot = TRUE,
@@ -858,8 +862,6 @@ predict_single_sample_DLBCLone <- function(
     if(nrow(test_df)>1){
         message("Warning: you have supplied more than one sample to test with. Will proceed with all")
     }
-        
-    #combined_mutation_status_df = bind_rows(test_df,train_df)
   
     if(any(test_df$sample_id %in% train_metadata_use$sample_id)){
         stop("one or more samples overlap with your training data!")
@@ -941,7 +943,7 @@ predict_single_sample_DLBCLone <- function(
         conf_threshold = best_params$threshold,
         na_label = "Other",
         use_weights = best_params$use_w,
-        ignore_top = FALSE
+        ignore_top = ignore_top
     )
 
     pred$sample_id = test_df$sample_id

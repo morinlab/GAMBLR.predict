@@ -13,6 +13,7 @@ predict_single_sample_DLBCLone(
   best_params,
   predictions_df,
   other_df,
+  ignore_top = FALSE,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2"),
   drop_unlabeled_from_training = TRUE,
   make_plot = TRUE,
@@ -40,6 +41,10 @@ for reproducibility and for using the same UMAP model on different datasets.}
 \item{predictions_df}{Data frame containing the predictions with UMAP coordinates from DLBCLone_optimize_params}
 
 \item{other_df}{Data frame containing the predictions for samples in the "Other" class}
+
+\item{ignore_top}{Set to TRUE to avoid considering a nearest neighbor with
+distance = 0. This is usually only relevant when re-classifying labeled
+samples to estimate overall accuracy}
 
 \item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")}
 
