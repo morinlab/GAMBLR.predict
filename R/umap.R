@@ -304,15 +304,15 @@ make_and_annotate_umap = function(
     df,
     metadata,
     umap_out,
-    n_neighbors = 55,
-    min_dist = 0,
+    n_neighbors = 10,
+    min_dist = 1,
     metric = "cosine",
-    n_epochs = 1500,
+    n_epochs = 200,
     init = "spca",
     ret_model = TRUE,
     na_vals = "drop",
     join_column = "sample_id",
-    seed = 12345
+    seed = 1234
 ){
     df = df %>% column_to_rownames(var = "sample_id")
     original_n = nrow(df)
@@ -411,7 +411,7 @@ DLBCLone_optimize_params = function(
     min_k=3,
     max_k=30,
     verbose = FALSE,
-    seed = 12345
+    seed = 1234
 ){
     na_opt = c("drop")
     num_class = length(truth_classes)
@@ -433,9 +433,9 @@ DLBCLone_optimize_params = function(
         if(missing(umap_out)){
             outs = make_and_annotate_umap(
                 df=combined_mutation_status_df,
-                min_dist = 0,
-                n_neighbors = 55,
-                n_epochs = 1500,
+                min_dist = 1,
+                n_neighbors = 10,
+                n_epochs = 200,
                 init = "spca",
                 seed=seed,
                 metadata=metadata_df,
@@ -448,9 +448,9 @@ DLBCLone_optimize_params = function(
             outs = make_and_annotate_umap(
                 df=combined_mutation_status_df,
                 umap_out = umap_out,
-                min_dist = 0,
-                n_neighbors = 55,
-                n_epochs = 1500,
+                min_dist = 1,
+                n_neighbors = 10,
+                n_epochs = 200,
                 init = "spca",
                 seed=seed,
                 metadata=metadata_df,
@@ -812,7 +812,6 @@ weighted_knn_predict_with_conf <- function(
 #' @param drop_unlabeled_from_training Set to TRUE to drop unlabeled samples from the training data
 #' @param make_plot Set to TRUE to plot the UMAP projection and predictions
 #' @param annotate_accuracy Set to true to add labels with accuracy values
-#' @param classes Vector of classes that were used in the training and testing
 #' @param label_offset Length of the label offset for the accuracy labels
 #' @param title1 additional argument
 #' @param title2 additional argument
@@ -846,7 +845,6 @@ predict_single_sample_DLBCLone <- function(
     drop_unlabeled_from_training=TRUE,
     make_plot = TRUE,
     annotate_accuracy = FALSE,
-    classes = c("BN2","ST2","MCD","EZB","N1"),
     label_offset = 2,
     title1="GAMBL",
     title2="predicted_class_for_HighConf",
@@ -870,6 +868,28 @@ predict_single_sample_DLBCLone <- function(
     placeholder_meta = data.frame(sample_id = test_df$sample_id)
     train_metadata_use= bind_rows(placeholder_meta,train_metadata_use)
 
+    trained_features <- colnames(umap_out$features)
+
+    train_df <- train_df %>%
+        column_to_rownames("sample_id") %>%
+        select(all_of(trained_features)) %>%
+        rownames_to_column("sample_id")
+
+    #project train data onto existing model instead of re-running UMAP
+    train_projection <- make_and_annotate_umap(
+        df = train_df,
+        umap_out = umap_out$model,
+        ret_model = FALSE,
+        seed = seed,
+        join_column = "sample_id",
+        na_vals = best_params$na_option
+    )
+
+    test_df <- test_df %>%
+        column_to_rownames("sample_id") %>%
+        select(all_of(trained_features)) %>%
+        rownames_to_column("sample_id")
+
     #project test data onto existing model instead of re-running UMAP
     test_projection = make_and_annotate_umap(
         df = test_df,
@@ -881,7 +901,7 @@ predict_single_sample_DLBCLone <- function(
     )
 
     train_coords = dplyr::filter(
-        umap_out$df,
+        train_projection$df,
         sample_id %in% train_df$sample_id,
     ) %>% 
         select(sample_id,V1,V2) %>%
@@ -931,7 +951,7 @@ predict_single_sample_DLBCLone <- function(
   
     if(make_plot){
         title = paste0("N_class:", best_params$num_classes," N_feats:",best_params$num_features," k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3))
-        if("BN2" %in% classes){
+        if("BN2" %in% truth_classes){
             print(best_params)
             acc_df = data.frame(
                 lymphgen = c(
@@ -953,7 +973,7 @@ predict_single_sample_DLBCLone <- function(
                     best_params$A53_bacc
                 )
             )
-        }else if("C1" %in% classes){
+        }else if("C1" %in% truth_classes){
             acc_df = data.frame(
                 lymphgen = c(
                     "C1",
@@ -995,7 +1015,7 @@ predict_single_sample_DLBCLone <- function(
 
         if(annotate_accuracy){
             #add labels and set nudge direction based on what quadrant each group sits in
-            centroids = filter(predictions_df,predicted_label %in% classes) %>%
+            centroids = filter(predictions_df,predicted_label %in% truth_classes) %>%
                 group_by(predicted_label) %>%
                 summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
                 mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%

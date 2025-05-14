@@ -17,7 +17,6 @@ predict_single_sample_DLBCLone(
   drop_unlabeled_from_training = TRUE,
   make_plot = TRUE,
   annotate_accuracy = FALSE,
-  classes = c("BN2", "ST2", "MCD", "EZB", "N1"),
   label_offset = 2,
   title1 = "GAMBL",
   title2 = "predicted_class_for_HighConf",
@@ -49,8 +48,6 @@ for reproducibility and for using the same UMAP model on different datasets.}
 \item{make_plot}{Set to TRUE to plot the UMAP projection and predictions}
 
 \item{annotate_accuracy}{Set to true to add labels with accuracy values}
-
-\item{classes}{Vector of classes that were used in the training and testing}
 
 \item{label_offset}{Length of the label offset for the accuracy labels}
 

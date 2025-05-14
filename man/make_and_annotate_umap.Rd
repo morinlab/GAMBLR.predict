@@ -8,15 +8,15 @@ make_and_annotate_umap(
   df,
   metadata,
   umap_out,
-  n_neighbors = 55,
-  min_dist = 0,
+  n_neighbors = 10,
+  min_dist = 1,
   metric = "cosine",
-  n_epochs = 1500,
+  n_epochs = 200,
   init = "spca",
   ret_model = TRUE,
   na_vals = "drop",
   join_column = "sample_id",
-  seed = 12345
+  seed = 1234
 )
 }
 \arguments{

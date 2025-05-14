@@ -13,7 +13,7 @@ DLBCLone_optimize_params(
   min_k = 3,
   max_k = 30,
   verbose = FALSE,
-  seed = 12345
+  seed = 1234
 )
 }
 \arguments{
