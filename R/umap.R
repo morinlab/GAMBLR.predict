@@ -928,6 +928,11 @@ predict_single_sample_DLBCLone <- function(
         select(sample_id,V1,V2) %>%
         column_to_rownames("sample_id")
 
+    if(any(rownames(test_coords) %in% rownames(train_coords)) && ignore_top == FALSE){
+        warning("Some test samples also appear in the training set. Matched training samples will be excluded. Consider setting ignore_top = TRUE to avoid inaccurate high confidence.")
+        train_coords = train_coords[!rownames(train_coords) %in% rownames(test_coords),]
+    }
+
     pred = weighted_knn_predict_with_conf(
         train_coords = train_coords,
         train_labels = train_labels,
