@@ -858,14 +858,6 @@ predict_single_sample_DLBCLone <- function(
 
     train_metadata_use = filter(train_metadata,lymphgen %in% truth_classes)
     train_metadata_notuse = filter(train_metadata,!lymphgen %in% truth_classes)
-
-    if(nrow(test_df)>1){
-        message("Warning: you have supplied more than one sample to test with. Will proceed with all")
-    }
-  
-    if(any(test_df$sample_id %in% train_metadata_use$sample_id)){
-        stop("one or more samples overlap with your training data!")
-    }
   
     placeholder_meta = data.frame(sample_id = test_df$sample_id)
     train_metadata_use= bind_rows(placeholder_meta,train_metadata_use)
@@ -945,8 +937,8 @@ predict_single_sample_DLBCLone <- function(
         use_weights = best_params$use_w,
         ignore_top = ignore_top
     )
-
-    pred$sample_id = test_df$sample_id
+  
+    pred$sample_id = test_df$sample_id 
 
     anno_umap <- select(test_projection$df, sample_id, V1, V2)
 
