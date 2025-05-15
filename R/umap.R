@@ -784,8 +784,9 @@ weighted_knn_predict_with_conf <- function(
     }
     
     to_return = data.frame(
-    predicted_label = factor(preds),
-    confidence = confs)
+        predicted_label = factor(preds),
+        confidence = confs
+    )
   
     if(track_neighbors){
         print(dim(to_return))
@@ -793,6 +794,8 @@ weighted_knn_predict_with_conf <- function(
         to_return = bind_cols(to_return,all_neighbors)
     }
   
+    rownames(to_return) <- rownames(test_coords)
+
     return(to_return)
 
 }
@@ -937,7 +940,7 @@ predict_single_sample_DLBCLone <- function(
         use_weights = best_params$use_w,
         ignore_top = ignore_top
     )
-    train_pred$sample_id <- rownames(train_coords)
+    train_pred <- rownames_to_column(train_pred, var = "sample_id")
 
     test_pred = weighted_knn_predict_with_conf(
         train_coords = train_coords,
@@ -949,8 +952,7 @@ predict_single_sample_DLBCLone <- function(
         use_weights = best_params$use_w,
         ignore_top = ignore_top
     )
-  
-    test_pred$sample_id = test_df$sample_id 
+    test_pred <- rownames_to_column(test_pred, var = "sample_id")
 
     anno_umap <- select(test_projection$df, sample_id, V1, V2)
 
@@ -964,7 +966,9 @@ predict_single_sample_DLBCLone <- function(
         label = as.character(label)
     )
   
-    predictions_df = left_join(train_pred, train_df_proj %>% select(sample_id, V1, V2), by = "sample_id")
+    predictions_train_df <- left_join(train_pred, train_projection$df %>% select(sample_id, V1, V2), by = "sample_id")
+    predictions_test_df <- left_join(test_pred, test_projection$df %>% select(sample_id, V1, V2), by = "sample_id")
+    predictions_df <- bind_rows(predictions_train_df, predictions_test_df) 
 
     if(make_plot){
         title = paste0("N_class:", best_params$num_classes," N_feats:",best_params$num_features," k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3))
