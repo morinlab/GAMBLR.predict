@@ -806,7 +806,6 @@ weighted_knn_predict_with_conf <- function(
 #' @param umap_out UMAP output from a previous run. The function will use this model to project the data, useful
 #' for reproducibility and for using the same UMAP model on different datasets.
 #' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
-#' @param predictions_df Data frame containing the predictions with UMAP coordinates from DLBCLone_optimize_params
 #' @param other_df Data frame containing the predictions for samples in the "Other" class
 #' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
 #' distance = 0. This is usually only relevant when re-classifying labeled
@@ -842,7 +841,6 @@ predict_single_sample_DLBCLone <- function(
     train_metadata,
     umap_out,
     best_params,
-    predictions_df,
     other_df,
     ignore_top = FALSE,
     truth_classes = c("EZB","MCD","ST2","N1","BN2"),
@@ -879,6 +877,29 @@ predict_single_sample_DLBCLone <- function(
         na_vals = best_params$na_option
     )
 
+    train_coords = dplyr::filter(
+        train_projection$df,
+        sample_id %in% train_df$sample_id,
+    ) %>% 
+        select(sample_id,V1,V2) %>%
+        column_to_rownames("sample_id")
+
+    train_df_proj = dplyr::filter(
+        train_projection$df,
+        sample_id %in% train_df$sample_id
+    ) %>% 
+        left_join(
+            umap_out$df %>% select(
+                sample_id, 
+                cohort, 
+                lymphgen
+            ), 
+            by = "sample_id"
+        )
+        
+    train_labels <- train_df_proj %>%
+        pull(lymphgen) 
+
     test_df = test_df %>%
         column_to_rownames("sample_id") %>%
         select(all_of(trained_features)) %>%
@@ -894,27 +915,6 @@ predict_single_sample_DLBCLone <- function(
         na_vals = best_params$na_option
     )
 
-    train_coords = dplyr::filter(
-        train_projection$df,
-        sample_id %in% train_df$sample_id,
-    ) %>% 
-        select(sample_id,V1,V2) %>%
-        column_to_rownames("sample_id")
-
-    train_labels = dplyr::filter(
-        train_projection$df,
-        sample_id %in% train_df$sample_id
-    ) %>% 
-        left_join(
-            umap_out$df %>% select(
-                sample_id, 
-                cohort, 
-                lymphgen
-            ), 
-            by = "sample_id"
-        ) %>%
-        pull(lymphgen) 
-
     test_coords = dplyr::filter(
         test_projection$df,
         sample_id %in% test_df$sample_id
@@ -927,7 +927,19 @@ predict_single_sample_DLBCLone <- function(
         train_coords = train_coords[!rownames(train_coords) %in% rownames(test_coords),]
     }
 
-    pred = weighted_knn_predict_with_conf(
+    train_pred = weighted_knn_predict_with_conf(
+        train_coords = train_coords,
+        train_labels = train_labels,
+        test_coords = train_coords, # <- predicitng training on self
+        k = best_params$k,
+        conf_threshold = best_params$threshold,
+        na_label = "Other",
+        use_weights = best_params$use_w,
+        ignore_top = ignore_top
+    )
+    train_pred$sample_id <- rownames(train_coords)
+
+    test_pred = weighted_knn_predict_with_conf(
         train_coords = train_coords,
         train_labels = train_labels,
         test_coords = test_coords,
@@ -938,11 +950,11 @@ predict_single_sample_DLBCLone <- function(
         ignore_top = ignore_top
     )
   
-    pred$sample_id = test_df$sample_id 
+    test_pred$sample_id = test_df$sample_id 
 
     anno_umap <- select(test_projection$df, sample_id, V1, V2)
 
-    anno_out = left_join(pred,anno_umap,by="sample_id") %>%
+    anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
         mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
 
     anno_out = anno_out %>%
@@ -952,6 +964,8 @@ predict_single_sample_DLBCLone <- function(
         label = as.character(label)
     )
   
+    predictions_df = left_join(train_pred, train_df_proj %>% select(sample_id, V1, V2), by = "sample_id")
+
     if(make_plot){
         title = paste0("N_class:", best_params$num_classes," N_feats:",best_params$num_features," k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3))
         if("BN2" %in% truth_classes){
@@ -996,16 +1010,17 @@ predict_single_sample_DLBCLone <- function(
         }else{
             stop("no labels to add?")
         }
+
         # Add the predicted labels for Other (unclassified) cases, if provided
         if(!missing(other_df)){
             in_df = bind_rows(
-                umap_out$df,
+                train_df_proj,
                 mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
                 mutate(other_df,dataset=title3,lymphgen=predicted_label)
             )
         }else{
             in_df = bind_rows(
-                umap_out$df,
+                train_df_proj,
                 mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
             )
         }
@@ -1067,10 +1082,9 @@ predict_single_sample_DLBCLone <- function(
         }
     }
     return(list(
-        prediction = pred, 
+        prediction = test_pred, 
         umap_input = umap_out$features, 
         model=umap_out$model,
         plot = pp
     ))
 }
- 

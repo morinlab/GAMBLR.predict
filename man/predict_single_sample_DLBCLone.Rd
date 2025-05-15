@@ -11,7 +11,6 @@ predict_single_sample_DLBCLone(
   train_metadata,
   umap_out,
   best_params,
-  predictions_df,
   other_df,
   ignore_top = FALSE,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2"),
@@ -37,8 +36,6 @@ predict_single_sample_DLBCLone(
 for reproducibility and for using the same UMAP model on different datasets.}
 
 \item{best_params}{Data frame from DLBCLone_optimize_params with the best parameters}
-
-\item{predictions_df}{Data frame containing the predictions with UMAP coordinates from DLBCLone_optimize_params}
 
 \item{other_df}{Data frame containing the predictions for samples in the "Other" class}
 
