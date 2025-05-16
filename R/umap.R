@@ -856,23 +856,46 @@ predict_single_sample_DLBCLone <- function(
     title3 ="predicted_class_for_Other"
 ){
     set.seed(seed)
+    
+    if(ignore_top){
+        # Allow overlapping samples: rename test duplicates temporarily
+        dupes <- intersect(train_df$sample_id, test_df$sample_id)
+        if(length(dupes) > 0){
+            test_df <- test_df %>%
+                mutate(sample_id = ifelse(
+                    sample_id %in% dupes,
+                    paste0(sample_id, "_test"),
+                    sample_id
+                ))
+        }
+    } else {
+        # Drop overlaps to prevent rowname collisions
+        dupes <- intersect(train_df$sample_id, test_df$sample_id)
+        if(length(dupes) > 0){
+            warning(paste("Removing", length(dupes), "overlapping samples from train_df to avoid duplicated rownames. \n Consider setting ignore_top = TRUE to avoid inaccurate high confidence, and to keep all training samples."))
+            train_df <- train_df %>% filter(!sample_id %in% dupes)
+            train_metadata <- train_metadata %>% filter(!sample_id %in% dupes)
+        }
+    }
 
-    train_metadata_use = filter(train_metadata,lymphgen %in% truth_classes)
-    train_metadata_notuse = filter(train_metadata,!lymphgen %in% truth_classes)
-  
-    placeholder_meta = data.frame(sample_id = test_df$sample_id)
-    train_metadata_use= bind_rows(placeholder_meta,train_metadata_use)
-
-    trained_features <- colnames(umap_out$features)
+    trained_features = colnames(umap_out$features)
 
     train_df = train_df %>%
         column_to_rownames("sample_id") %>%
         select(all_of(trained_features)) %>%
         rownames_to_column("sample_id")
+    train_id <- train_df$sample_id
 
-    #project train data onto existing model instead of re-running UMAP
-    train_projection = make_and_annotate_umap(
-        df = train_df,
+    test_df = test_df %>%
+        column_to_rownames("sample_id") %>%
+        select(all_of(trained_features)) %>%
+        rownames_to_column("sample_id")
+    test_id <- test_df$sample_id
+    
+    combined_df <- bind_rows(train_df, test_df)
+
+    projection <- make_and_annotate_umap(
+        df = combined_df,
         umap_out = umap_out$model,
         ret_model = FALSE,
         seed = seed,
@@ -881,15 +904,15 @@ predict_single_sample_DLBCLone <- function(
     )
 
     train_coords = dplyr::filter(
-        train_projection$df,
-        sample_id %in% train_df$sample_id,
+        projection$df,
+        sample_id %in% train_id
     ) %>% 
         select(sample_id,V1,V2) %>%
         column_to_rownames("sample_id")
 
     train_df_proj = dplyr::filter(
-        train_projection$df,
-        sample_id %in% train_df$sample_id
+        projection$df,
+        sample_id %in% train_id
     ) %>% 
         left_join(
             umap_out$df %>% select(
@@ -900,35 +923,15 @@ predict_single_sample_DLBCLone <- function(
             by = "sample_id"
         )
         
-    train_labels <- train_df_proj %>%
+    train_labels = train_df_proj %>%
         pull(lymphgen) 
 
-    test_df = test_df %>%
-        column_to_rownames("sample_id") %>%
-        select(all_of(trained_features)) %>%
-        rownames_to_column("sample_id")
-
-    #project test data onto existing model instead of re-running UMAP
-    test_projection = make_and_annotate_umap(
-        df = test_df,
-        umap_out = umap_out$model,
-        ret_model = FALSE, # now projecting onto existing model
-        seed = seed,
-        join_column = "sample_id",
-        na_vals = best_params$na_option
-    )
-
     test_coords = dplyr::filter(
-        test_projection$df,
-        sample_id %in% test_df$sample_id
+        projection$df,
+        sample_id %in% test_id
     ) %>% 
         select(sample_id,V1,V2) %>%
         column_to_rownames("sample_id")
-
-    if(any(rownames(test_coords) %in% rownames(train_coords)) && ignore_top == FALSE){
-        warning("Some test samples also appear in the training set. Matched training samples will be excluded. Consider setting ignore_top = TRUE to avoid inaccurate high confidence.")
-        train_coords = train_coords[!rownames(train_coords) %in% rownames(test_coords),]
-    }
 
     train_pred = weighted_knn_predict_with_conf(
         train_coords = train_coords,
@@ -940,7 +943,7 @@ predict_single_sample_DLBCLone <- function(
         use_weights = best_params$use_w,
         ignore_top = ignore_top
     )
-    train_pred <- rownames_to_column(train_pred, var = "sample_id")
+    train_pred = rownames_to_column(train_pred, var = "sample_id")
 
     test_pred = weighted_knn_predict_with_conf(
         train_coords = train_coords,
@@ -952,9 +955,9 @@ predict_single_sample_DLBCLone <- function(
         use_weights = best_params$use_w,
         ignore_top = ignore_top
     )
-    test_pred <- rownames_to_column(test_pred, var = "sample_id")
+    test_pred = rownames_to_column(test_pred, var = "sample_id")
 
-    anno_umap <- select(test_projection$df, sample_id, V1, V2)
+    anno_umap = select(projection$df, sample_id, V1, V2)
 
     anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
         mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
@@ -966,9 +969,9 @@ predict_single_sample_DLBCLone <- function(
         label = as.character(label)
     )
   
-    predictions_train_df <- left_join(train_pred, train_projection$df %>% select(sample_id, V1, V2), by = "sample_id")
-    predictions_test_df <- left_join(test_pred, test_projection$df %>% select(sample_id, V1, V2), by = "sample_id")
-    predictions_df <- bind_rows(predictions_train_df, predictions_test_df) 
+    predictions_train_df = left_join(train_pred, projection$df %>% select(sample_id, V1, V2), by = "sample_id")
+    predictions_test_df = left_join(test_pred, projection$df %>% select(sample_id, V1, V2), by = "sample_id")
+    predictions_df = bind_rows(predictions_train_df, predictions_test_df) 
 
     if(make_plot){
         title = paste0("N_class:", best_params$num_classes," N_feats:",best_params$num_features," k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3))
