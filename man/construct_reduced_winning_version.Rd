@@ -5,17 +5,19 @@
 \title{Construct reduced 21-dimension feature vector for DLBCLass}
 \usage{
 construct_reduced_winning_version(
-  mutations = "inst/extdata/DLBCL.699.fullGSM.Sep_23_2022.tsv",
-  fisher_test_result = "inst/extdata/fisher_exact_5x2.Sep_23_2022.combined.tsv",
+  mutations_file = "inst/extdata/DLBCL.699.fullGSM.Sep_23_2022.tsv",
+  fisher_test_result_file = "inst/extdata/fisher_exact_5x2.Sep_23_2022.combined.tsv",
+  include_cn = TRUE,
+  mutation_data,
   add_missing_features = FALSE
 )
 }
 \arguments{
-\item{fisher_test_result}{Fisher's test result from DLBCLass github repository}
-
 \item{add_missing_features}{Set to TRUE to fill in missing features with zeroes}
 
 \item{data}{Data frame of mutation status from DLBCLass supplement}
+
+\item{fisher_test_result}{Fisher's test result from DLBCLass github repository}
 }
 \value{
 a list of data frames with the full mutation features, collapsed

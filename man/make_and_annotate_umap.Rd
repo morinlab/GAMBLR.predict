@@ -16,7 +16,10 @@ make_and_annotate_umap(
   ret_model = TRUE,
   na_vals = "drop",
   join_column = "sample_id",
-  seed = 42
+  seed = 12345,
+  target_column,
+  target_metric = "euclidean",
+  target_weight = 0.5
 )
 }
 \arguments{

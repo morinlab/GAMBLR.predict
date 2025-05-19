@@ -9,35 +9,51 @@ DLBCLone_optimize_params(
   metadata_df,
   umap_out,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
+  optimize_for_other = TRUE,
   eval_group = "Lacy",
   min_k = 3,
-  max_k = 30,
+  max_k = 33,
   verbose = FALSE,
-  seed = 12345
+  seed = 12345,
+  maximize = "balanced_accuracy",
+  exclude_other_for_accuracy = FALSE
 )
 }
 \arguments{
-\item{combined_mutation_status_df}{Data frame with one row per sample and one column per mutation}
+\item{combined_mutation_status_df}{Data frame with one row per sample and
+one column per mutation}
 
-\item{metadata_df}{Data frame of metadata with one row per sample and three required columns: sample_id, dataset and lymphgen}
+\item{metadata_df}{Data frame of metadata with one row per sample and
+three required columns: sample_id, dataset and lymphgen}
 
-\item{umap_out}{additional argument}
+\item{umap_out}{The output of a previous run of make_and_annotate_umap.
+If provided, the function will use this model to project the data
+instead of re-running UMAP.}
 
-\item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")}
+\item{truth_classes}{Vector of classes to use for training and testing.
+Default: c("EZB","MCD","ST2","N1","BN2","Other")}
 
-\item{eval_group}{Specify whether certain rows will be evaluated and held out from training rather than using all samples.}
+\item{eval_group}{Specify whether certain rows will be evaluated and
+held out from training rather than using all samples.}
 
-\item{min_k}{additional argument}
+\item{min_k}{Starting k for knn (Default: 3)}
 
-\item{max_k}{additional argument}
+\item{max_k}{Ending k for knn (Default: 33)}
 
-\item{verbose}{additional argument}
+\item{verbose}{Whether to print verbose outputs to console}
 
-\item{seed}{additional argument}
+\item{seed}{Random seed to use for reproducibility (default: 12345)}
+
+\item{maximize}{Metric to use for optimization. Either "sensitivity"
+(average sensitivity across all classes), "accuracy"
+(actual accuracy across all samples) or "balanced_accuracy" (the mean of the
+balanced accuracy values across all classes). Default: "balanced_accuracy"}
 }
 \value{
 List of data frames with the results of the parameter optimization
-including the best model, the associated knn parameters and the annotated UMAP output
+including the best model, the associated knn parameters and the annotated
+UMAP output as a data frame. The list also includes the predictions for the
+"Other" class if it was included in the training and testing.
 }
 \description{
 Optimize parameters for classifying samples using UMAP and k-nearest neighbor
