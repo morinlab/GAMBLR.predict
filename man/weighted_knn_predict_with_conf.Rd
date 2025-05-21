@@ -16,8 +16,7 @@ weighted_knn_predict_with_conf(
   use_weights = TRUE,
   ignore_top = FALSE,
   track_neighbors = TRUE,
-  separate_other = TRUE,
-  max_neighbors = 500
+  separate_other = TRUE
 )
 }
 \arguments{
