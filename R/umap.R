@@ -1162,12 +1162,24 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #' @import ggplot2
 #' @importFrom rlang sym
 #'
+#' @export
 #' @examples
+#' 
 #' # Assuming 'output' is the result of DLBCLone_predict_single_sample on sample_id "SAMPLE123":
 #' make_neighborhood_plot(output, "SAMPLE123")
 make_neighborhood_plot <- function(single_sample_prediction_output,
                                   this_sample_id,
-                                  prediction_in_title = TRUE){
+                                  prediction_in_title = TRUE,
+                                  add_circle = TRUE,
+                                  label_column = "predicted_label_optimized"){
+
+  circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+    r = diameter / 2
+    tt <- seq(0,2*pi,length.out = npoints)
+    xx <- center[1] + r * cos(tt)
+    yy <- center[2] + r * sin(tt)
+    return(data.frame(x = xx, y = yy))
+  }
   #extract the sample_id for all the nearest neighbors with non-Other labels
   my_neighbours = filter(single_sample_prediction_output$prediction,
                          sample_id == this_sample_id) %>% 
@@ -1181,7 +1193,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
   if(prediction_in_title){
     title = paste(this_sample_id,
                   pull(single_sample_prediction_output$prediction,
-                       !!sym("predicted_label")))
+                       !!sym(label_column)))
     if(single_sample_prediction_output$prediction$predicted_label_optimized == "Other" && single_sample_prediction_output$prediction$predicted_label !="Other"){
       title = paste(title,"(",single_sample_prediction_output$prediction$predicted_label,")")
     }
@@ -1189,9 +1201,10 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
   }else{
     title = this_sample_id
   }
+  links_df = mutate(links_df,my_x=my_x,my_y=my_y)
+  links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
   
   
-
   pp=ggplot(mutate(single_sample_prediction_output$anno_df,group=lymphgen),
          aes(x=V1,y=V2,colour=group)) + 
     geom_point(alpha=0.8,size=0.5) + 
@@ -1199,6 +1212,16 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
     scale_colour_manual(values=get_gambl_colours()) + 
     ggtitle(title)+
     theme_minimal()
+  if(add_circle){
+    #add a circle around the sample
+    max_d = 1
+    d = max(links_df$length)*2
+    if(d>max_d){
+      d = max_d
+    }
+    circle = circleFun(c(my_x,my_y),diameter=d,npoints=100)
+    pp = pp + geom_path(data=circle,aes(x=x,y=y),colour="black",alpha=1,inherit.aes=FALSE)
+  }
   return(pp)
 }
 

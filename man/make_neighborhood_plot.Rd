@@ -7,7 +7,8 @@
 make_neighborhood_plot(
   single_sample_prediction_output,
   this_sample_id,
-  prediction_in_title = TRUE
+  prediction_in_title = TRUE,
+  add_circle = TRUE
 )
 }
 \arguments{
@@ -28,6 +29,7 @@ Generates a UMAP plot highlighting the neighborhood of a given sample, showing i
 The function extracts the nearest neighbors of the specified sample, draws segments connecting the sample to its neighbors, and colors points by group (e.g., lymphgen subtype). The plot title can optionally include the predicted label.
 }
 \examples{
+
 # Assuming 'output' is the result of DLBCLone_predict_single_sample on sample_id "SAMPLE123":
 make_neighborhood_plot(output, "SAMPLE123")
 }
