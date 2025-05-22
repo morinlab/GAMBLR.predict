@@ -978,67 +978,67 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 #' @export
 #'
 weighted_knn_predict_with_conf <- function(
-    train_coords,
-    train_labels,
-    test_coords,
-    k, # a vector
-    epsilon = 0.1,
-    conf_threshold = NULL,
-    na_label = "Other",
-    verbose = FALSE,
-    use_weights = TRUE,
-    ignore_top = FALSE,
-    track_neighbors = TRUE,
-    separate_other = TRUE #big change here. Other is considered separately for optimization
+  train_coords,
+  train_labels,
+  test_coords,
+  k, # a vector
+  epsilon = 0.1,
+  conf_threshold = NULL,
+  na_label = "Other",
+  verbose = FALSE,
+  use_weights = TRUE,
+  ignore_top = FALSE,
+  track_neighbors = TRUE,
+  separate_other = TRUE #big change here. Other is considered separately for optimization
 ) { 
-    if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
-        print("train_coords:")
-        print(nrow(train_coords))
-        print("test:")
-        print(nrow(test_coords))
-        stop("train_coords and test_coords must be data frames with at least one row")
-    }
+  if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
+    print("train_coords:")
+    print(nrow(train_coords))
+    print("test:")
+    print(nrow(test_coords))
+    stop("train_coords and test_coords must be data frames with at least one row")
+  }
 
-    train_labels = as.character(train_labels)
-    max_k <- max(k)
-    nn <- get.knnx(train_coords, test_coords, max_k)
+  train_labels = as.character(train_labels)
+  max_k <- max(k)
+  nn <- get.knnx(train_coords, test_coords, max_k)
 
-    results_list <- list()
+  results_list <- list()
 
-    for (curr_k in k) {
-        if (verbose) cat("Processing k =", curr_k, "\n")
+  for (curr_k in k) {
+    if (verbose) cat("Processing k =", curr_k, "\n")
 
-        preds <- character(nrow(test_coords))
-        confs <- numeric(nrow(test_coords))
-        all_neighbors <- data.frame()
+    preds <- character(nrow(test_coords))
+    confs <- numeric(nrow(test_coords))
+    all_neighbors <- data.frame()
 
-        for (i in 1:nrow(test_coords)){
-            if(verbose){
-                print(paste("index:",i))
-                print(test_coords[i,])
-            }
-            neighbors <- nn$nn.index[i, ]
-            distances <- nn$nn.dist[i, ]
-            if(ignore_top){
-                #ignore a neighbor if it has identical V1 and V2
-                distances <- nn$nn.dist[i, ]
-                if(distances[1] == 0){
-                    neighbors = neighbors[-1]
-                    distances = distances[-1]
-                }
-            }
+    for (i in 1:nrow(test_coords)){
+      if(verbose){
+        print(paste("index:",i))
+        print(test_coords[i,])
+      }
+      neighbors <- nn$nn.index[i, ]
+      distances <- nn$nn.dist[i, ]
+      if(ignore_top){
+        #ignore a neighbor if it has identical V1 and V2
+        distances <- nn$nn.dist[i, ]
+          if(distances[1] == 0){
+            neighbors = neighbors[-1]
+            distances = distances[-1]
+          }
+      }
 
-            distances = distances +  epsilon
-            weights <- 1 / distances
-            if(use_weights){
-                weights <- 1 / distances
-            }else{
-                weights <- rep(1,length(distances))
-            }
+      distances = distances +  epsilon
+      weights <- 1 / distances
+      if(use_weights){
+        weights <- 1 / distances
+      }else{
+        weights <- rep(1,length(distances))
+      }
 
-            neighbor_labels <- train_labels[neighbors]
+      neighbor_labels <- train_labels[neighbors]
 
-            if(verbose){
+      if(verbose){
                 print("neighbors:")
                 print(neighbors)
                 print("distances:")
@@ -1047,126 +1047,126 @@ weighted_knn_predict_with_conf <- function(
                 print(weights)
                 print("labels:")
                 print(neighbor_labels)
-            }
+      }
             
-            # Remove NAs (just in case)
-            valid <- !is.na(neighbor_labels)
-            # num_other_neighbors = sum(neighbor_labels == "Other")
-            other_dists = distances[neighbor_labels == "Other"]
-            if(separate_other){
-                valid = valid & neighbor_labels != "Other"
-            }
+      # Remove NAs (just in case)
+      valid <- !is.na(neighbor_labels)
+      # num_other_neighbors = sum(neighbor_labels == "Other")
+      other_dists = distances[neighbor_labels == "Other"]
+      if(separate_other){
+        valid = valid & neighbor_labels != "Other"
+      }
             
-            neighbor_labels <- neighbor_labels[valid]
-            weights <- weights[valid]
-            distances <- distances[valid]
-            neighbors <- neighbors[valid]
+      neighbor_labels <- neighbor_labels[valid]
+      weights <- weights[valid]
+      distances <- distances[valid]
+      neighbors <- neighbors[valid]
 
-            #now take the first k neighbors
-            if(length(neighbor_labels) > curr_k){
-                neighbor_labels = neighbor_labels[1:curr_k]
-                weights = weights[1:curr_k]
-                distances = distances[1:curr_k]
-                neighbors = neighbors[1:curr_k]
-            }
+      #now take the first k neighbors
+      if(length(neighbor_labels) > curr_k){
+        neighbor_labels = neighbor_labels[1:curr_k]
+        weights = weights[1:curr_k]
+        distances = distances[1:curr_k]
+        neighbors = neighbors[1:curr_k]
+      }
 
-            others_closer = which(other_dists < max(distances))
-            others_distances = other_dists[others_closer]
-            if(use_weights){
-                others_weights = 1 / others_distances
-            }else{
-                others_weights = rep(1,length(others_closer))
-            }
-            neighbors_other = length(others_closer)
-            other_weighted_votes = sum(others_weights)
+      others_closer = which(other_dists < max(distances))
+      others_distances = other_dists[others_closer]
+      if(use_weights){
+        others_weights = 1 / others_distances
+      }else{
+        others_weights = rep(1,length(others_closer))
+      }
+      neighbors_other = length(others_closer)
+      other_weighted_votes = sum(others_weights)
 
-            if (length(neighbor_labels) == 0) {
-                preds[i] <- "Other"
-                confs[i] <- 1
-                if(track_neighbors){
-                    rel_other = 10
-                    neighbor_info <- data.frame(
-                        other_score = rel_other,
-                        neighbor = paste(neighbors,collapse=","),
-                        distance = paste(round(distances, 3),collapse=","),
-                        label = paste(neighbor_labels,collapse=","),
-                        weighted_votes = "",
-                        neighbors_other = neighbors_other,
-                        other_weighted_votes = 0,
-                        total_w = 1,
-                        pred_w = 2
-                    )   
-                    all_neighbors = bind_rows(all_neighbors, neighbor_info)
-                    next;
-                }
-            }
-
-            weighted_votes <- tapply(weights, neighbor_labels, sum)
-    
-            if (length(weighted_votes) == 0) {
-                preds[i] <- na_label
-                confs[i] <- NA
-                total_weight  <- 0
-                pred_weight <- 0
-            } else {
-                predicted_label <- names(which.max(weighted_votes))
-                total_weight <- sum(weighted_votes)
-                pred_weight <- weighted_votes[predicted_label]
-                confidence <- pred_weight / total_weight
-
-                # Confidence thresholding
-                if (!is.null(conf_threshold) && confidence < conf_threshold) {
-                    preds[i] <- na_label
-                    confs[i] <- confidence
-                } else {
-                    preds[i] <- predicted_label
-                    confs[i] <- confidence
-                }
-            }
-
-            if(track_neighbors){
-                # Create a data frame to store neighbors, distances, and weights
-                if(separate_other){
-                    rel_other = other_weighted_votes / pred_weight
-                }else{
-                    rel_other = 0
-                }
-                #rel_other = ifelse(rel_other==0,0,log(rel_other)) 
-                neighbor_info <- data.frame(
-                    other_score = rel_other,
-                    neighbor = paste(neighbors,collapse=","),
-                    distance = paste(round(distances, 3),collapse=","),
-                    #weight = paste(round(weights, 3),collapse=","),
-                    label = paste(neighbor_labels,collapse=","),
-                    weighted_votes = paste(weighted_votes,collapse=","),
-                    neighbors_other = neighbors_other,
-                    other_weighted_votes = other_weighted_votes,
-                    total_w = total_weight,
-                    pred_w = pred_weight
-                )
-                all_neighbors = bind_rows(all_neighbors, neighbor_info)
-            }
-        }
-
-        to_return = data.frame(
-            predicted_label = preds,
-            confidence = confs
-        )
-
+      if (length(neighbor_labels) == 0) {
+        preds[i] <- "Other"
+        confs[i] <- 1
         if(track_neighbors){
-            if(!nrow(to_return)==nrow(all_neighbors)){
+          rel_other = 10
+          neighbor_info <- data.frame(
+            other_score = rel_other,
+            neighbor = paste(neighbors,collapse=","),
+            distance = paste(round(distances, 3),collapse=","),
+            label = paste(neighbor_labels,collapse=","),
+            weighted_votes = "",
+            neighbors_other = neighbors_other,
+            other_weighted_votes = 0,
+            total_w = 1,
+            pred_w = 2
+          )   
+          all_neighbors = bind_rows(all_neighbors, neighbor_info)
+          next;
+        }
+      }
+
+      weighted_votes <- tapply(weights, neighbor_labels, sum)
+    
+      if (length(weighted_votes) == 0) {
+        preds[i] <- na_label
+        confs[i] <- NA
+        total_weight  <- 0
+        pred_weight <- 0
+      } else {
+        predicted_label <- names(which.max(weighted_votes))
+        total_weight <- sum(weighted_votes)
+        pred_weight <- weighted_votes[predicted_label]
+        confidence <- pred_weight / total_weight
+
+        # Confidence thresholding
+        if (!is.null(conf_threshold) && confidence < conf_threshold) {
+          preds[i] <- na_label
+          confs[i] <- confidence
+        } else {
+          preds[i] <- predicted_label
+          confs[i] <- confidence
+        }
+      }
+
+      if(track_neighbors){
+        # Create a data frame to store neighbors, distances, and weights
+        if(separate_other){
+          rel_other = other_weighted_votes / pred_weight
+        }else{
+          rel_other = 0
+        }
+        #rel_other = ifelse(rel_other==0,0,log(rel_other)) 
+        neighbor_info <- data.frame(
+          other_score = rel_other,
+          neighbor = paste(neighbors,collapse=","),
+          distance = paste(round(distances, 3),collapse=","),
+          #weight = paste(round(weights, 3),collapse=","),
+          label = paste(neighbor_labels,collapse=","),
+          weighted_votes = paste(weighted_votes,collapse=","),
+          neighbors_other = neighbors_other,
+          other_weighted_votes = other_weighted_votes,
+          total_w = total_weight,
+          pred_w = pred_weight
+        )
+        all_neighbors = bind_rows(all_neighbors, neighbor_info)
+      }
+    }
+
+    to_return = data.frame(
+      predicted_label = preds,
+      confidence = confs
+    )
+
+    if(track_neighbors){
+      if(!nrow(to_return)==nrow(all_neighbors)){
                 print("mismatch in row number for to_return and all_neighbors")
                 print(nrow(to_return))
                 print(nrow(all_neighbors))
                 print(head(to_return))
                 print(head(all_neighbors))
                 stop("")
-            }
-            to_return = bind_cols(to_return,all_neighbors)
-        }
-        results_list[[paste0("k_", curr_k)]] <- to_return 
+      }
+      to_return = bind_cols(to_return,all_neighbors)
     }
-    return(results_list)
+    results_list[[paste0("k_", curr_k)]] <- to_return 
+  }
+  return(results_list)
 }
 
 #' @title Make Neighborhood Plot
