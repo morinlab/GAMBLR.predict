@@ -15,7 +15,7 @@ Description: Collection of functions and helpers to classify different B-cell ly
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.2.3
 Depends:
     R (>= 3.5.0)
 LazyData: true
