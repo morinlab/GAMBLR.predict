@@ -14,9 +14,7 @@ DLBCLone_optimize_params(
   min_k = 3,
   max_k = 33,
   verbose = FALSE,
-  seed = 12345,
-  maximize = "balanced_accuracy",
-  exclude_other_for_accuracy = FALSE
+  seed = 1234
 )
 }
 \arguments{

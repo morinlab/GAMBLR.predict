@@ -5,6 +5,7 @@
 \title{Predict class for a single sample without using umap_transform and plot result of classification}
 \usage{
 predict_single_sample_DLBCLone(
+  seed,
   test_df,
   train_df,
   train_metadata,
@@ -19,12 +20,12 @@ predict_single_sample_DLBCLone(
   label_offset = 2,
   title1 = "GAMBL",
   title2 = "predicted_class_for_HighConf",
-  title3 = "predicted_class_for_Other",
-  seed = 12345,
-  max_neighbors = 500
+  title3 = "predicted_class_for_Other"
 )
 }
 \arguments{
+\item{seed}{Random seed for reproducibility}
+
 \item{test_df}{Data frame containing the mutation status of the test sample}
 
 \item{train_df}{Data frame containing the mutation status of the training samples}
@@ -57,8 +58,6 @@ samples to estimate overall accuracy}
 \item{title2}{additional argument}
 
 \item{title3}{additional argument}
-
-\item{seed}{Random seed for reproducibility}
 }
 \value{
 a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
