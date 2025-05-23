@@ -1539,3 +1539,56 @@ predict_single_sample_DLBCLone <- function(
         anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id") 
     ))
 }
+
+#' Make UMAP scatterplot
+#'
+#' @param df 
+#' @param drop_composite 
+#' @param colour_by 
+#' @param drop_other 
+#' @param high_confidence 
+#' @param custom_colours 
+#' @param add_labels 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+make_umap_scatterplot = function(df,
+                                 drop_composite = TRUE,
+                                 colour_by="lymphgen",
+                                 drop_other = FALSE,
+                                 high_confidence = FALSE,
+                                 custom_colours,
+                                 add_labels = FALSE){
+  
+  if(!missing(custom_colours)){
+    cols = custom_colours
+  }else{
+    cols = get_gambl_colours()
+  }
+  if(drop_composite){
+    df = filter(df,!is.na(lymphgen),!grepl("COMP",lymphgen))
+  }
+  if(drop_other){
+    df = filter(df,!is.na(lymphgen),lymphgen!="Other",lymphgen!="NOS")
+  }
+  if(high_confidence){
+    df = filter(df,Confidence > 0.7)
+  }
+  if(add_labels){
+    labels = group_by(df,!!sym(colour_by)) %>%
+      summarise(median_x = median(V1),median_y = median(V2)) 
+  }
+  
+  p = ggplot(df,
+             aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + geom_point(alpha=0.8) + 
+    scale_colour_manual(values=cols) + theme_Morons() + 
+    guides(colour = guide_legend(nrow = 1))
+  if(add_labels){
+    p = p + geom_label_repel(data=labels,aes(x=median_x,y=median_y,label=!!sym(colour_by)))
+  }
+  ggMarginal(p,groupColour = TRUE,groupFill=TRUE)
+  
+}
+

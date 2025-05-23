@@ -19,6 +19,10 @@ Must include elements \code{prediction} (data frame with prediction results) and
 \item{this_sample_id}{Character. The sample ID for which the neighborhood plot will be generated.}
 
 \item{prediction_in_title}{Logical. If \code{TRUE}, includes the predicted label in the plot title.}
+
+\item{add_circle}{Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.}
+
+\item{label_column}{Does nothing, i.e. this is not currently working.}
 }
 \value{
 A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
