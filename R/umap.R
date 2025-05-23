@@ -504,9 +504,14 @@ make_and_annotate_umap = function(df,
                        metric = metric,
                        ret_model = ret_model,
                        n_epochs=n_epochs,
+                       a=1.8956,
+                       b = 0.806,
+                       approx_pow=TRUE,
                        init=init,
                        seed = seed,
                        n_threads = 1,
+                       batch = TRUE,
+                       n_sgd_threads = 1,
                        rng_type = "deterministic") # possibly add rng_type = "deterministic"
       #IMPORTANT: n_threads must not be changed because it will break reproducibility  
     }else{
