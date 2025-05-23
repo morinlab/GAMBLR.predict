@@ -39,8 +39,8 @@ for reproducibility and for using the same UMAP model on different datasets.}
 
 \item{other_df}{Data frame containing the predictions for samples in the "Other" class}
 
-\item{predict_training}{Set to TRUE to predict the projected training samples once stored as train_prediction. Use
-train_prediction for subsequent use wehn using the same training set. Set to to FALSE to predict training samples every run}
+\item{predict_training}{Set to TRUE to predict the projected training samples once stored as stored_train_prediction. Use
+stored_train_prediction for subsequent use wehn using the same training set. Set to to FALSE to predict training samples every run}
 
 \item{stored_train_prediction}{Data frame containing the projected train predictions from train samples}
 
