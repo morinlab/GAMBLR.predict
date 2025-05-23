@@ -1242,7 +1242,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
 #' @param other_df Data frame containing the predictions for samples in the "Other" class
 #' @param predict_training Set to TRUE to predict the projected training samples once stored as train_prediction. Use 
 #' train_prediction for subsequent use wehn using the same training set. Set to to FALSE to predict training samples every run 
-#' @param train_prediction Data frame containing the projected train predictions from train samples
+#' @param stored_train_prediction Data frame containing the projected train predictions from train samples
 #' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
 #' distance = 0. This is usually only relevant when re-classifying labeled
 #' samples to estimate overall accuracy
@@ -1277,8 +1277,8 @@ predict_single_sample_DLBCLone <- function(
   umap_out,
   best_params,
   other_df,
-  predict_training = FALSE, # store train prediction?
-  train_prediction = NULL, # stored train prediction
+  predict_training = FALSE, 
+  stored_train_prediction = NULL, 
   ignore_top = FALSE,
   truth_classes = c("EZB","MCD","ST2","N1","BN2"),
   drop_unlabeled_from_training=TRUE,
@@ -1376,9 +1376,9 @@ predict_single_sample_DLBCLone <- function(
     select(sample_id,V1,V2) %>%
     column_to_rownames("sample_id")
 
-  if(predict_training && !is.null(train_prediction)){
-    train_pred = train_prediction
-  }else if(predict_training && is.null(train_prediction)){
+  if(predict_training && !is.null(stored_train_prediction)){
+    train_pred = stored_train_prediction
+  }else if(predict_training && is.null(stored_train_prediction)){
     train_pred = weighted_knn_predict_with_conf(
       train_coords = train_coords,
       train_labels = train_labels,

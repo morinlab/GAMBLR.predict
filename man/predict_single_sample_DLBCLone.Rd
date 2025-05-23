@@ -12,7 +12,7 @@ predict_single_sample_DLBCLone(
   best_params,
   other_df,
   predict_training = FALSE,
-  train_prediction = NULL,
+  stored_train_prediction = NULL,
   ignore_top = FALSE,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2"),
   drop_unlabeled_from_training = TRUE,
@@ -42,7 +42,7 @@ for reproducibility and for using the same UMAP model on different datasets.}
 \item{predict_training}{Set to TRUE to predict the projected training samples once stored as train_prediction. Use
 train_prediction for subsequent use wehn using the same training set. Set to to FALSE to predict training samples every run}
 
-\item{train_prediction}{Data frame containing the projected train predictions from train samples}
+\item{stored_train_prediction}{Data frame containing the projected train predictions from train samples}
 
 \item{ignore_top}{Set to TRUE to avoid considering a nearest neighbor with
 distance = 0. This is usually only relevant when re-classifying labeled
