@@ -1240,6 +1240,9 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
 #' for reproducibility and for using the same UMAP model on different datasets.
 #' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
 #' @param other_df Data frame containing the predictions for samples in the "Other" class
+#' @param predict_training Set to TRUE to predict the projected training samples once stored as train_prediction. Use 
+#' train_prediction for subsequent use wehn using the same training set. Set to to FALSE to predict training samples every run 
+#' @param train_prediction Data frame containing the projected train predictions from train samples
 #' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
 #' distance = 0. This is usually only relevant when re-classifying labeled
 #' samples to estimate overall accuracy
@@ -1274,6 +1277,8 @@ predict_single_sample_DLBCLone <- function(
   umap_out,
   best_params,
   other_df,
+  predict_training = FALSE, # store train prediction?
+  train_prediction = NULL, # stored train prediction
   ignore_top = FALSE,
   truth_classes = c("EZB","MCD","ST2","N1","BN2"),
   drop_unlabeled_from_training=TRUE,
@@ -1283,19 +1288,14 @@ predict_single_sample_DLBCLone <- function(
   title1="GAMBL",
   title2="predicted_class_for_HighConf",
   title3 ="predicted_class_for_Other",
-  seed = 12345,
-  max_neighbors = 500 # NEW unused fx
+  seed = 12345
 ){
   if(ignore_top){
-    # Allow overlapping samples: rename test duplicates temporarily
+    # Allow overlapping samples: rename test sample ID's to be: paste0(sample_id,"_test")
     dupes <- intersect(train_df$sample_id, test_df$sample_id)
     if(length(dupes) > 0){
       test_df <- test_df %>%
-        mutate(sample_id = ifelse(
-          sample_id %in% dupes,
-          paste0(sample_id, "_test"),
-          sample_id
-        ))
+        mutate(sample_id = paste0(sample_id, "_test"))
     }
   } else {
     # Drop overlaps to prevent rowname collisions
@@ -1328,9 +1328,13 @@ predict_single_sample_DLBCLone <- function(
   # Make dummy metadata for test samples
   test_metadata <- data.frame(
     sample_id = test_df$sample_id,
-    lymphgen = NA, # or any placeholder?
-    cohort = "Test-Sample" # or any placeholder
+    cohort = "Test-Sample", # or any placeholder
+    lymphgen = NA # or any placeholder?
   )
+
+  # Ensure train_metadata has matching columns
+  train_metadata <- train_metadata %>% 
+    select(sample_id, cohort, lymphgen)
 
   combined_metadata <- bind_rows(train_metadata, test_metadata)
 
@@ -1372,8 +1376,9 @@ predict_single_sample_DLBCLone <- function(
     select(sample_id,V1,V2) %>%
     column_to_rownames("sample_id")
 
-  #predict_training = FALSE # potential problem?
-  #if(predict_training){
+  if(predict_training && !is.null(train_prediction)){
+    train_pred = train_prediction
+  }else if(predict_training && is.null(train_prediction)){
     train_pred = weighted_knn_predict_with_conf(
       train_coords = train_coords,
       train_labels = train_labels,
@@ -1388,7 +1393,22 @@ predict_single_sample_DLBCLone <- function(
     prefix <- paste0("k_", best_params$k, ".")
     colnames(train_pred) <- sub(prefix, "", colnames(train_pred))
     train_pred = rownames_to_column(train_pred, var = "sample_id")
-  #}
+  }else{
+    train_pred = weighted_knn_predict_with_conf(
+      train_coords = train_coords,
+      train_labels = train_labels,
+      test_coords = train_coords, # <- predicitng training on self
+      k = best_params$k,
+      conf_threshold = best_params$threshold,
+      na_label = "Other",
+      use_weights = best_params$use_w,
+      ignore_top = ignore_top
+    )
+    train_pred <- as.data.frame(train_pred)
+    prefix <- paste0("k_", best_params$k, ".")
+    colnames(train_pred) <- sub(prefix, "", colnames(train_pred))
+    train_pred = rownames_to_column(train_pred, var = "sample_id")
+  }
     
   test_pred = weighted_knn_predict_with_conf(
     train_coords = train_coords,
@@ -1398,8 +1418,7 @@ predict_single_sample_DLBCLone <- function(
     conf_threshold = best_params$threshold,
     na_label = "Other",
     use_weights = best_params$use_w,
-    ignore_top = ignore_top#,
-    #max_neighbors = max_neighbors # NEW FEATURE that isnt used? 
+    ignore_top = ignore_top,
   )
   test_pred <- as.data.frame(test_pred)
   prefix <- paste0("k_", best_params$k, ".")
@@ -1408,26 +1427,33 @@ predict_single_sample_DLBCLone <- function(
 
   anno_umap = select(projection$df, sample_id, V1, V2)
 
-  anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
-    mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
-    
+  anno_out = left_join(test_pred,anno_umap,by="sample_id")
+
+  if(ignore_top && length(dupes) > 0){ # remove "_test" from plotted test labels
+    anno_out$sample_id <- sub("_test$", "", anno_out$sample_id)
+  }
+
   anno_out = anno_out %>%
     mutate(
+      label = as.character(paste(
+        sample_id,
+        predicted_label,
+        round(confidence,3)
+      )),
       V1 = as.numeric(V1),
-      V2 = as.numeric(V2),
-      label = as.character(label)
+      V2 = as.numeric(V2)
     )
 
-  #if(predict_training){
-    predictions_train_df = left_join(train_pred, projection$df, by = "sample_id") 
-  #}else{
-    #predictions_train_df = filter(projection$df, sample_id %in% train_id)
-  #}
+  predictions_train_df = left_join(train_pred, projection$df, by = "sample_id") 
   predictions_test_df = left_join(test_pred, projection$df, by = "sample_id")
   predictions_df = bind_rows(predictions_train_df, predictions_test_df)
 
   if(make_plot){
-    title = paste0("N_class:", best_params$num_classes," N_feats:",best_params$num_features," k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3))
+    title = paste0(
+      "N_class:", best_params$num_classes," N_feats:",best_params$num_features,
+      " k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3)
+    )
+    
     if("BN2" %in% truth_classes){
       print(best_params)
       acc_df = data.frame(
@@ -1540,8 +1566,13 @@ predict_single_sample_DLBCLone <- function(
     }
   }
 
+  if(ignore_top && length(dupes) > 0){ # remove "_test" for returned prediction
+    test_pred$sample_id <- sub("_test$", "", test_pred$sample_id)
+  }
+
   return(list(
     prediction = test_pred, 
+    train_prediction = train_pred,
     umap_input = umap_out$features, 
     model=umap_out$model,
     plot = pp,
