@@ -558,8 +558,12 @@ make_and_annotate_umap = function(df,
 
   }else{
     umap_out = umap_transform(X=df,
-                              model=umap_out$model,seed=seed)
-    ret_model = FALSE
+                              model=umap_out$model,
+                              seed=seed,
+                              batch = TRUE,
+                              n_threads = 1,
+                              n_sgd_threads = 1)
+    
   }
   
   
