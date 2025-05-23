@@ -567,7 +567,7 @@ make_and_annotate_umap = function(df,
   }
   
   
-  if(ret_model){
+  if(!is.null(names(umap_out))){
     umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
   }else{
     umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
