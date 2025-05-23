@@ -8,7 +8,8 @@ make_neighborhood_plot(
   single_sample_prediction_output,
   this_sample_id,
   prediction_in_title = TRUE,
-  add_circle = TRUE
+  add_circle = TRUE,
+  label_column = "predicted_label_optimized"
 )
 }
 \arguments{

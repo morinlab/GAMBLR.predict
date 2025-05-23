@@ -1152,6 +1152,8 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #'        Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).
 #' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
 #' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted label in the plot title.
+#' @param add_circle Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.
+#' @param label_column Does nothing, i.e. this is not currently working.
 #'
 #' @return A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
 #'
@@ -1370,7 +1372,7 @@ predict_single_sample_DLBCLone <- function(
         k = best_params$k,
         conf_threshold = best_params$threshold,
         na_label = "Other",
-        use_weights = best_params$use_w,
+        use_weights = best_params$use_weights,
         ignore_top = ignore_top
       )
 
@@ -1385,7 +1387,7 @@ predict_single_sample_DLBCLone <- function(
         k = best_params$k,
         conf_threshold = best_params$threshold,
         na_label = "Other",
-        use_weights = best_params$use_w,
+        use_weights = best_params$use_weights,
         ignore_top = ignore_top,
         max_neighbors = max_neighbors
     )
