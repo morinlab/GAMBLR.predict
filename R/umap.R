@@ -467,7 +467,8 @@ make_and_annotate_umap = function(df,
                               target_column,
                               target_metric="euclidean",
                               target_weight=0.5,
-                              calc_dispersion = FALSE){
+                              calc_dispersion = FALSE,
+                              algorithm = "tumap"){
   
   # Function to compute mean (or median) pairwise distance within a group
   pairwise_dispersion <- function(df_group) {
@@ -498,22 +499,39 @@ make_and_annotate_umap = function(df,
   
   if(missing(umap_out)){
     if(missing(target_column)){
-      umap_out = umap2(df %>% as.matrix(),
-                       n_neighbors = n_neighbors,
-                       min_dist = min_dist,
-                       metric = metric,
-                       ret_model = ret_model,
-                       n_epochs=n_epochs,
-                       a=1.8956,
-                       b = 0.806,
-                       approx_pow=TRUE,
-                       init=init,
-                       seed = seed,
-                       n_threads = 1,
-                       batch = TRUE,
-                       n_sgd_threads = 1,
-                       rng_type = "deterministic") # possibly add rng_type = "deterministic"
-      #IMPORTANT: n_threads must not be changed because it will break reproducibility  
+      if(algorithm == "umap"){
+        umap_out = umap2(df %>% as.matrix(),
+                         n_neighbors = n_neighbors,
+                         min_dist = min_dist,
+                         metric = metric,
+                         ret_model = ret_model,
+                         n_epochs=n_epochs,
+                         a=1.8956,
+                         b = 0.806,
+                         approx_pow=TRUE,
+                         init=init,
+                         seed = seed,
+                         n_threads = 1,
+                         batch = TRUE,
+                         n_sgd_threads = 1,
+                         rng_type = "deterministic") # possibly add rng_type = "deterministic"
+        #IMPORTANT: n_threads must not be changed because it will break reproducibility  
+        
+      }else if(algorithm == "tumap"){
+        umap_out = tumap(df %>% as.matrix(),
+                         n_neighbors = n_neighbors,
+                         metric = metric,
+                         ret_model = ret_model,
+                         n_epochs=n_epochs,
+                         init=init,
+                         seed = seed,
+                         n_threads = 1,
+                         batch = TRUE,
+                         n_sgd_threads = 1,
+                         rng_type = "deterministic")
+      }else{
+        stop("unsupported algorithm option")
+      }
     }else{
       #supervised
       if(missing(metadata)){
