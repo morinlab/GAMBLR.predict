@@ -9,13 +9,14 @@ weighted_knn_predict_with_conf(
   train_labels,
   test_coords,
   k,
-  epsilon = 1e-05,
+  epsilon = 0.1,
   conf_threshold = NULL,
   na_label = "Other",
   verbose = FALSE,
   use_weights = TRUE,
   ignore_top = FALSE,
-  track_neighbors = FALSE
+  track_neighbors = TRUE,
+  separate_other = TRUE
 )
 }
 \arguments{
