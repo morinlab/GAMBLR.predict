@@ -1337,17 +1337,17 @@ predict_single_sample_DLBCLone <- function(
         }
     }
 
-    trained_features = colnames(umap_out$features)
+    #trained_features = colnames(umap_out$features)
 
     train_df = train_df %>%
         column_to_rownames("sample_id") %>%
-        select(all_of(trained_features)) %>% 
+        #select(all_of(trained_features)) %>% 
         rownames_to_column("sample_id")
     train_id <- train_df$sample_id
 
     test_df = test_df %>%
         column_to_rownames("sample_id") %>%
-        select(all_of(trained_features)) %>%
+        #select(all_of(trained_features)) %>%
         rownames_to_column("sample_id")
     test_id <- test_df$sample_id
     
