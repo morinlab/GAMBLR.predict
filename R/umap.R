@@ -1328,7 +1328,7 @@ predict_single_sample_DLBCLone <- function(
   # Make dummy metadata for test samples
   test_metadata <- data.frame(
     sample_id = test_df$sample_id,
-    cohort = "Test-Sample", # or any placeholder
+    cohort = "Test-Sample", 
     lymphgen = NA # or any placeholder?
   )
 
@@ -1378,21 +1378,6 @@ predict_single_sample_DLBCLone <- function(
 
   if(predict_training && !is.null(stored_train_prediction)){
     train_pred = stored_train_prediction
-  }else if(predict_training && is.null(stored_train_prediction)){
-    train_pred = weighted_knn_predict_with_conf(
-      train_coords = train_coords,
-      train_labels = train_labels,
-      test_coords = train_coords, # <- predicitng training on self
-      k = best_params$k,
-      conf_threshold = best_params$threshold,
-      na_label = "Other",
-      use_weights = best_params$use_w,
-      ignore_top = ignore_top
-    )
-    train_pred <- as.data.frame(train_pred)
-    prefix <- paste0("k_", best_params$k, ".")
-    colnames(train_pred) <- sub(prefix, "", colnames(train_pred))
-    train_pred = rownames_to_column(train_pred, var = "sample_id")
   }else{
     train_pred = weighted_knn_predict_with_conf(
       train_coords = train_coords,
