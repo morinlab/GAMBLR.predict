@@ -872,6 +872,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                             N1_sn = unname(sn["Class: N1"]),
                             BN2_sn= unname(sn["Class: BN2"]),
                             ST2_sn = unname(sn["Class: ST2"]),
+                            N1_bacc = unname(bal_acc["Class: N1"]),
                             BN2_bacc = unname(bal_acc["Class: BN2"]),
                             MCD_bacc = unname(bal_acc["Class: MCD"]),
                             EZB_bacc = unname(bal_acc["Class: EZB"]),
@@ -1443,7 +1444,7 @@ predict_single_sample_DLBCLone <- function(
       print(best_params)
       acc_df = data.frame(
         lymphgen = c(
-          #"N1",
+          "N1",
           "BN2",
           "EZB",
           "MCD",
@@ -1452,7 +1453,7 @@ predict_single_sample_DLBCLone <- function(
           "A53"
         ),
         accuracy = c(
-          #best_params$N1_bacc,
+          best_params$N1_bacc,
           best_params$BN2_bacc,
           best_params$EZB_bacc,
           best_params$MCD_bacc,
