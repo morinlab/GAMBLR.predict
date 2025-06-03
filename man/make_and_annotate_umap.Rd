@@ -20,7 +20,8 @@ make_and_annotate_umap(
   target_column,
   target_metric = "euclidean",
   target_weight = 0.5,
-  calc_dispersion = FALSE
+  calc_dispersion = FALSE,
+  algorithm = "tumap"
 )
 }
 \arguments{
