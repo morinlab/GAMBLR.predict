@@ -487,11 +487,24 @@ make_and_annotate_umap = function(df,
   if(missing(df)){
     stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
   }
-  if(!missing(metadata)){
-    keep_rows = rownames(df)[rownames(df) %in% metadata[[join_column]]]
-    df= df[keep_rows,]
-    metadata= filter(metadata,!!sym(join_column) %in% rownames(df))
-    message(paste(nrow(metadata),"rows of the data have atleast 1 feature"))
+
+  if (!missing(metadata)) {
+    df_sample_ids <- rownames(df)
+    metadata_sample_ids <- metadata[[join_column]]
+  
+    # overlaps and mismatches
+    shared_ids <- intersect(df_sample_ids, metadata_sample_ids)
+    missing_from_metadata <- setdiff(df_sample_ids, metadata_sample_ids)
+    missing_from_df <- setdiff(metadata_sample_ids, df_sample_ids)
+  
+    # shared rows
+    df <- df[shared_ids, , drop = FALSE]
+    metadata <- metadata %>% filter((!!sym(join_column)) %in% shared_ids)
+  
+    # otherwise message
+    message(length(missing_from_metadata), " samples were missing from metadata.")
+    message(length(missing_from_df), " samples in metadata were dropped as missing from the feature matrix.")
+    message("using ", length(shared_ids), " samples provided in metadata and having features.")
   }
   
   if(missing(umap_out)){
