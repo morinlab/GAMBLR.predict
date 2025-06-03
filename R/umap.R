@@ -491,7 +491,7 @@ make_and_annotate_umap = function(df,
     keep_rows = rownames(df)[rownames(df) %in% metadata[[join_column]]]
     df= df[keep_rows,]
     metadata= filter(metadata,!!sym(join_column) %in% rownames(df))
-    message(paste("kept",nrow(metadata),"rows of the data that match the metadata provided"))
+    message(paste(nrow(metadata),"rows of the data have atleast 1 feature"))
   }
   
   if(missing(umap_out)){
@@ -1291,23 +1291,9 @@ predict_single_sample_DLBCLone <- function(
   title3 ="predicted_class_for_Other",
   seed = 12345
 ){
-  if(ignore_top){
-    # Allow overlapping samples: rename test sample ID's to be: paste0(sample_id,"_test")
-    dupes <- intersect(train_df$sample_id, test_df$sample_id)
-    if(length(dupes) > 0){
-      test_df <- test_df %>%
-        mutate(sample_id = paste0(sample_id, "_test"))
-    }
-  } else {
-    # Drop overlaps to prevent rowname collisions
-    dupes <- intersect(train_df$sample_id, test_df$sample_id)
-    if(length(dupes) > 0){
-      warning(paste("Removing", length(dupes),
-                    "overlapping samples from train_df to avoid duplicated rownames.\n",
-                    "Consider setting ignore_top = TRUE to avoid inaccurate high confidence, and to keep all training samples."))
-      train_df <- train_df %>% filter(!sample_id %in% dupes)
-      train_metadata <- train_metadata %>% filter(!sample_id %in% dupes)
-    }
+
+  if(nrow(test_df)>1){
+    message("Warning: you have supplied more than one sample to test with. Will proceed with all")
   }
 
   trained_features = colnames(umap_out$features)
@@ -1323,21 +1309,48 @@ predict_single_sample_DLBCLone <- function(
     select(all_of(trained_features)) %>%
     rownames_to_column("sample_id")
   test_id <- test_df$sample_id
-    
-  combined_df <- bind_rows(train_df, test_df)
 
-  # Make dummy metadata for test samples
-  test_metadata <- data.frame(
-    sample_id = test_df$sample_id,
-    cohort = "Test-Sample", 
-    lymphgen = NA # or any placeholder?
-  )
+  if(ignore_top){
+    if(test_id %in% train_df$sample_id){
+      combined_df = train_df 
+      combined_metadata <- train_metadata
+    }else{
+      combined_df = bind_rows(train_df,test_df)
 
-  # Ensure train_metadata has matching columns
-  train_metadata <- train_metadata %>% 
-    select(sample_id, cohort, lymphgen)
+      # Make dummy metadata for test samples
+      test_metadata <- data.frame(
+        sample_id = test_df$sample_id,
+        cohort = "Test-Sample",
+        lymphgen = NA # or any placeholder?
+      )
+      # Ensure train_metadata has matching columns
+      train_metadata <- train_metadata %>% 
+        select(sample_id, cohort, lymphgen)
+      combined_metadata <- bind_rows(train_metadata, test_metadata)
+    }
+  } else {
+    # Drop overlaps to prevent rowname collisions
+    dupes <- intersect(train_df$sample_id, test_df$sample_id)
+    if(length(dupes) > 0){
+      warning(paste("Removing", length(dupes),
+                    "overlapping samples from train_df to avoid duplicated rownames.\n",
+                    "Consider setting ignore_top = TRUE to avoid inaccurate high confidence, and to keep all training samples."))
+      train_df <- train_df %>% filter(!sample_id %in% dupes)
+      train_metadata <- train_metadata %>% filter(!sample_id %in% dupes)
+    }
+    combined_df <- bind_rows(train_df, test_df)
 
-  combined_metadata <- bind_rows(train_metadata, test_metadata)
+    # Make dummy metadata for test samples
+    test_metadata <- data.frame(
+      sample_id = test_df$sample_id,
+      cohort = "Test-Sample",
+      lymphgen = NA # or any placeholder?
+    )
+    # Ensure train_metadata has matching columns
+    train_metadata <- train_metadata %>% 
+      select(sample_id, cohort, lymphgen)
+    combined_metadata <- bind_rows(train_metadata, test_metadata)
+  }
 
   projection <- make_and_annotate_umap(
     df = combined_df,
@@ -1414,10 +1427,6 @@ predict_single_sample_DLBCLone <- function(
   anno_umap = select(projection$df, sample_id, V1, V2)
 
   anno_out = left_join(test_pred,anno_umap,by="sample_id")
-
-  if(ignore_top && length(dupes) > 0){ # remove "_test" from plotted test labels
-    anno_out$sample_id <- sub("_test$", "", anno_out$sample_id)
-  }
 
   anno_out = anno_out %>%
     mutate(
@@ -1550,10 +1559,6 @@ predict_single_sample_DLBCLone <- function(
           colour="red"
         ) 
     }
-  }
-
-  if(ignore_top && length(dupes) > 0){ # remove "_test" for returned prediction
-    test_pred$sample_id <- sub("_test$", "", test_pred$sample_id)
   }
 
   return(list(
