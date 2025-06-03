@@ -6,6 +6,7 @@
 \usage{
 make_neighborhood_plot(
   single_sample_prediction_output,
+  training_predictions,
   this_sample_id,
   prediction_in_title = TRUE,
   add_circle = TRUE,
@@ -15,6 +16,8 @@ make_neighborhood_plot(
 \arguments{
 \item{single_sample_prediction_output}{A list containing prediction results and annotation data frames.
 Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).}
+
+\item{training_predictions}{The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)}
 
 \item{this_sample_id}{Character. The sample ID for which the neighborhood plot will be generated.}
 
@@ -35,6 +38,8 @@ The function extracts the nearest neighbors of the specified sample, draws segme
 }
 \examples{
 
-# Assuming 'output' is the result of DLBCLone_predict_single_sample on sample_id "SAMPLE123":
-make_neighborhood_plot(output, "SAMPLE123")
+# Assuming 'optimization_result' is the output of DLBCLone_optimize_params
+# and 'output' is the result of DLBCLone_predict_single_sample
+# on sample_id "SAMPLE123":
+make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
 }

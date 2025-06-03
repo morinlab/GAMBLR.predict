@@ -1178,6 +1178,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #'
 #' @param single_sample_prediction_output A list containing prediction results and annotation data frames. 
 #'        Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).
+#' @param training_predictions The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)
 #' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
 #' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted label in the plot title.
 #' @param add_circle Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.
@@ -1195,9 +1196,12 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #' @export
 #' @examples
 #' 
-#' # Assuming 'output' is the result of DLBCLone_predict_single_sample on sample_id "SAMPLE123":
-#' make_neighborhood_plot(output, "SAMPLE123")
+#' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
+#' # and 'output' is the result of DLBCLone_predict_single_sample
+#' # on sample_id "SAMPLE123":
+#' make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
 make_neighborhood_plot <- function(single_sample_prediction_output,
+                                   training_predictions,
                                   this_sample_id,
                                   prediction_in_title = TRUE,
                                   add_circle = TRUE,
@@ -1210,12 +1214,16 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
     yy <- center[2] + r * sin(tt)
     return(data.frame(x = xx, y = yy))
   }
+  if(missing(training_predictions)){
+    training_predictions = single_sample_prediction_output$anno_df
+  }
+  single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction,sample_id==this_sample_id)
   #extract the sample_id for all the nearest neighbors with non-Other labels
   my_neighbours = filter(single_sample_prediction_output$prediction,
                          sample_id == this_sample_id) %>% 
                   pull(neighbor_id) %>% strsplit(.,",") %>% unlist()
   #set up links connecting each neighbor to the sample's point
-  links_df = filter(single_sample_prediction_output$anno_df,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
+  links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
   my_x = filter(single_sample_prediction_output$anno_df,
                 sample_id==this_sample_id) %>% pull(V1)
   my_y = filter(single_sample_prediction_output$anno_df,
@@ -1235,7 +1243,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
   links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
   
   
-  pp=ggplot(mutate(single_sample_prediction_output$anno_df,group=lymphgen),
+  pp=ggplot(mutate(training_predictions,group=lymphgen),
          aes(x=V1,y=V2,colour=group)) + 
     geom_point(alpha=0.8,size=0.5) + 
     geom_segment(data=links_df,aes(x=V1,y=V2,xend=my_x,yend=my_y),alpha=0.5)+
