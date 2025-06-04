@@ -1420,6 +1420,16 @@ predict_single_sample_DLBCLone <- function(
     prefix <- paste0("k_", best_params$k, ".")
     colnames(train_pred) <- sub(prefix, "", colnames(train_pred))
     train_pred = rownames_to_column(train_pred, var = "sample_id")
+
+    if(best_params$threshold_outgroup > 0){ # optimize_for_other = T in DLBCLone_optimize_params
+      train_pred = mutate(train_pred,predicted_label_optimized = ifelse(
+        other_score > best_params$threshold_outgroup,
+        "Other",
+        predicted_label
+      ))
+    }else{ # optimize_for_other = F
+      train_pred = mutate(train_pred,predicted_label_optimized = predicted_label)
+    }   
   }
     
   test_pred = weighted_knn_predict_with_conf(
@@ -1437,6 +1447,16 @@ predict_single_sample_DLBCLone <- function(
   colnames(test_pred) <- sub(prefix, "", colnames(test_pred))
   test_pred = rownames_to_column(test_pred, var = "sample_id")
 
+  if(best_params$threshold_outgroup > 0){ # optimize_for_other = T in DLBCLone_optimize_params
+    test_pred = mutate(test_pred,predicted_label_optimized = ifelse(
+      other_score > best_params$threshold_outgroup,
+      "Other",
+      predicted_label
+    ))
+  }else{ # optimize_for_other = F
+    test_pred = mutate(test_pred,predicted_label_optimized = predicted_label)
+  }
+
   anno_umap = select(projection$df, sample_id, V1, V2)
 
   anno_out = left_join(test_pred,anno_umap,by="sample_id")
@@ -1445,7 +1465,7 @@ predict_single_sample_DLBCLone <- function(
     mutate(
       label = as.character(paste(
         sample_id,
-        predicted_label,
+        predicted_label_optimized,
         round(confidence,3)
       )),
       V1 = as.numeric(V1),
@@ -1508,12 +1528,12 @@ predict_single_sample_DLBCLone <- function(
     # Add the predicted labels for Other (unclassified) cases, if provided
     if(!missing(other_df)){
       in_df = bind_rows(
-        mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
-        mutate(other_df,dataset=title3,lymphgen=predicted_label)
+        mutate(predictions_df,dataset=title2,lymphgen=predicted_label_optimized),
+        mutate(other_df,dataset=title3,lymphgen=predicted_label_optimized)
       )
     }else{
       in_df = bind_rows(
-        mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
+        mutate(predictions_df,dataset=title2,lymphgen=predicted_label_optimized)
       )
     }
 
@@ -1525,11 +1545,11 @@ predict_single_sample_DLBCLone <- function(
 
     if(annotate_accuracy){
       #add labels and set nudge direction based on what quadrant each group sits in
-      centroids = filter(predictions_df,predicted_label %in% truth_classes) %>%
-        group_by(predicted_label) %>%
+      centroids = filter(predictions_df,predicted_label_optimized %in% truth_classes) %>%
+        group_by(predicted_label_optimized) %>%
         summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
         mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
-        mutate(lymphgen=predicted_label)
+        mutate(lymphgen=predicted_label_optimized)
         centroids = left_join(centroids,acc_df) %>%
         mutate(label=paste(lymphgen,":",round(accuracy,3)))
 
