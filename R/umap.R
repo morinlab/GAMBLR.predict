@@ -1,3 +1,5 @@
+
+
 #' Assemble genetic features for UMAP input
 #'
 #' This function assembles a matrix of genetic features for each sample, including mutation status,
@@ -465,7 +467,8 @@ make_and_annotate_umap = function(df,
                               target_column,
                               target_metric="euclidean",
                               target_weight=0.5,
-                              calc_dispersion = FALSE){
+                              calc_dispersion = FALSE,
+                              algorithm = "tumap"){
   
   # Function to compute mean (or median) pairwise distance within a group
   pairwise_dispersion <- function(df_group) {
@@ -487,7 +490,6 @@ make_and_annotate_umap = function(df,
   if(missing(df)){
     stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
   }
-
   if (!missing(metadata)) {
     df_sample_ids <- rownames(df)
     metadata_sample_ids <- metadata[[join_column]]
@@ -509,16 +511,38 @@ make_and_annotate_umap = function(df,
   
   if(missing(umap_out)){
     if(missing(target_column)){
-      umap_out = umap2(df %>% as.matrix(),
-                       n_neighbors = n_neighbors,
-                       min_dist = min_dist,
-                       metric = metric,
-                       ret_model = ret_model,
-                       n_epochs=n_epochs,
-                       init=init,
-                       seed = seed,
-                       n_threads = 1) # possibly add rng_type = "deterministic"
-      #IMPORTANT: n_threads must not be changed because it will break reproducibility  
+      if(algorithm == "umap"){
+        umap_out = umap2(df %>% as.matrix(),
+                         n_neighbors = n_neighbors,
+                         min_dist = min_dist,
+                         metric = metric,
+                         ret_model = ret_model,
+                         n_epochs=n_epochs,
+                         a=1.8956,
+                         b = 0.806,
+                         approx_pow=TRUE,
+                         init=init,
+                         seed = seed,
+                         n_threads = 1, #IMPORTANT: n_threads must not be changed because it will break reproducibility
+                         batch = TRUE,
+                         n_sgd_threads = 1,
+                         rng_type = "deterministic") # possibly add rng_type = "deterministic"  
+        
+      }else if(algorithm == "tumap"){
+        umap_out = tumap(df %>% as.matrix(),
+                         n_neighbors = n_neighbors,
+                         metric = metric,
+                         ret_model = ret_model,
+                         n_epochs=n_epochs,
+                         init=init,
+                         seed = seed,
+                         n_threads = 1,
+                         batch = TRUE,
+                         n_sgd_threads = 1,
+                         rng_type = "deterministic")
+      }else{
+        stop("unsupported algorithm option")
+      }
     }else{
       #supervised
       if(missing(metadata)){
@@ -534,23 +558,24 @@ make_and_annotate_umap = function(df,
                        n_epochs=n_epochs,
                        init=init,
                        seed = seed,
-                       n_threads = 1,
+                       n_threads = 1, #IMPORTANT: n_threads must not be changed because it will break reproducibility
                        y = metadata[[target_column]],
                        target_metric = target_metric,
                        target_weight = target_weight
                        ) # possibly add rng_type = "deterministic"
-      #IMPORTANT: n_threads must not be changed because it will break reproducibility
     }
     
-
   }else{
     umap_out = umap_transform(X=df,
-                              model=umap_out$model,seed=seed)
-    ret_model = FALSE
+                              model=umap_out$model,
+                              seed=seed,
+                              batch = TRUE,
+                              n_threads = 1,
+                              n_sgd_threads = 1)
+    
   }
   
-  
-  if(ret_model){
+  if(!is.null(names(umap_out))){
     umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
   }else{
     umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
@@ -570,8 +595,7 @@ make_and_annotate_umap = function(df,
       arrange(mean_pairwise_distance)
       results[["dispersion"]] = dispersion_df
   }
-
-  
+ 
   results[["df"]]=umap_df
   results[["features"]] = df
   
@@ -961,8 +985,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   return(to_ret)
 }
 
-
-
 #' Weighted k-nearest neighbor with confidence estimate
 #'
 #' @param train_coords Data frame containing coordinates for samples with known
@@ -1044,7 +1066,7 @@ weighted_knn_predict_with_conf <- function(
           }
       }
 
-      distances = distances +  epsilon
+      distances = distances + epsilon
       weights <- 1 / distances
       if(use_weights){
         weights <- 1 / distances
@@ -1095,7 +1117,7 @@ weighted_knn_predict_with_conf <- function(
       }
       neighbors_other = length(others_closer)
       other_weighted_votes = sum(others_weights)
-
+      mean_other_dist = mean(others_distances)
       if (length(neighbor_labels) == 0) {
         preds[i] <- "Other"
         confs[i] <- 1
@@ -1103,12 +1125,14 @@ weighted_knn_predict_with_conf <- function(
           rel_other = 10
           neighbor_info <- data.frame(
             other_score = rel_other,
+            neighbor_id = paste(rownames(train_coords)[neighbors],collapse=","),
             neighbor = paste(neighbors,collapse=","),
             distance = paste(round(distances, 3),collapse=","),
             label = paste(neighbor_labels,collapse=","),
             weighted_votes = "",
             neighbors_other = neighbors_other,
             other_weighted_votes = 0,
+            mean_other_dist = mean_other_dist,
             total_w = 1,
             pred_w = 2
           )   
@@ -1150,9 +1174,9 @@ weighted_knn_predict_with_conf <- function(
         #rel_other = ifelse(rel_other==0,0,log(rel_other)) 
         neighbor_info <- data.frame(
           other_score = rel_other,
+          neighbor_id = paste(rownames(train_coords)[neighbors],collapse=","),
           neighbor = paste(neighbors,collapse=","),
           distance = paste(round(distances, 3),collapse=","),
-          #weight = paste(round(weights, 3),collapse=","),
           label = paste(neighbor_labels,collapse=","),
           weighted_votes = paste(weighted_votes,collapse=","),
           neighbors_other = neighbors_other,
@@ -1191,8 +1215,11 @@ weighted_knn_predict_with_conf <- function(
 #'
 #' @param single_sample_prediction_output A list containing prediction results and annotation data frames. 
 #'        Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).
+#' @param training_predictions The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)
 #' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
 #' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted label in the plot title.
+#' @param add_circle Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.
+#' @param label_column Does nothing, i.e. this is not currently working.
 #'
 #' @return A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
 #'
@@ -1203,26 +1230,48 @@ weighted_knn_predict_with_conf <- function(
 #' @import ggplot2
 #' @importFrom rlang sym
 #'
+#' @export
 #' @examples
-#' # Assuming 'output' is the result of DLBCLone_predict_single_sample on sample_id "SAMPLE123":
-#' make_neighborhood_plot(output, "SAMPLE123")
+#' 
+#' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
+#' # and 'output' is the result of DLBCLone_predict_single_sample
+#' # on sample_id "SAMPLE123":
+#' make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
 make_neighborhood_plot <- function(single_sample_prediction_output,
+                                  training_predictions,
                                   this_sample_id,
-                                  prediction_in_title = TRUE){
+                                  prediction_in_title = TRUE,
+                                  add_circle = TRUE,
+                                  label_column = "predicted_label_optimized"){
+
+  circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+    r = diameter / 2
+    tt <- seq(0,2*pi,length.out = npoints)
+    xx <- center[1] + r * cos(tt)
+    yy <- center[2] + r * sin(tt)
+    return(data.frame(x = xx, y = yy))
+  }
+  if(missing(training_predictions)){
+    training_predictions = single_sample_prediction_output$anno_df
+  }
+  single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction,sample_id==this_sample_id)
   #extract the sample_id for all the nearest neighbors with non-Other labels
   my_neighbours = filter(single_sample_prediction_output$prediction,
                          sample_id == this_sample_id) %>% 
                   pull(neighbor_id) %>% strsplit(.,",") %>% unlist()
   #set up links connecting each neighbor to the sample's point
-  links_df = filter(single_sample_prediction_output$anno_df,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
-  my_x = filter(single_sample_prediction_output$anno_df,
-                sample_id==this_sample_id) %>% pull(V1)
-  my_y = filter(single_sample_prediction_output$anno_df,
-                sample_id==this_sample_id) %>% pull(V2)
+  links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
+
+  sample_row <- single_sample_prediction_output$anno_df %>%
+    filter(sample_id == this_sample_id) %>%
+    slice_head(n = 1) # ensures 1 sample_id selected. Duplicates may occur when ignore_top = TRUE.
+  my_x <- sample_row$V1
+  my_y <- sample_row$V2
+
   if(prediction_in_title){
     title = paste(this_sample_id,
                   pull(single_sample_prediction_output$prediction,
-                       !!sym("predicted_label")))
+                       !!sym(label_column)))
     if(single_sample_prediction_output$prediction$predicted_label_optimized == "Other" && single_sample_prediction_output$prediction$predicted_label !="Other"){
       title = paste(title,"(",single_sample_prediction_output$prediction$predicted_label,")")
     }
@@ -1230,19 +1279,29 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
   }else{
     title = this_sample_id
   }
+  links_df = mutate(links_df,my_x=my_x,my_y=my_y)
+  links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
   
   
-
-  pp=ggplot(mutate(single_sample_prediction_output$anno_df,group=lymphgen),
+  pp=ggplot(mutate(training_predictions,group=lymphgen),
          aes(x=V1,y=V2,colour=group)) + 
     geom_point(alpha=0.8,size=0.5) + 
     geom_segment(data=links_df,aes(x=V1,y=V2,xend=my_x,yend=my_y),alpha=0.5)+
     scale_colour_manual(values=get_gambl_colours()) + 
     ggtitle(title)+
     theme_minimal()
+  if(add_circle){
+    #add a circle around the sample
+    max_d = 1
+    d = max(links_df$length)*2
+    if(d>max_d){
+      d = max_d
+    }
+    circle = circleFun(c(my_x,my_y),diameter=d,npoints=100)
+    pp = pp + geom_path(data=circle,aes(x=x,y=y),colour="black",alpha=1,inherit.aes=FALSE)
+  }
   return(pp)
 }
-
 
 #' Predict class for a single sample without using umap_transform and plot result of classification
 #'
@@ -1269,7 +1328,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
 #' @param title2 additional argument
 #' @param title3 additional argument
 #'
-#' @returns a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
+#' @returns a list of data frames with the predictions, the UMAP input, the UMAP projected output, the model, and a ggplot object
 #' @export
 #'
 #' @examples
@@ -1601,6 +1660,59 @@ predict_single_sample_DLBCLone <- function(
     model=umap_out$model,
     plot = pp,
     df = predictions_df,
-    anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id") 
+    anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id"),
+    projection = projection$df 
   ))
+}
+
+#' Make UMAP scatterplot
+#'
+#' @param df 
+#' @param drop_composite 
+#' @param colour_by 
+#' @param drop_other 
+#' @param high_confidence 
+#' @param custom_colours 
+#' @param add_labels 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+make_umap_scatterplot = function(df,
+                                 drop_composite = TRUE,
+                                 colour_by="lymphgen",
+                                 drop_other = FALSE,
+                                 high_confidence = FALSE,
+                                 custom_colours,
+                                 add_labels = FALSE){
+  
+  if(!missing(custom_colours)){
+    cols = custom_colours
+  }else{
+    cols = get_gambl_colours()
+  }
+  if(drop_composite){
+    df = filter(df,!is.na(lymphgen),!grepl("COMP",lymphgen))
+  }
+  if(drop_other){
+    df = filter(df,!is.na(lymphgen),lymphgen!="Other",lymphgen!="NOS")
+  }
+  if(high_confidence){
+    df = filter(df,Confidence > 0.7)
+  }
+  if(add_labels){
+    labels = group_by(df,!!sym(colour_by)) %>%
+      summarise(median_x = median(V1),median_y = median(V2)) 
+  }
+  
+  p = ggplot(df,
+             aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + geom_point(alpha=0.8) + 
+    scale_colour_manual(values=cols) + theme_Morons() + 
+    guides(colour = guide_legend(nrow = 1))
+  if(add_labels){
+    p = p + geom_label_repel(data=labels,aes(x=median_x,y=median_y,label=!!sym(colour_by)))
+  }
+  ggMarginal(p,groupColour = TRUE,groupFill=TRUE)
+  
 }

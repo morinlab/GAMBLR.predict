@@ -67,7 +67,7 @@ samples to estimate overall accuracy}
 \item{seed}{Random seed for reproducibility}
 }
 \value{
-a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
+a list of data frames with the predictions, the UMAP input, the UMAP projected output, the model, and a ggplot object
 }
 \description{
 Predict class for a single sample without using umap_transform and plot result of classification
