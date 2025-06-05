@@ -1659,8 +1659,7 @@ predict_single_sample_DLBCLone <- function(
     umap_input = umap_out$features, 
     model=umap_out$model,
     plot = pp,
-    df = predictions_df,
-    anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id"),
+    anno_df = predictions_df,
     projection = projection$df 
   ))
 }
