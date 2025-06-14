@@ -14,6 +14,7 @@
 #' @param sv_value Value to assign for SV presence (default: 3).
 #' @param synon_value Value to assign for synonymous mutations (default: 1).
 #' @param coding_value Value to assign for coding mutations (default: 2).
+#' @param verbose Defaults to FALSE
 #'
 #' @return Matrix of assembled features for each sample.
 #' @export
@@ -27,7 +28,8 @@ assemble_genetic_features <- function(these_samples_metadata,
                 sv_value = 3,
                 synon_value = 1,
                 coding_value = 2,
-                include_ashm = TRUE){
+                include_ashm = TRUE,
+                verbose = FALSE){
   if(include_ashm){
       #TODO: ensure this supports both genome builds correctly
     some_regions = GAMBLR.utils::create_bed_data(
@@ -59,6 +61,7 @@ assemble_genetic_features <- function(these_samples_metadata,
       ashm_matrix = ashm_matrix_genome
     }else if("capture" %in% these_samples_metadata$seq_type){
       ashm_matrix = ashm_matrix_cap
+      
     }else{
       stop("no eligible seq_type provided in these_samples_metadata")
     }
@@ -69,7 +72,7 @@ assemble_genetic_features <- function(these_samples_metadata,
     these_samples_metadata = these_samples_metadata,
     maf_data = maf_with_synon,
     include_hotspots = TRUE,
-    genes_of_interest = "MYD88",
+    genes_of_interest = hotspot_genes,
     include_silent_genes = synon_genes[synon_genes %in% genes],
     gene_symbols = genes
   ) 
@@ -79,7 +82,7 @@ assemble_genetic_features <- function(these_samples_metadata,
     these_samples_metadata = these_samples_metadata,
     maf_data = maf_with_synon,
     include_hotspots = TRUE,
-    genes_of_interest = "MYD88",
+    genes_of_interest = hotspot_genes,
     include_silent = FALSE,
     gene_symbols = genes
   ) 
@@ -92,16 +95,24 @@ assemble_genetic_features <- function(these_samples_metadata,
   }
   if(include_ashm){
     ashm_matrix = select(ashm_matrix, any_of(colnames(status_with_silent))) %>% select(any_of(synon_genes))
-
+    ashm_matrix[ashm_matrix>1]= 1
+    print(head(colSums(ashm_matrix)))
+    if(verbose){
+      print(head(ashm_matrix[,c(1:10)]))
+    }
     #fill in gaps from aSHM (other non-coding variants in the genes)
 
     missing = status_with_silent[rownames(ashm_matrix),
                  colnames(ashm_matrix)]==0 & 
     ashm_matrix[rownames(ashm_matrix),
-        colnames(ashm_matrix)] == synon_value
-
-    status_with_silent[rownames(missing),
-           colnames(missing)] = synon_value
+        colnames(ashm_matrix)] > 0 
+    
+    
+    fill = missing
+    fill[]=0
+    fill[missing] = synon_value
+    status_with_silent[rownames(fill),
+           colnames(fill)] = fill
 
   }
     

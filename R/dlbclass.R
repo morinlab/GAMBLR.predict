@@ -123,7 +123,9 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
                    "HLA.B","HLA-B","HLA-BHOTSPOT", "IRF2BP2", "OSBPL10", "ATP2A2", "PIM2", "IRF4", "BCL11A", 
                    "METAP1D", "ETS1", "CCDC27")
   CREBBP_genes <- c("CREBBP", "EZH2", "KMT2D", "EP300")
+
   genes = c(genes,SGK1_genes,DUSP2_genes,TBL1XR1_genes,CREBBP_genes)
+  
   CREBBP_vec <- rowSums(select(mutation_data, starts_with("CREBBP"),
                                                    starts_with("EZH2"),
                                                    starts_with("KMT2D"),
@@ -191,6 +193,7 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
   SV_MYC <- select(mutation_data, any_of(c("SV.MYC", "MYC","MYC_SV"))) %>% rowSums(na.rm = TRUE)
   
   Hist_comp <- rowSums(select(mutation_data, any_of(HIST_genes)), na.rm = TRUE)
+
   SGK1_vec <- rowSums(select(mutation_data, any_of(SGK1_genes)), na.rm = TRUE)
   DUSP2_vec <- rowSums(select(mutation_data, any_of(DUSP2_genes)), na.rm = TRUE)
 
@@ -198,7 +201,7 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
   TBL1XR1_vec <- rowSums(select(mutation_data, any_of(TBL1XR1_genes)), na.rm = TRUE)
 
   MYD88_L265P_CD79B <- rowSums(select(mutation_data, any_of(c("MYD88.L265P","MYD88HOTSPOT", "CD79B","CD79BHOTSPOT"))), na.rm = TRUE)
-  
+  genes = c(genes,"MYD88","CD79B")
   if(include_cn){
     # Combine all vectors into a data frame
   reduced_data <- data.frame(
@@ -257,6 +260,8 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
   cnv = gsub("\\.DEL","-del",cnv)
   cnv = gsub("P","p",cnv)
   cnv = gsub("Q","q",cnv)
+  
+  genes = genes[genes %in% colnames(full_data)]
   return(list(reduced=reduced_data,
               full=full_data,
               no_cn=data_no_cn,
