@@ -1292,7 +1292,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
     theme_minimal()
   if(add_circle){
     #add a circle around the sample
-    d = quantile(links_df$length, 1)*2.1  # Euclidean distances and adding a 10% spacer
+    d = max(links_df$length)*2.1  # adding a 10% spacer
     circle = circleFun(c(my_x,my_y),diameter=d,npoints=100)
     pp = pp + geom_path(data=circle,aes(x=x,y=y),colour="black",alpha=1,inherit.aes=FALSE)
   }
