@@ -1334,7 +1334,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
 #'    train_df = train_df,
 #'    train_metadata = train_metadata,
 #'    umap_out = umap_out,
-#'    best_params = best_params
+#'    best_params = best_params,
 #'    predictions_df = predictions_df,
 #'    annotate_accuracy = TRUE
 #' )
@@ -1364,7 +1364,7 @@ predict_single_sample_DLBCLone <- function(
     message("Warning: you have supplied more than one sample to test with. Will proceed with all")
   }
 
-  trained_features = colnames(umap_out$features)
+  trained_features = colnames(train_df[-1]) # Exclude sample_id column
 
   train_df = train_df %>%
     column_to_rownames("sample_id") %>%
@@ -1652,7 +1652,7 @@ predict_single_sample_DLBCLone <- function(
   return(list(
     prediction = test_pred, 
     train_prediction = train_pred,
-    umap_input = umap_out$features, 
+    umap_input_features = trained_features, 
     model=umap_out$model,
     plot = pp,
     anno_df = predictions_df,

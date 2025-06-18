@@ -79,7 +79,7 @@ predict_single_sample_DLBCLone(
    train_df = train_df,
    train_metadata = train_metadata,
    umap_out = umap_out,
-   best_params = best_params
+   best_params = best_params,
    predictions_df = predictions_df,
    annotate_accuracy = TRUE
 )
