@@ -1280,7 +1280,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
     title = this_sample_id
   }
   links_df = mutate(links_df,my_x=my_x,my_y=my_y)
-  links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
+  links_df = links_df %>% select(V1, V2, my_x, my_y, group) %>% mutate(length = sqrt((V1 - my_x)^2 + (V2 - my_y)^2))  # Euclidean distance
   
   
   pp=ggplot(mutate(training_predictions,group=lymphgen),
@@ -1292,11 +1292,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
     theme_minimal()
   if(add_circle){
     #add a circle around the sample
-    max_d = 1
-    d = max(links_df$length)*2
-    if(d>max_d){
-      d = max_d
-    }
+    d = quantile(links_df$length, 1)*2.1  # Euclidean distances and adding a 10% spacer
     circle = circleFun(c(my_x,my_y),diameter=d,npoints=100)
     pp = pp + geom_path(data=circle,aes(x=x,y=y),colour="black",alpha=1,inherit.aes=FALSE)
   }
