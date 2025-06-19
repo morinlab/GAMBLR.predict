@@ -567,7 +567,7 @@ make_and_annotate_umap = function(df,
     
   }else{
     umap_out = umap_transform(X=df,
-                              model=umap_out$model,
+                              model=umap_out,
                               seed=seed,
                               batch = TRUE,
                               n_threads = 1,
@@ -1364,7 +1364,7 @@ predict_single_sample_DLBCLone <- function(
     message("Warning: you have supplied more than one sample to test with. Will proceed with all")
   }
 
-  trained_features = colnames(train_df[-1]) # Exclude sample_id column
+  trained_features <- train_df %>% column_to_rownames("sample_id") %>% select(where(is.numeric)) %>% colnames()
 
   train_df = train_df %>%
     column_to_rownames("sample_id") %>%
@@ -1653,7 +1653,7 @@ predict_single_sample_DLBCLone <- function(
     prediction = test_pred, 
     train_prediction = train_pred,
     umap_input_features = trained_features, 
-    model=umap_out$model,
+    model=umap_out,
     plot = pp,
     anno_df = predictions_df,
     projection = projection$df 
