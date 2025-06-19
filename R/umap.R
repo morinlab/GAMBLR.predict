@@ -1711,3 +1711,84 @@ make_umap_scatterplot = function(df,
   ggMarginal(p,groupColour = TRUE,groupFill=TRUE)
   
 }
+
+
+#' modal storage for DLBCLone outputs
+#' 
+#' @param combined_mutation_df Data frame containing the mutation status of the samples used
+#' @param metadata Metadata with truth labels in lymphgen column
+#' @param truth_classes Vector of classes to used for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")
+#' @param optimized_out output of DLBCLone_optimize_params(), if set to NULL values will not be saved
+#' @param predict_single output of predict_single_sample_DLBCLone(), if set to NULL values will not be saved
+#' @param neighborhood_plot output of make_neighborhood_plot(), if set to NULL values will not be saved
+#' @param path Path to save the files
+#' @param name_prefix Prefix for the saved files, all files will be in path and start with name_prefix
+#'
+#' @returns saves the files to the specified path
+#' @export
+#'
+#' @examples
+#' DLBCLone_save_optimized(
+#'  combined_mutation_df = status_df,
+#'  metadata = status_metadata,
+#'  truth_classes = c("MCD","EZB","BN2","ST2","N1","Other"),
+#'  optimized_out = lymphgen_DLBCLone,
+#'  predict_single=NULL,
+#'  neighborhood_plot=NULL,
+#'  path="/save_optimized/trial_folder",
+#'  name_prefix="test_A"
+#' )
+#'
+DLBCLone_save_optimized = function(
+    combined_mutation_df,
+    metadata,
+    truth_classes = c("MCD","EZB","BN2","ST2","N1","Other"),
+    optimized_out=NULL,
+    predict_single=NULL,
+    neighborhood_plot=NULL,
+    path="models/",
+    name_prefix="test"
+){
+  #all files will be in path and start with name_prefix
+  prefix = paste0(path,"/",name_prefix)
+  
+  out_mut = paste0(prefix,"_mutation_status_df.tsv")
+  write_tsv(combined_mutation_df,file=out_mut)
+
+  out_meta = paste0(prefix,"_metadata.tsv")
+  write_tsv(metadata,file=out_meta)
+
+  out_classes = paste0(prefix,"_classes.txt")
+  write.table(truth_classes,file=out_classes,quote=F,row.names=F)
+  
+  if(!is.null(optimized_out)){ # DLBCLone_optimize_params()
+    out_param = paste0(prefix,"_optimized_best_params.tsv")
+    write_tsv(optimized_out$best_params,file=out_param)
+  
+    out_model = paste0(prefix,"_optimized_uwot.rds")
+    save_uwot(optimized_out$model,file=out_model)
+  }
+
+  if(!is.null(predict_single)){ # predict_single_sample_DLBCLone()
+    out_prediction = paste0(prefix,"_predict_single_prediction.tsv")
+    write_tsv(predict_single$prediction,file=out_prediction)
+
+    out_projection = paste0(prefix,"_predict_single_projection.tsv")
+    write_tsv(predict_single$projection,file=out_projection)
+
+    out_anno_df = paste0(prefix, "_predict_single_anno_df.tsv")
+    write_tsv(predict_single$anno_df,file=out_anno_df)
+
+    out_plot = paste0(prefix,"_predict_single_plot.pdf")
+    pdf(out_plot, width = 10, height = 14) 
+    print(predict_single$plot)
+    dev.off() 
+  }
+
+  if(!is.null(neighborhood_plot)){ # make_neighborhood_plot()  
+    out_neighbor = paste0(prefix,"_neighborhood_plot.pdf")
+    pdf(out_neighbor, width = 10, height = 14) 
+    print(neighborhood_plot)
+    dev.off()
+  }
+}
