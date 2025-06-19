@@ -1725,6 +1725,10 @@ make_umap_scatterplot = function(df,
 #' @param name_prefix Prefix for the saved files, all files will be in path and start with name_prefix
 #'
 #' @returns saves the files to the specified path
+#' 
+#' @import uwot
+#' @import readr
+#' 
 #' @export
 #'
 #' @examples
@@ -1781,14 +1785,14 @@ DLBCLone_save_optimized = function(
 
     out_plot = paste0(prefix,"_predict_single_plot.pdf")
     pdf(out_plot, width = 10, height = 14) 
-    print(predict_single$plot)
+    predict_single$plot
     dev.off() 
   }
 
   if(!is.null(neighborhood_plot)){ # make_neighborhood_plot()  
     out_neighbor = paste0(prefix,"_neighborhood_plot.pdf")
     pdf(out_neighbor, width = 10, height = 14) 
-    print(neighborhood_plot)
+    neighborhood_plot
     dev.off()
   }
 }
