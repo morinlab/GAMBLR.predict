@@ -1766,8 +1766,8 @@ DLBCLone_save_optimized = function(
   write.table(truth_classes,file=out_classes,quote=F,row.names=F)
   
   if(!is.null(optimized_out)){ # DLBCLone_optimize_params()
-    out_param = paste0(prefix,"_optimized_best_params.tsv")
-    write_tsv(optimized_out$best_params,file=out_param)
+    out_param = paste0(prefix,"_optimized_best_params.rds")
+    saveRDS(optimized_out$best_params,file=out_param)
   
     out_model = paste0(prefix,"_optimized_uwot.rds")
     save_uwot(optimized_out$model,file=out_model)
@@ -1795,4 +1795,62 @@ DLBCLone_save_optimized = function(
     neighborhood_plot
     dev.off()
   }
+}
+
+
+#' load DLBCLone_save_optimized's DLBCLone_optimize_params outputs
+#' 
+#' @param path Path to open saved the files
+#' @param name_prefix Prefix of the saved files, all files will be in path and start with name_prefix
+#'
+#' @returns saves the files to the specified path
+#' 
+#' @import uwot
+#' @import readr
+#' @import dplyr
+#' 
+#' @export
+#'
+#' @examples
+#' load_optimized <- DLBCLone_load_optimized(
+#'   path="/save_optimized/trial_folder",
+#'   name_prefix="test_A"
+#' )
+#'
+
+DLBCLone_load_optimized <- function(
+  path="models/",
+  name_prefix="test"
+){
+  #all files will be in path and start with name_prefix
+  prefix = paste0(path,"/",name_prefix)
+  
+  load_mut = paste0(prefix,"_mutation_status_df.tsv")
+  load_meta = paste0(prefix,"_metadata.tsv")
+  load_classes = paste0(prefix,"_classes.txt")
+  load_param = paste0(prefix,"_optimized_best_params.rds")
+  load_model = paste0(prefix,"_optimized_uwot.rds")
+
+  required_files <- c(load_mut, load_meta, load_classes, load_param, load_model)
+
+  # Check existence
+  missing_files <- required_files[!file.exists(required_files)]
+  if (length(missing_files) > 0) {
+    stop("The following required files are missing:\n", paste(missing_files, collapse = "\n"))
+  }
+
+  mut_df <- read_tsv(load_mut)
+  metadata <- read_tsv(load_meta) %>%
+    mutate(lymphgen = as.factor(lymphgen))
+  classes <- read.table(load_classes)
+  best_params <- readRDS(load_param)
+  uwot_model <- load_uwot(load_model)
+
+  return(list(
+    df = mut_df,
+    metadata = metadata,
+    truth_classes = classes,
+    best_params = best_params,
+    model = uwot_model
+  ))
 }
