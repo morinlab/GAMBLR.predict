@@ -1219,6 +1219,7 @@ weighted_knn_predict_with_conf <- function(
 #' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
 #' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted label in the plot title.
 #' @param add_circle Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.
+#' @param drop_other Logical. If \code{TRUE}, samples with the "Other" label will be excluded from the plot.
 #' @param label_column Does nothing, i.e. this is not currently working.
 #'
 #' @return A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
@@ -1242,6 +1243,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
                                   this_sample_id,
                                   prediction_in_title = TRUE,
                                   add_circle = TRUE,
+                                  drop_other = FALSE,
                                   label_column = "predicted_label_optimized"){
 
   circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
@@ -1281,7 +1283,10 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
   }
   links_df = mutate(links_df,my_x=my_x,my_y=my_y)
   links_df = links_df %>% select(V1, V2, my_x, my_y, group) %>% mutate(length = sqrt((V1 - my_x)^2 + (V2 - my_y)^2))  # Euclidean distance
-  
+
+  if(drop_other){
+    training_predictions = filter(training_predictions,!is.na(lymphgen),lymphgen!="Other",lymphgen!="NOS")
+  }
   
   pp=ggplot(mutate(training_predictions,group=lymphgen),
          aes(x=V1,y=V2,colour=group)) + 

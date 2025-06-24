@@ -10,6 +10,7 @@ make_neighborhood_plot(
   this_sample_id,
   prediction_in_title = TRUE,
   add_circle = TRUE,
+  drop_other = FALSE,
   label_column = "predicted_label_optimized"
 )
 }
@@ -24,6 +25,8 @@ Must include elements \code{prediction} (data frame with prediction results) and
 \item{prediction_in_title}{Logical. If \code{TRUE}, includes the predicted label in the plot title.}
 
 \item{add_circle}{Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.}
+
+\item{drop_other}{Logical. If \code{TRUE}, samples with the "Other" label will be excluded from the plot.}
 
 \item{label_column}{Does nothing, i.e. this is not currently working.}
 }
