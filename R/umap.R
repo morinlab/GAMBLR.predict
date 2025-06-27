@@ -1023,7 +1023,8 @@ weighted_knn_predict_with_conf <- function(
   use_weights = TRUE,
   ignore_top = FALSE,
   track_neighbors = TRUE,
-  separate_other = TRUE #big change here. Other is considered separately for optimization
+  separate_other = TRUE, #big change here. Other is considered separately for optimization
+  max_neighbors = 500
 ) { 
   if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
     print("train_coords:")
@@ -1034,8 +1035,7 @@ weighted_knn_predict_with_conf <- function(
   }
 
   train_labels = as.character(train_labels)
-  max_k <- max(k)
-  nn <- get.knnx(train_coords, test_coords, max_k)
+  nn <- get.knnx(train_coords, test_coords, max_neighbors)
 
   results_list <- list()
 
@@ -1099,6 +1099,13 @@ weighted_knn_predict_with_conf <- function(
       weights <- weights[valid]
       distances <- distances[valid]
       neighbors <- neighbors[valid]
+      #number of neighbours should be, at least, k - 1. If less than that, warn the user
+      if(length(neighbors) < k-1){
+        print(paste("Warning: number of neighbors is less than k-1."))
+        print(paste("i:", i,"k:",k))
+        print(paste("num_neighbors:",length(neighbors)))
+        print(table(valid))
+      }
 
       #now take the first k neighbors
       if(length(neighbor_labels) > curr_k){
@@ -1109,6 +1116,7 @@ weighted_knn_predict_with_conf <- function(
       }
 
       others_closer = which(other_dists < max(distances))
+
       others_distances = other_dists[others_closer]
       if(use_weights){
         others_weights = 1 / others_distances
@@ -1118,6 +1126,7 @@ weighted_knn_predict_with_conf <- function(
       neighbors_other = length(others_closer)
       other_weighted_votes = sum(others_weights)
       mean_other_dist = mean(others_distances)
+      
       if (length(neighbor_labels) == 0) {
         preds[i] <- "Other"
         confs[i] <- 1
@@ -1203,6 +1212,14 @@ weighted_knn_predict_with_conf <- function(
                 stop("")
       }
       to_return = bind_cols(to_return,all_neighbors)
+      if(nrow(to_return ) != nrow(test_coords)){
+        print("mismatch in row number for to_return and test_coords")
+        print(nrow(to_return))
+        print(nrow(test_coords))
+        print(head(to_return))
+        print(head(test_coords))
+        stop("")
+      }
     }
     results_list[[paste0("k_", curr_k)]] <- to_return 
   }
