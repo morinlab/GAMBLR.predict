@@ -1,4 +1,138 @@
 
+#' Summarize SSM (Somatic Single Nucleotide Mutation) Status Across Samples
+#'
+#' This function summarizes the mutation status for a set of genes
+#' across multiple samples, separating mutations by class for genes specified
+#' by \code{separate_by_class_genes} and counting the number of hits
+#' in each sample per mutation category.
+#'
+#' @param maf_df A data frame containing mutation annotation format (MAF) data,
+#' with at least the following columns:
+#'   \code{Hugo_Symbol}, \code{Variant_Classification}, and \code{Tumor_Sample_Barcode}.
+#' @param silent_maf_df (Optional) A separate data frame containing silent mutation data if
+#' the user doesn't want to pull silent mutation status from \code{maf_df}.
+#' This argument is useful when you want to combine mutations from
+#' the output of get_coding_ssm and get_ssm_by_region or get_ssm_by_gene
+#' @param these_samples_metadata A data frame containing metadata for the samples,
+#' with at least a \code{sample_id} column.
+#' Any sample that does not have a matching sample_id in these_samples_metadata will be dropped. 
+#' @param genes_of_interest A character vector of gene symbols to include
+#' in the summary. If missing, defaults to all Tier 1 B-cell lymphoma genes.
+#' @param synon_genes (Optional) A character vector of gene symbols for which
+#' synonymous mutations should be included.
+#' @param separate_by_class_genes (Optional) A character vector of
+#' gene symbols for which mutations should be separated by class
+#' (e.g., "Nonsense_Mutation", "Missense_Mutation").
+#' @param count_hits Logical; if \code{TRUE}, counts the number of mutations
+#' per gene per sample. If \code{FALSE} (default), only presence/absence is recorded.
+#'
+#' @return A wide-format data frame (matrix) with samples as rows and
+#' mutation types as columns. Each cell contains either the count of
+#' mutations (if \code{count_hits = TRUE}) or a binary indicator (0/1)
+#' for mutation presence.
+#'
+#' @details
+#' - Mutations are grouped and optionally separated by mutation
+#' class for genes specified in \code{separate_by_class_genes} 
+#' - Synonymous mutations can be counted as another separate feature for genes specified by \code{synon_genes} genes.
+#' - The function simplifies mutation annotations and pivots the data to a wide format suitable for downstream analysis.
+#'
+#' @examples
+#' # A basic example, using only the output of get_all_coding_ssm
+#' # Since the only non-coding class this function handles is Silent,
+#' # we will be missing most non-coding types such as Intron, UTR, Flank
+#' \dontrun{
+#' sample_metadata = get_sample_metadata() %>% filter(seq_type!= "mrna")
+#' 
+#' maf_data = get_all_coding_ssm(sample_metadata)
+#' 
+#' mutation_matrix <- summarize_all_ssm_status(
+#'   maf_df = maf_data,
+#'   these_samples_metadata = sample_metadata,
+#'   genes_of_interest = c("TP53", "SGK1", "BCL2"),
+#'   synon_genes = c("BCL2"),
+#'   separate_by_class_genes = c("TP53","SGK1"),
+#'   count_hits = FALSE
+#' )
+#' }
+#'
+#' @import dplyr tidyr tibble
+#' @export
+summarize_all_ssm_status <- function(maf_df,
+                                     these_samples_metadata,
+                                     genes_of_interest,
+                                     synon_genes,
+                                     silent_maf_df,
+                                     separate_by_class_genes = NULL, 
+                                     count_hits = FALSE){
+  if(missing(genes_of_interest)){
+    message("defaulting to all Tier 1 B-cell lymphoma genes")
+    genes_of_interest = filter(lymphoma_genes,
+      DLBCL_Tier==1 | FL_Tier == 1 | BL_Tier == 1 ) %>% 
+      pull(Gene) %>% unique()
+  }
+  if(missing(silent_maf_df)){
+    silent_maf_df = maf_df
+  }
+  maf_df = filter(maf_df,
+    Hugo_Symbol %in% genes_of_interest)
+  if(!missing(these_samples_metadata)){
+    maf_df = filter(maf_df,
+      Tumor_Sample_Barcode %in% these_samples_metadata$sample_id)
+  }
+  if(!missing(synon_genes)){
+    if(any(!synon_genes %in% silent_maf_df$Hugo_Symbol)){
+      missing = synon_genes[!synon_genes %in% silent_maf_df$Hugo_Symbol]
+      not_missing = synon_genes[synon_genes %in% silent_maf_df$Hugo_Symbol]
+      
+      message("Warning: Some synonymous genes have no mutations in silent_maf_df")
+      message(paste(missing,collapse=", "))
+    }
+    maf_nonsilent = filter(maf_df,  Variant_Classification %in% vc_nonSynonymous)
+    maf_silent = filter(silent_maf_df, ! Variant_Classification %in% vc_nonSynonymous, Hugo_Symbol %in% synon_genes)
+    maf_df = bind_rows(maf_silent,maf_nonsilent)
+  }
+  #Simplify annotations
+  silent_types = c("Silent","Intron","5'UTR","3'UTR","5'Flank","3'Flank")
+  nonsense_types = c("Nonsense_Mutation","Frame_Shift_Del","Frame_Shift_Ins")
+  missense_types = c("In_Frame_Del",
+                              "In_Frame_Ins",
+                              "Missense_Mutation",
+                              "Splice_Region")
+  gene_mutations = mutate(maf_df,
+                    mutation_type=case_when(
+                    Variant_Classification %in% nonsense_types ~ "Nonsense_Mutation",
+                    Variant_Classification %in%  missense_types ~ "Missense_Mutation",
+                    Variant_Classification %in% silent_types ~ "Silent",
+                    TRUE ~ Variant_Classification)
+                    ) %>%
+                            mutate(mutation=paste(Hugo_Symbol,mutation_type,sep=":"))
+  separated_coding_maf = filter(gene_mutations,
+                                Hugo_Symbol %in% genes_of_interest,
+                                Hugo_Symbol %in% separate_by_class_genes,
+                                mutation_type != "Silent")
+  
+  unseparated_coding_maf = filter(gene_mutations,
+                                  Hugo_Symbol %in% genes_of_interest, !Hugo_Symbol %in% separate_by_class_genes, mutation_type != "Silent") %>%
+    mutate(mutation = paste(Hugo_Symbol,"Coding",sep=":"))
+  separated_silent_maf = filter(gene_mutations,Hugo_Symbol %in% synon_genes, mutation_type == "Silent") %>%
+    mutate(mutation = paste(Hugo_Symbol,"Silent",sep=":"))
+  gene_mutations = bind_rows(separated_coding_maf, unseparated_coding_maf,separated_silent_maf)
+  
+  mutation_distinct = select(gene_mutations,mutation,Tumor_Sample_Barcode) %>% 
+    mutate(mutated = 1) %>% 
+    group_by(Tumor_Sample_Barcode,mutation,mutated) %>%
+    count() %>% ungroup()
+  if(count_hits){
+    mutation_distinct = mutation_distinct %>% select(-mutated) %>% rename(mutated=n) %>% distinct()
+  } else{
+    mutation_distinct = mutation_distinct %>% select(-n) %>% distinct()
+  }
+  mutation_wide = pivot_wider(mutation_distinct, names_from = "mutation",values_from = "mutated",values_fill = 0) %>% 
+  column_to_rownames("Tumor_Sample_Barcode")
+ return(mutation_wide)
+}
+
 
 #' Assemble genetic features for UMAP input
 #'
@@ -29,6 +163,7 @@ assemble_genetic_features <- function(these_samples_metadata,
                 synon_value = 1,
                 coding_value = 2,
                 include_ashm = TRUE,
+                annotated_sv,
                 verbose = FALSE){
   if(include_ashm){
       #TODO: ensure this supports both genome builds correctly
@@ -65,11 +200,13 @@ assemble_genetic_features <- function(these_samples_metadata,
     }else{
       stop("no eligible seq_type provided in these_samples_metadata")
     }
-}
+  }
   
-  
+
+
   status_with_silent = get_coding_ssm_status(
     these_samples_metadata = these_samples_metadata,
+    # drop all coding variants from this one
     maf_data = maf_with_synon,
     include_hotspots = TRUE,
     genes_of_interest = hotspot_genes,
@@ -87,17 +224,20 @@ assemble_genetic_features <- function(these_samples_metadata,
     gene_symbols = genes
   ) 
 
-  status_without_silent = status_without_silent %>% column_to_rownames("sample_id")
+  status_without_silent = status_without_silent %>% 
+    column_to_rownames("sample_id")
 
-  if(any(! colnames(status_with_silent) %in% colnames(status_without_silent))){
+  if (any(! colnames(status_with_silent) %in% colnames(status_without_silent))){
     print(colnames(status_with_silent)[!colnames(status_with_silent) %in% colnames(status_without_silent)])
     stop("some columns are missing from the status_without_silent matrix")
   }
-  if(include_ashm){
+  # Instead of just relying on the MAF(s) supplied by
+  if (include_ashm){
     ashm_matrix = select(ashm_matrix, any_of(colnames(status_with_silent))) %>% select(any_of(synon_genes))
     ashm_matrix[ashm_matrix>1]= 1
-    print(head(colSums(ashm_matrix)))
+    
     if(verbose){
+      print(head(colSums(ashm_matrix)))
       print(head(ashm_matrix[,c(1:10)]))
     }
     #fill in gaps from aSHM (other non-coding variants in the genes)
@@ -125,6 +265,22 @@ assemble_genetic_features <- function(these_samples_metadata,
   bcl2_id = these_samples_metadata[which(these_samples_metadata$bcl2_ba=="POS"),] %>% pull(sample_id)
   bcl6_id = these_samples_metadata[which(these_samples_metadata$bcl6_ba=="POS"),] %>% pull(sample_id)
   myc_id = these_samples_metadata[which(these_samples_metadata$myc_ba=="POS"),] %>% pull(sample_id)
+  
+  # include SV from provided annotated SV data frame
+  if(!missing(annotated_sv)){
+    annotated_sv = filter(annotated_sv,tumour_sample_id %in% these_samples_metadata$sample_id)
+    bcl2_sv_id = filter(annotated_sv,!is.na(partner),gene=="BCL2") %>% pull(tumour_sample_id)
+    bcl6_sv_id = filter(annotated_sv,!is.na(partner),gene=="BCL6") %>% pull(tumour_sample_id)
+    myc_sv_id = filter(annotated_sv,!is.na(partner),gene=="MYC") %>% pull(tumour_sample_id)
+    n_b = length(bcl2_id)
+    print(paste(n_b,"BCL2 FISH"))
+    bcl2_id = unique(c(bcl2_id,bcl2_sv_id))
+    n_b = length(bcl2_id)
+    print(paste(n_b,"BCL2 FISH or SV"))
+    bcl6_id = unique(c(bcl6_id,bcl6_sv_id))
+    myc_id = unique(c(myc_id,myc_sv_id))
+  }
+  
 
   status_combined[,"BCL2_SV"] = 0
   status_combined[bcl2_id,"BCL2_SV"] = sv_value
@@ -494,10 +650,21 @@ make_and_annotate_umap = function(df,
   if(na_vals == "to_zero"){
     df[is.na(df)] = 0
   }else if(na_vals == "drop"){
-    df <- df[, colSums(is.na(df)) == 0]
+    if(any(sapply(df, is.factor))){
+      numeric_cols = names(df)[!sapply(df, is.factor)]
+      df <- df[, colSums(is.na(df[,numeric_cols])) == 0]
+        rs = rowSums(df[,numeric_cols],na.rm=TRUE)
+        df = df[rs>0,]
+    } else{
+      df <- df[, colSums(is.na(df)) == 0]
+        rs = rowSums(df,na.rm=TRUE)
+        df = df[rs>0,]
+    }
+    
   }
-  rs = rowSums(df,na.rm=TRUE)
-  df = df[rs>0,]
+
+  
+
   if(missing(df)){
     stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
   }
@@ -529,7 +696,24 @@ make_and_annotate_umap = function(df,
         #IMPORTANT: n_threads must not be changed because it will break reproducibility  
         
       }else if(algorithm == "tumap"){
-        umap_out = tumap(df %>% as.matrix(),
+        #X = df %>% as.matrix()
+        X = df
+        umap_args = list(X=X,
+                         n_neighbors = n_neighbors,
+                         metric = metric,
+                         ret_model = ret_model,
+                         n_epochs=n_epochs,
+                         init=init,
+                         seed = seed,
+                         n_threads = 1,
+                         batch = TRUE,
+                         n_sgd_threads = 1,
+                         rng_type = "deterministic")
+      
+        #print(colnames(X))
+        #print(head(X))
+        #return(X)
+        umap_out = tumap(X,
                          n_neighbors = n_neighbors,
                          metric = metric,
                          ret_model = ret_model,
@@ -688,7 +872,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            verbose = FALSE,
                            seed = 12345,
                            maximize = "balanced_accuracy",
-                           exclude_other_for_accuracy = FALSE
+                           exclude_other_for_accuracy = FALSE,
+                           weights_opt = c(TRUE)
                            ) {
   if(optimize_for_other){
     exclude_other_for_accuracy = FALSE
@@ -697,7 +882,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   }
   na_opt = c("drop")
   num_class = length(truth_classes)
-  weights_opt = c(TRUE,FALSE)
+  
   threshs = seq(0,0.9,0.1)
   ks = seq(min_k,max_k,2)
   results <- data.frame()
@@ -747,17 +932,20 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+            train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+            rownames(train_coords) = train_ids
 
           }else{
 
             test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
             train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
             train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
+            train_ids = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(sample_id)
+            rownames(train_coords) = train_ids
           }
           if(verbose){
             print(paste("k:",k,"threshold:",threshold,"use_weights:",use_w,"na_option:",na_option))
           }
-          
           pred = weighted_knn_predict_with_conf(
             train_coords = train_coords,
             train_labels = train_labels,
@@ -912,6 +1100,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
   test_coords = outs$df %>% select(V1,V2)
   train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
+  train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+  rownames(train_coords) = train_ids
   train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
   pred = weighted_knn_predict_with_conf(
             train_coords = train_coords,
@@ -1135,6 +1325,9 @@ weighted_knn_predict_with_conf <- function(train_coords,
       }else{
         rel_other = 0
       }
+      #print(head(rownames(train_coords)))
+
+
       #rel_other = ifelse(rel_other==0,0,log(rel_other)) 
       neighbor_info <- data.frame(
         other_score = rel_other,
@@ -1158,8 +1351,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
     predicted_label = preds,
     confidence = confs)
   if(track_neighbors){
-    #print(dim(to_return))
-    #print(dim(all_neighbors))
+
     #check for any missing points
     if(!nrow(to_return)==nrow(all_neighbors)){
       print("mismatch in row number for to_return and all_neighbors")
@@ -1216,7 +1408,10 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
                                   this_sample_id,
                                   prediction_in_title = TRUE,
                                   add_circle = TRUE,
-                                  label_column = "predicted_label_optimized"){
+                                  label_column = "predicted_label_optimized",
+                                  point_size = 0.5, 
+                                  point_alpha = 0.9,
+                                  line_alpha = 0.9) {
 
   circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
     r = diameter / 2
@@ -1227,12 +1422,21 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
   }
   if(missing(training_predictions)){
     training_predictions = single_sample_prediction_output$anno_df
+  }else if(missing(single_sample_prediction_output)){
+
+    #Just plot the single sample in the context of the rest based on the optimization
+    single_sample_prediction_output = list()
+    single_sample_prediction_output[["prediction"]] = filter(training_predictions, sample_id==this_sample_id) 
+     single_sample_prediction_output[["anno_df"]] = training_predictions
+  }else{
+    single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
+  
   }
-  single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction,sample_id==this_sample_id)
   #extract the sample_id for all the nearest neighbors with non-Other labels
   my_neighbours = filter(single_sample_prediction_output$prediction,
                          sample_id == this_sample_id) %>% 
                   pull(neighbor_id) %>% strsplit(.,",") %>% unlist()
+
   #set up links connecting each neighbor to the sample's point
   links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
   my_x = filter(single_sample_prediction_output$anno_df,
@@ -1256,8 +1460,8 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
   
   pp=ggplot(mutate(training_predictions,group=lymphgen),
          aes(x=V1,y=V2,colour=group)) + 
-    geom_point(alpha=0.8,size=0.5) + 
-    geom_segment(data=links_df,aes(x=V1,y=V2,xend=my_x,yend=my_y),alpha=0.5)+
+    geom_point(alpha=point_alpha,size=point_size) + 
+    geom_segment(data=links_df,aes(x=V1,y=V2,xend=my_x,yend=my_y),alpha=line_alpha)+
     scale_colour_manual(values=get_gambl_colours()) + 
     ggtitle(title)+
     theme_minimal()
