@@ -10,7 +10,10 @@ make_neighborhood_plot(
   this_sample_id,
   prediction_in_title = TRUE,
   add_circle = TRUE,
-  label_column = "predicted_label_optimized"
+  label_column = "predicted_label_optimized",
+  point_size = 0.5,
+  point_alpha = 0.9,
+  line_alpha = 0.9
 )
 }
 \arguments{
