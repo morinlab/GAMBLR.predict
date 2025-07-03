@@ -58,28 +58,36 @@
 #'
 #' @import dplyr tidyr tibble
 #' @export
-summarize_all_ssm_status <- function(maf_df,
-                                     these_samples_metadata,
-                                     genes_of_interest,
-                                     synon_genes,
-                                     silent_maf_df,
-                                     separate_by_class_genes = NULL, 
-                                     count_hits = FALSE){
+summarize_all_ssm_status <- function(
+  maf_df,
+  these_samples_metadata,
+  genes_of_interest,
+  synon_genes,
+  silent_maf_df,
+  separate_by_class_genes = NULL, 
+  count_hits = FALSE
+){
   if(missing(genes_of_interest)){
     message("defaulting to all Tier 1 B-cell lymphoma genes")
     genes_of_interest = filter(lymphoma_genes,
       DLBCL_Tier==1 | FL_Tier == 1 | BL_Tier == 1 ) %>% 
       pull(Gene) %>% unique()
   }
+
   if(missing(silent_maf_df)){
     silent_maf_df = maf_df
   }
-  maf_df = filter(maf_df,
-    Hugo_Symbol %in% genes_of_interest)
+
+  maf_df = filter(
+    maf_df,
+    Hugo_Symbol %in% genes_of_interest
+  )
+
   if(!missing(these_samples_metadata)){
     maf_df = filter(maf_df,
       Tumor_Sample_Barcode %in% these_samples_metadata$sample_id)
   }
+
   if(!missing(synon_genes)){
     if(any(!synon_genes %in% silent_maf_df$Hugo_Symbol)){
       missing = synon_genes[!synon_genes %in% silent_maf_df$Hugo_Symbol]
@@ -92,45 +100,94 @@ summarize_all_ssm_status <- function(maf_df,
     maf_silent = filter(silent_maf_df, ! Variant_Classification %in% vc_nonSynonymous, Hugo_Symbol %in% synon_genes)
     maf_df = bind_rows(maf_silent,maf_nonsilent)
   }
+
   #Simplify annotations
-  silent_types = c("Silent","Intron","5'UTR","3'UTR","5'Flank","3'Flank")
-  nonsense_types = c("Nonsense_Mutation","Frame_Shift_Del","Frame_Shift_Ins")
-  missense_types = c("In_Frame_Del",
-                              "In_Frame_Ins",
-                              "Missense_Mutation",
-                              "Splice_Region")
-  gene_mutations = mutate(maf_df,
-                    mutation_type=case_when(
-                    Variant_Classification %in% nonsense_types ~ "Nonsense_Mutation",
-                    Variant_Classification %in%  missense_types ~ "Missense_Mutation",
-                    Variant_Classification %in% silent_types ~ "Silent",
-                    TRUE ~ Variant_Classification)
-                    ) %>%
-                            mutate(mutation=paste(Hugo_Symbol,mutation_type,sep=":"))
-  separated_coding_maf = filter(gene_mutations,
-                                Hugo_Symbol %in% genes_of_interest,
-                                Hugo_Symbol %in% separate_by_class_genes,
-                                mutation_type != "Silent")
+  silent_types = c(
+    "Silent",
+    "Intron",
+    "5'UTR",
+    "3'UTR",
+    "5'Flank",
+    "3'Flank"
+  )
+  nonsense_types = c(
+    "Nonsense_Mutation",
+    "Translation_Start_Site",
+    "Frame_Shift_Del",
+    "Frame_Shift_Ins",
+    "Nonstop_Mutation",
+    "Splice_Site"
+  )
+  missense_types = c(
+    "In_Frame_Del",
+    "In_Frame_Ins",
+    "Missense_Mutation",
+    "Splice_Region"
+  )
+
+  gene_mutations = mutate(
+    maf_df,
+    mutation_type=case_when(
+      Variant_Classification %in% nonsense_types ~ "Nonsense_Mutation",
+      Variant_Classification %in%  missense_types ~ "Missense_Mutation",
+      Variant_Classification %in% silent_types ~ "Silent",
+      TRUE ~ Variant_Classification
+    )
+  ) %>%
+    mutate(mutation=paste(Hugo_Symbol,mutation_type,sep=":"))
+
+  separated_coding_maf = filter(
+    gene_mutations,
+    Hugo_Symbol %in% genes_of_interest,
+    Hugo_Symbol %in% separate_by_class_genes,
+    mutation_type != "Silent"
+  )
   
-  unseparated_coding_maf = filter(gene_mutations,
-                                  Hugo_Symbol %in% genes_of_interest, !Hugo_Symbol %in% separate_by_class_genes, mutation_type != "Silent") %>%
+  unseparated_coding_maf = filter(
+    gene_mutations,
+    Hugo_Symbol %in% genes_of_interest, 
+    !Hugo_Symbol %in% separate_by_class_genes, 
+    mutation_type != "Silent"
+  ) %>%
     mutate(mutation = paste(Hugo_Symbol,"Coding",sep=":"))
-  separated_silent_maf = filter(gene_mutations,Hugo_Symbol %in% synon_genes, mutation_type == "Silent") %>%
+
+  separated_silent_maf = filter(
+    gene_mutations,
+    Hugo_Symbol %in% synon_genes, 
+    mutation_type == "Silent"
+  ) %>%
     mutate(mutation = paste(Hugo_Symbol,"Silent",sep=":"))
-  gene_mutations = bind_rows(separated_coding_maf, unseparated_coding_maf,separated_silent_maf)
+
+  gene_mutations = bind_rows(
+    separated_coding_maf, 
+    unseparated_coding_maf,
+    separated_silent_maf
+  )
   
-  mutation_distinct = select(gene_mutations,mutation,Tumor_Sample_Barcode) %>% 
+  mutation_distinct = select(
+    gene_mutations,
+    mutation,
+    Tumor_Sample_Barcode
+  ) %>% 
     mutate(mutated = 1) %>% 
-    group_by(Tumor_Sample_Barcode,mutation,mutated) %>%
-    count() %>% ungroup()
+    group_by(
+      Tumor_Sample_Barcode,
+      mutation,
+      mutated
+    ) %>%
+    count() %>% 
+    ungroup()
+
   if(count_hits){
     mutation_distinct = mutation_distinct %>% select(-mutated) %>% rename(mutated=n) %>% distinct()
   } else{
     mutation_distinct = mutation_distinct %>% select(-n) %>% distinct()
   }
+
   mutation_wide = pivot_wider(mutation_distinct, names_from = "mutation",values_from = "mutated",values_fill = 0) %>% 
-  column_to_rownames("Tumor_Sample_Barcode")
- return(mutation_wide)
+    column_to_rownames("Tumor_Sample_Barcode")
+  
+  return(mutation_wide)
 }
 
 #' Assemble genetic features for UMAP input
