@@ -11,7 +11,8 @@ make_umap_scatterplot(
   drop_other = FALSE,
   high_confidence = FALSE,
   custom_colours,
-  add_labels = FALSE
+  add_labels = FALSE,
+  facet = FALSE
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ make_umap_scatterplot(
 \item{custom_colours}{}
 
 \item{add_labels}{}
+
+\item{facet}{If TRUE: truth, predicted, predicted_optimized, ggmarginal not used in order to fit nicely}
 }
 \description{
 Make UMAP scatterplot

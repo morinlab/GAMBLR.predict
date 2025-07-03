@@ -16,7 +16,8 @@ DLBCLone_optimize_params(
   verbose = FALSE,
   seed = 12345,
   maximize = "balanced_accuracy",
-  exclude_other_for_accuracy = FALSE
+  exclude_other_for_accuracy = FALSE,
+  weights_opt = c(TRUE)
 )
 }
 \arguments{

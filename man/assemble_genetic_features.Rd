@@ -15,7 +15,9 @@ assemble_genetic_features(
   sv_value = 3,
   synon_value = 1,
   coding_value = 2,
-  include_ashm = TRUE
+  include_ashm = TRUE,
+  annotated_sv,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -36,6 +38,8 @@ assemble_genetic_features(
 \item{synon_value}{Value to assign for synonymous mutations (default: 1).}
 
 \item{coding_value}{Value to assign for coding mutations (default: 2).}
+
+\item{verbose}{Defaults to FALSE}
 }
 \value{
 Matrix of assembled features for each sample.

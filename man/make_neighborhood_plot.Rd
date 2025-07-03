@@ -10,8 +10,10 @@ make_neighborhood_plot(
   this_sample_id,
   prediction_in_title = TRUE,
   add_circle = TRUE,
-  drop_other = FALSE,
-  label_column = "predicted_label_optimized"
+  label_column = "predicted_label_optimized",
+  point_size = 0.5,
+  point_alpha = 0.9,
+  line_alpha = 0.9
 )
 }
 \arguments{
@@ -26,9 +28,9 @@ Must include elements \code{prediction} (data frame with prediction results) and
 
 \item{add_circle}{Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.}
 
-\item{drop_other}{Logical. If \code{TRUE}, samples with the "Other" label will be excluded from the plot.}
-
 \item{label_column}{Does nothing, i.e. this is not currently working.}
+
+\item{drop_other}{Logical. If \code{TRUE}, samples with the "Other" label will be excluded from the plot.}
 }
 \value{
 A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
