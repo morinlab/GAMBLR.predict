@@ -471,52 +471,61 @@ old_assemble_genetic_features <- function(these_samples_metadata,
 #' @returns a list of data frames with the predictions and the UMAP input
 #' @export
 #'
-optimize_outgroup <- function(predicted_labels,
-                            true_labels,
-                            other_score,
-                            all_classes = c("MCD",
-                                            "EZB",
-                                            "BN2",
-                                            "N1",
-                                            "ST2",
-                                            "Other"),
-                            maximize ="balanced_accuracy",
-                            exclude_other_for_accuracy = FALSE){
+optimize_outgroup <- function(
+  predicted_labels,
+  true_labels,
+  other_score,
+  all_classes = c(
+    "MCD",
+    "EZB",
+    "BN2",
+    "N1",
+    "ST2",
+    "Other"
+  ),
+  maximize ="balanced_accuracy",
+  exclude_other_for_accuracy = FALSE
+){
   
   rel_thresholds = seq(1,10,0.1)
   sens_df = data.frame()
   acc_df = data.frame()
-  predictions = data.frame(predicted_label=as.character(predicted_labels),
-                           true_label=as.character(true_labels))
+  predictions = data.frame(
+    predicted_label=as.character(predicted_labels),
+    true_label=as.character(true_labels)
+  )
 
   for(threshold in rel_thresholds){
-      predictions_new = mutate(predictions,
-                               predicted_label = ifelse(other_score < threshold,
-                                                        predicted_label,
-                                                        "Other"))
+    predictions_new = mutate(
+      predictions,
+      predicted_label = ifelse(
+        other_score < threshold,
+        predicted_label,
+        "Other"
+      )
+    )
 
-      pred = factor(predictions_new[["predicted_label"]],levels=all_classes)
-      truth = factor(predictions_new[["true_label"]],levels=all_classes)
-      conf_matrix <- confusionMatrix(pred, truth)
+    pred = factor(predictions_new[["predicted_label"]],levels=all_classes)
+    truth = factor(predictions_new[["true_label"]],levels=all_classes)
+    conf_matrix <- confusionMatrix(pred, truth)
 
-      bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
-      if(maximize == "balanced_accuracy"){
-        bal_acc$average_accuracy = mean(bal_acc)
-      }else{
-        bal_acc$average_accuracy = conf_matrix$overall[["Accuracy"]]
-      }
-      bal_acc$threshold = threshold
-      acc_df = bind_rows(acc_df,bal_acc)
-      sn <- conf_matrix$byClass[, "Sensitivity"]  
-      sn$average_sensitivity = mean(sn)
-      sn$threshold = threshold
-      sens_df = bind_rows(sens_df,sn)
+    bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
+    if(maximize == "balanced_accuracy"){
+      bal_acc$average_accuracy = mean(bal_acc)
+    }else{
+      bal_acc$average_accuracy = conf_matrix$overall[["Accuracy"]]
+    }
+    bal_acc$threshold = threshold
+    acc_df = bind_rows(acc_df,bal_acc)
+    sn <- conf_matrix$byClass[, "Sensitivity"]  
+    sn$average_sensitivity = mean(sn)
+    sn$threshold = threshold
+    sens_df = bind_rows(sens_df,sn)
   }
   if(maximize %in% c("balanced_accuracy","accuracy")){
     best = slice_head(arrange(acc_df,desc(average_accuracy)),n=1)
   }else{
     best = slice_head(arrange(sens_df,desc(average_sensitivity)),n=1)
-
   }
   
   return(best)
@@ -1608,10 +1617,7 @@ make_neighborhood_plot <- function(
 #' @param umap_out UMAP output from a previous run. The function will use this model to project the data, useful
 #' for reproducibility and for using the same UMAP model on different datasets.
 #' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
-#' @param other_df Data frame containing the predictions for samples in the "Other" class
-#' @param predict_training Set to TRUE to predict the projected training samples once stored as stored_train_prediction. Use 
-#' stored_train_prediction for subsequent use wehn using the same training set. Set to to FALSE to predict training samples every run 
-#' @param stored_train_prediction Data frame containing the projected train predictions from train samples
+#' @param other_df Data frame containing the predictions for samples in the "Other" class 
 #' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
 #' distance = 0. This is usually only relevant when re-classifying labeled
 #' samples to estimate overall accuracy
@@ -1646,8 +1652,6 @@ predict_single_sample_DLBCLone <- function(
   umap_out,
   best_params,
   other_df,
-  predict_training = FALSE, 
-  stored_train_prediction = NULL, 
   ignore_top = FALSE,
   truth_classes = c("EZB","MCD","ST2","N1","BN2"),
   drop_unlabeled_from_training=TRUE,
@@ -1657,7 +1661,8 @@ predict_single_sample_DLBCLone <- function(
   title1="GAMBL",
   title2="predicted_class_for_HighConf",
   title3 ="predicted_class_for_Other",
-  seed = 12345
+  seed = 12345,
+  max_neighbors = 500
 ){
 
   if(nrow(test_df)>1){
@@ -1767,6 +1772,7 @@ predict_single_sample_DLBCLone <- function(
     na_label = "Other",
     use_weights = best_params$use_w,
     ignore_top = ignore_top,
+    max_neighbors = max_neighbors
   )
   test_pred <- as.data.frame(test_pred)
   prefix <- paste0("k_", best_params$k, ".")
