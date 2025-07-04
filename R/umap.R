@@ -675,24 +675,25 @@ DLBCLone_train_test_plot = function(test_df,
 #'                            metric="cosine")
 #'
 #'
-make_and_annotate_umap = function(df,
-                              metadata,
-                              umap_out,
-                              n_neighbors=55,
-                              min_dist=0,
-                              metric="cosine",
-                              n_epochs=1500,
-                              init="spca",
-                              ret_model=TRUE,
-                              na_vals = "drop",
-                              join_column="sample_id",
-                              seed=12345,
-                              target_column,
-                              target_metric="euclidean",
-                              target_weight=0.5,
-                              calc_dispersion = FALSE,
-                              algorithm = "tumap"){
-  
+make_and_annotate_umap = function(
+  df,
+  metadata,
+  umap_out,
+  n_neighbors=55,
+  min_dist=0,
+  metric="cosine",
+  n_epochs=1500,
+  init="spca",
+  ret_model=TRUE,
+  na_vals = "drop",
+  join_column="sample_id",
+  seed=12345,
+  target_column,
+  target_metric="euclidean",
+  target_weight=0.5,
+  calc_dispersion = FALSE,
+  algorithm = "tumap"
+){
   # Function to compute mean (or median) pairwise distance within a group
   pairwise_dispersion <- function(df_group) {
     coords <- as.matrix(df_group[, c("V1", "V2")])
@@ -706,10 +707,18 @@ make_and_annotate_umap = function(df,
   if(na_vals == "to_zero"){
     df[is.na(df)] = 0
   }else if(na_vals == "drop"){
-    df <- df[, colSums(is.na(df)) == 0]
+    if(any(sapply(df, is.factor))){
+      numeric_cols = names(df)[!sapply(df, is.factor)]
+      df <- df[, colSums(is.na(df[,numeric_cols])) == 0]
+        rs = rowSums(df[,numeric_cols],na.rm=TRUE)
+        df = df[rs>0,]
+    } else{
+      df <- df[, colSums(is.na(df)) == 0]
+        rs = rowSums(df,na.rm=TRUE)
+        df = df[rs>0,]
+    }
   }
-  rs = rowSums(df,na.rm=TRUE)
-  df = df[rs>0,]
+
   if(missing(df)){
     stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
   }
@@ -735,46 +744,52 @@ make_and_annotate_umap = function(df,
   if(missing(umap_out)){
     if(missing(target_column)){
       if(algorithm == "umap"){
-        umap_out = umap2(df %>% as.matrix(),
-                         n_neighbors = n_neighbors,
-                         min_dist = min_dist,
-                         metric = metric,
-                         ret_model = ret_model,
-                         n_epochs=n_epochs,
-                         a=1.8956,
-                         b = 0.806,
-                         approx_pow=TRUE,
-                         init=init,
-                         seed = seed,
-                         n_threads = 1, #IMPORTANT: n_threads must not be changed because it will break reproducibility
-                         batch = TRUE,
-                         n_sgd_threads = 1,
-                         rng_type = "deterministic") # possibly add rng_type = "deterministic"  
+        umap_out = umap2(
+          df %>% as.matrix(),
+          n_neighbors = n_neighbors,
+          min_dist = min_dist,
+          metric = metric,
+          ret_model = ret_model,
+          n_epochs=n_epochs,
+          a=1.8956,
+          b = 0.806,
+          approx_pow=TRUE,
+          init=init,
+          seed = seed,
+          n_threads = 1, #IMPORTANT: n_threads must not be changed because it will break reproducibility
+          batch = TRUE,
+          n_sgd_threads = 1,
+          rng_type = "deterministic"
+        ) # possibly add rng_type = "deterministic"  
         
       }else if(algorithm == "tumap"){
         X = df %>% as.matrix()
-        umap_args = list(X=X,
-                         n_neighbors = n_neighbors,
-                         metric = metric,
-                         ret_model = ret_model,
-                         n_epochs=n_epochs,
-                         init=init,
-                         seed = seed,
-                         n_threads = 1,
-                         batch = TRUE,
-                         n_sgd_threads = 1,
-                         rng_type = "deterministic")
-        umap_out = tumap(X,
-                         n_neighbors = n_neighbors,
-                         metric = metric,
-                         ret_model = ret_model,
-                         n_epochs=n_epochs,
-                         init=init,
-                         seed = seed,
-                         n_threads = 1,
-                         batch = TRUE,
-                         n_sgd_threads = 1,
-                         rng_type = "deterministic")
+        umap_args = list(
+          X=X,
+          n_neighbors = n_neighbors,
+          metric = metric,
+          ret_model = ret_model,
+          n_epochs=n_epochs,
+          init=init,
+          seed = seed,
+          n_threads = 1,
+          batch = TRUE,
+          n_sgd_threads = 1,
+          rng_type = "deterministic"
+        )
+        umap_out = tumap(
+          X,
+          n_neighbors = n_neighbors,
+          metric = metric,
+          ret_model = ret_model,
+          n_epochs=n_epochs,
+          init=init,
+          seed = seed,
+          n_threads = 1,
+          batch = TRUE,
+          n_sgd_threads = 1,
+          rng_type = "deterministic"
+        )
       }else{
         stop("unsupported algorithm option")
       }
@@ -785,29 +800,31 @@ make_and_annotate_umap = function(df,
       }
       metadata[[target_column]] = factor(metadata[[target_column]])
       print(table(metadata[[target_column]]))
-      umap_out = umap2(df %>% as.matrix(),
-                       n_neighbors = n_neighbors,
-                       min_dist = min_dist,
-                       metric = metric,
-                       ret_model = ret_model,
-                       n_epochs=n_epochs,
-                       init=init,
-                       seed = seed,
-                       n_threads = 1, #IMPORTANT: n_threads must not be changed because it will break reproducibility
-                       y = metadata[[target_column]],
-                       target_metric = target_metric,
-                       target_weight = target_weight
-                       ) # possibly add rng_type = "deterministic"
+      umap_out = umap2(
+        df %>% as.matrix(),
+        n_neighbors = n_neighbors,
+        min_dist = min_dist,
+        metric = metric,
+        ret_model = ret_model,
+        n_epochs=n_epochs,
+        init=init,
+        seed = seed,
+        n_threads = 1, #IMPORTANT: n_threads must not be changed because it will break reproducibility
+        y = metadata[[target_column]],
+        target_metric = target_metric,
+        target_weight = target_weight
+        ) # possibly add rng_type = "deterministic"
     }
     
   }else{
-    umap_out = umap_transform(X=df,
-                              model=umap_out,
-                              seed=seed,
-                              batch = TRUE,
-                              n_threads = 1,
-                              n_sgd_threads = 1)
-    
+    umap_out = umap_transform(
+      X=df,
+      model=umap_out,
+      seed=seed,
+      batch = TRUE,
+      n_threads = 1,
+      n_sgd_threads = 1
+      )
   }
   
   if(!is.null(names(umap_out))){
@@ -976,10 +993,14 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
         test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+        train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+        rownames(train_coords) = train_ids
       }else{
         test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
         train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
+        train_ids = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(sample_id)
+        rownames(train_coords) = train_ids
       }
 
       pred_all = weighted_knn_predict_with_conf(
@@ -1000,10 +1021,14 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           test_coords = filter(outs$df,lymphgen %in% "Other") %>% select(V1,V2)
           train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
           train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+          train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+          rownames(train_coords) = train_ids
         }else{
           test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% select(V1,V2)
           train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
           train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
+          train_ids = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(sample_id)
+          rownames(train_coords) = train_ids
         }
         n_other = nrow(test_coords)
 
@@ -1079,8 +1104,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             pred_factor = pred_factor[keep_idx]
           }
 
-
-
           if(verbose){
             print("true_factor")
             print(levels(true_factor ))
@@ -1145,7 +1168,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                             N1_sn = unname(sn["Class: N1"]),
                             BN2_sn= unname(sn["Class: BN2"]),
                             ST2_sn = unname(sn["Class: ST2"]),
-                            N1_bacc = unname(bal_acc["Class: N1"]),
                             BN2_bacc = unname(bal_acc["Class: BN2"]),
                             MCD_bacc = unname(bal_acc["Class: MCD"]),
                             EZB_bacc = unname(bal_acc["Class: EZB"]),
@@ -1186,8 +1208,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   test_coords = outs$df %>% select(V1,V2)
   train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
   train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+  train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+  rownames(train_coords) = train_ids
   pred = weighted_knn_predict_with_conf(
-            train_coords = train_coords,
+            train_coords = train_coords, 
             train_labels = train_labels,
             test_coords = test_coords,
             k=best_params$k,
@@ -1423,6 +1447,7 @@ weighted_knn_predict_with_conf <- function(
           neighbor = paste(neighbors,collapse=","),
           distance = paste(round(distances, 3),collapse=","),
           label = paste(neighbor_labels,collapse=","),
+          vote_labels = paste(names(weighted_votes),collapse=","),
           weighted_votes = paste(weighted_votes,collapse=","),
           neighbors_other = neighbors_other,
           other_weighted_votes = other_weighted_votes,
