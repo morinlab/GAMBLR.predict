@@ -23,6 +23,8 @@
 #' @param separate_by_class_genes (Optional) A character vector of
 #' gene symbols for which mutations should be separated by class
 #' (e.g., "Nonsense_Mutation", "Missense_Mutation").
+#' @param hotspot_genes Vector of hotspot genes.
+#' @param annotated_sv SV from provided annotated SV data frame
 #' @param count_hits Logical; if \code{TRUE}, counts the number of mutations
 #' per gene per sample. If \code{FALSE} (default), only presence/absence is recorded.
 #'
@@ -58,6 +60,7 @@
 #'
 #' @import dplyr tidyr tibble
 #' @export
+#' 
 summarize_all_ssm_status <- function(
   maf_df,
   these_samples_metadata,
@@ -65,6 +68,8 @@ summarize_all_ssm_status <- function(
   synon_genes,
   silent_maf_df,
   separate_by_class_genes = NULL, 
+  hotspot_genes = NULL, 
+  annotated_sv, 
   count_hits = FALSE
 ){
   if(missing(genes_of_interest)){
@@ -143,13 +148,12 @@ summarize_all_ssm_status <- function(
     mutation_type != "Silent"
   )
   
-  unseparated_coding_maf = filter(
+  unseparated_coding_silent_maf = filter(
     gene_mutations,
-    Hugo_Symbol %in% genes_of_interest, 
-    !Hugo_Symbol %in% separate_by_class_genes, 
-    mutation_type != "Silent"
+    Hugo_Symbol %in% genes_of_interest,
+    !Hugo_Symbol %in% separate_by_class_genes
   ) %>%
-    mutate(mutation = paste(Hugo_Symbol,"Coding",sep=":"))
+    mutate(mutation = paste(Hugo_Symbol,sep=":"))
 
   separated_silent_maf = filter(
     gene_mutations,
@@ -160,7 +164,7 @@ summarize_all_ssm_status <- function(
 
   gene_mutations = bind_rows(
     separated_coding_maf, 
-    unseparated_coding_maf,
+    unseparated_coding_silent_maf,
     separated_silent_maf
   )
   
@@ -186,6 +190,61 @@ summarize_all_ssm_status <- function(
 
   mutation_wide = pivot_wider(mutation_distinct, names_from = "mutation",values_from = "mutated",values_fill = 0) %>% 
     column_to_rownames("Tumor_Sample_Barcode")
+
+  if(!is.null(hotspot_genes)){
+  hotspot_features = get_coding_ssm_status(
+    these_samples_metadata = sample_metadata,
+    maf_data = maf_df,
+    include_hotspots = TRUE,
+    genes_of_interest = hotspot_genes
+  ) 
+
+  hotspot_features <- hotspot_features %>%
+    column_to_rownames("sample_id") %>%
+    select(contains("HOTSPOT"))
+
+  mutation_wide <- mutation_wide %>% rownames_to_column(var = "sample_id")
+  hotspot_features <- hotspot_features %>% rownames_to_column(var = "sample_id")
+
+  mutation_wide <- left_join(mutation_wide, hotspot_features, by = "sample_id")
+
+  # Replace NA in hotspot columns with 0 (if necessary)
+  hotspot_cols <- colnames(hotspot_features)[-1] # exclude sample_id
+  mutation_wide[hotspot_cols][is.na(mutation_wide[hotspot_cols])] <- 0
+
+  mutation_wide <- mutation_wide %>% column_to_rownames("sample_id")
+  }
+
+  #TODO: generalize this to use the column names provided in metadata_columns
+  bcl2_id = these_samples_metadata[which(these_samples_metadata$bcl2_ba=="POS"),] %>% pull(sample_id)
+  bcl6_id = these_samples_metadata[which(these_samples_metadata$bcl6_ba=="POS"),] %>% pull(sample_id)
+  myc_id = these_samples_metadata[which(these_samples_metadata$myc_ba=="POS"),] %>% pull(sample_id)
+  
+  # include SV from provided annotated SV data frame
+  if(!missing(annotated_sv)){
+    annotated_sv = filter(annotated_sv,tumour_sample_id %in% these_samples_metadata$sample_id)
+    bcl2_sv_id = filter(annotated_sv,!is.na(partner),gene=="BCL2") %>% pull(tumour_sample_id)
+    bcl6_sv_id = filter(annotated_sv,!is.na(partner),gene=="BCL6") %>% pull(tumour_sample_id)
+    myc_sv_id = filter(annotated_sv,!is.na(partner),gene=="MYC") %>% pull(tumour_sample_id)
+    n_b = length(bcl2_id)
+    print(paste(n_b,"BCL2 FISH"))
+    bcl2_id = unique(c(bcl2_id,bcl2_sv_id))
+    n_b = length(bcl2_id)
+    print(paste(n_b,"BCL2 FISH or SV"))
+    bcl6_id = unique(c(bcl6_id,bcl6_sv_id))
+    myc_id = unique(c(myc_id,myc_sv_id))
+  }
+
+  mutation_wide[,"BCL2_SV"] = 0
+  mutation_wide[bcl2_id,"BCL2_SV"] = 1
+
+  mutation_wide[,"MYC_SV"] = 0
+  mutation_wide[myc_id,"MYC_SV"] = 1
+
+  mutation_wide[,"BCL6_SV"] = 0
+  mutation_wide[bcl6_id,"BCL6_SV"] = 1
+
+  mutation_wide[is.na(mutation_wide)] <- 0
   
   return(mutation_wide)
 }
