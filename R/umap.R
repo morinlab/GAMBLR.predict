@@ -71,14 +71,19 @@ summarize_all_ssm_status <- function(maf_df,
       DLBCL_Tier==1 | FL_Tier == 1 | BL_Tier == 1 ) %>% 
       pull(Gene) %>% unique()
   }
-  if(missing(silent_maf_df)){
-    silent_maf_df = maf_df
-  }
+  
   maf_df = filter(maf_df,
     Hugo_Symbol %in% genes_of_interest)
+  if(missing(silent_maf_df)){
+    silent_maf_df = maf_df
+  }else{
+    silent_maf_df = filter(silent_maf_df,Hugo_Symbol %in% genes_of_interest)
+  }
   if(!missing(these_samples_metadata)){
     maf_df = filter(maf_df,
       Tumor_Sample_Barcode %in% these_samples_metadata$sample_id)
+    silent_maf_df = filter(silent_maf_df,
+                           Tumor_Sample_Barcode %in% these_samples_metadata$sample_id)
   }
   if(!missing(synon_genes)){
     if(any(!synon_genes %in% silent_maf_df$Hugo_Symbol)){
@@ -94,7 +99,7 @@ summarize_all_ssm_status <- function(maf_df,
   }
   #Simplify annotations
   silent_types = c("Silent","Intron","5'UTR","3'UTR","5'Flank","3'Flank")
-  nonsense_types = c("Nonsense_Mutation","Frame_Shift_Del","Frame_Shift_Ins")
+  nonsense_types = c("Nonsense_Mutation","Frame_Shift_Del","Frame_Shift_Ins","Splice_Site")
   missense_types = c("In_Frame_Del",
                               "In_Frame_Ins",
                               "Missense_Mutation",
@@ -456,7 +461,9 @@ optimize_outgroup <- function(predicted_labels,
       sn$threshold = threshold
       sens_df = bind_rows(sens_df,sn)
   }
+  
   if(maximize %in% c("balanced_accuracy","accuracy")){
+    #print(best)
     best = slice_head(arrange(acc_df,desc(average_accuracy)),n=1)
   }else{
     best = slice_head(arrange(sens_df,desc(average_sensitivity)),n=1)
@@ -1013,40 +1020,54 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
           bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
           sn <- conf_matrix$byClass[, "Sensitivity"]  # one per class
+
           if(verbose){
             print(bal_acc)
+            print(conf_matrix$overall)
+            print(sn)
           }
-
+          
           overall_accuracy <- conf_matrix$overall[["Accuracy"]]
-          if(exclude_other_for_accuracy){
-            mean_balanced_accuracy = mean(bal_acc[!names(bal_acc) == "Class: Other"], na.rm = TRUE)
-          }else{
-            mean_balanced_accuracy = mean(bal_acc)
-          }
           
           overall_sensitivity<- mean(sn[!names(sn) == "Class: Other"], na.rm = TRUE)
+          print("HERE")
           
           if(optimize_for_other){
+   
             optimized_accuracy_and_thresh = optimize_outgroup(pred_factor,
                                              true_factor,
                                              xx_d$other_score,
                                              all_classes = truth_classes,
                                              maximize = maximize,
                                              exclude_other_for_accuracy = exclude_other_for_accuracy)
+            
             out_opt_thresh = optimized_accuracy_and_thresh$threshold
-            optimized_accuracy_and_thresh$average_accuracy[is.na(optimized_accuracy_and_thresh$average_accuracy)] = 0
+            print(optimized_accuracy_and_thresh$average_accuracy)
+            
+            #optimized_accuracy_and_thresh$average_accuracy[is.na(optimized_accuracy_and_thresh$average_accuracy)] = 0
             out_opt_acc = optimized_accuracy_and_thresh$average_accuracy
+            
+
           }else{
             out_opt_acc = 0
             out_opt_thresh = 0
           }
+          if(exclude_other_for_accuracy){
+            mean_balanced_accuracy = mean(bal_acc[!names(bal_acc) == "Class: Other"], na.rm = TRUE)
+          }else{
+            mean_balanced_accuracy = mean(bal_acc)
+          }
           if(maximize == "sensitivity"){
             this_accuracy = overall_sensitivity
           }else if(maximize == "balanced_accuracy"){
+            
+            
             this_accuracy =mean_balanced_accuracy
           }else{
+            
             this_accuracy = overall_accuracy
           }
+          print(paste("accuracy:",this_accuracy, "out_opt_acc",out_opt_acc))
           if(out_opt_acc > this_accuracy){
             this_accuracy = out_opt_acc
           }
@@ -1831,7 +1852,12 @@ make_umap_scatterplot = function(df,
     labels = group_by(df,!!sym(colour_by)) %>%
       summarise(median_x = median(V1),median_y = median(V2)) 
   }
-  
+  unique_lg = unique(df$lymphgen)
+  if(any(!unique_lg %in% names(cols))){
+    missing = unique_lg[!unique_lg %in% names(cols)]
+    print(paste("missing colour for:",paste(missing,collapse=",")))
+
+  }
   p = ggplot(df,
              aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + geom_point(alpha=0.8) + 
     scale_colour_manual(values=cols) + theme_Morons() + 
