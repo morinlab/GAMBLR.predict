@@ -2004,6 +2004,7 @@ predict_single_sample_DLBCLone <- function(
 #' Make UMAP scatterplot
 #'
 #' @param df 
+#' @param title
 #' @param drop_composite 
 #' @param colour_by 
 #' @param drop_other 
@@ -2018,6 +2019,7 @@ predict_single_sample_DLBCLone <- function(
 #' @examples
 make_umap_scatterplot = function(
   df,
+  title,
   drop_composite = TRUE,
   colour_by="lymphgen",
   drop_other = FALSE,
@@ -2106,6 +2108,7 @@ make_umap_scatterplot = function(
         label=cohort
       )) + 
       geom_point(alpha=0.8) + 
+      labs(title = title) +
       scale_colour_manual(values=cols) + 
       theme_Morons() + 
       guides(colour = guide_legend(nrow = 1))
@@ -2175,6 +2178,9 @@ DLBCLone_save_optimized = function(
   
     out_model = paste0(prefix,"_optimized_uwot.rds")
     save_uwot(optimized_out$model,file=out_model)
+
+    out_pred = paste0(prefix,"_optimized_pred.tsv")
+    write_tsv(optimized_out$predictions,file=out_pred)
   }
 
   if(!is.null(predict_single)){ # predict_single_sample_DLBCLone()
@@ -2234,8 +2240,9 @@ DLBCLone_load_optimized <- function(
   load_classes = paste0(prefix,"_classes.txt")
   load_param = paste0(prefix,"_optimized_best_params.rds")
   load_model = paste0(prefix,"_optimized_uwot.rds")
+  load_pred = paste0(prefix,"_optimized_pred.tsv")
 
-  required_files <- c(load_mut, load_meta, load_classes, load_param, load_model)
+  required_files <- c(load_mut, load_meta, load_classes, load_param, load_model, load_pred)
 
   # Check existence
   missing_files <- required_files[!file.exists(required_files)]
@@ -2249,12 +2256,14 @@ DLBCLone_load_optimized <- function(
   classes <- read.table(load_classes)
   best_params <- readRDS(load_param)
   uwot_model <- load_uwot(load_model)
+  predictions <- read_tsv(load_pred)
 
   return(list(
     df = mut_df,
     metadata = metadata,
     truth_classes = classes,
     best_params = best_params,
-    model = uwot_model
+    model = uwot_model,
+    predictions = predictions
   ))
 }

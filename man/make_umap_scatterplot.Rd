@@ -6,6 +6,7 @@
 \usage{
 make_umap_scatterplot(
   df,
+  title,
   drop_composite = TRUE,
   colour_by = "lymphgen",
   drop_other = FALSE,
