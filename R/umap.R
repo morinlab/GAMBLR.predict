@@ -1428,9 +1428,9 @@ weighted_knn_predict_with_conf <- function(
       distances <- distances[valid]
       neighbors <- neighbors[valid]
       #number of neighbours should be, at least, k - 1. If less than that, warn the user
-      if(length(neighbors) < k-1){
+      if(length(neighbors) < curr_k-1){
         print(paste("Warning: number of neighbors is less than k-1."))
-        print(paste("i:", i,"k:",k))
+        print(paste("i:", i,"k:",curr_k))
         print(paste("num_neighbors:",length(neighbors)))
         print(table(valid))
       }
@@ -1646,9 +1646,9 @@ make_neighborhood_plot <- function(
   links_df = mutate(links_df,my_x=my_x,my_y=my_y)
   links_df = links_df %>% select(V1, V2, my_x, my_y, group) %>% mutate(length = sqrt((V1 - my_x)^2 + (V2 - my_y)^2))  # Euclidean distance
 
-  if(drop_other){
-    training_predictions = filter(training_predictions,!is.na(lymphgen),lymphgen!="Other",lymphgen!="NOS")
-  }
+ # if(drop_other){
+  #  training_predictions = filter(training_predictions,!is.na(lymphgen),lymphgen!="Other",lymphgen!="NOS")
+  #}
   
   pp=ggplot(
     mutate(training_predictions,group=lymphgen),
@@ -1712,7 +1712,7 @@ predict_single_sample_DLBCLone <- function(
   best_params,
   other_df,
   ignore_top = FALSE,
-  truth_classes = c("EZB","MCD","ST2","N1","BN2"),
+  truth_classes = c("EZB","MCD","ST2","BN2"),
   drop_unlabeled_from_training=TRUE,
   make_plot = TRUE,
   annotate_accuracy = FALSE,
@@ -1880,10 +1880,10 @@ predict_single_sample_DLBCLone <- function(
     )
     
     if("BN2" %in% truth_classes){
-      print(best_params)
+    #  print(best_params)
       acc_df = data.frame(
         lymphgen = c(
-          "N1",
+        #  "N1",
           "BN2",
           "EZB",
           "MCD",
@@ -1892,7 +1892,7 @@ predict_single_sample_DLBCLone <- function(
           "A53"
         ),
         accuracy = c(
-          best_params$N1_bacc,
+        #  best_params$N1_bacc,
           best_params$BN2_bacc,
           best_params$EZB_bacc,
           best_params$MCD_bacc,

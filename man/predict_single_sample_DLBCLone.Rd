@@ -12,7 +12,7 @@ predict_single_sample_DLBCLone(
   best_params,
   other_df,
   ignore_top = FALSE,
-  truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2"),
+  truth_classes = c("EZB", "MCD", "ST2", "BN2"),
   drop_unlabeled_from_training = TRUE,
   make_plot = TRUE,
   annotate_accuracy = FALSE,
