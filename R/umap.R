@@ -812,7 +812,7 @@ make_and_annotate_umap = function(
   if(missing(umap_out)){
     if(missing(target_column)){
       if(algorithm == "umap"){
-        umap_out = umap2(
+        embedding = umap2(
           df %>% as.matrix(),
           n_neighbors = n_neighbors,
           min_dist = min_dist,
@@ -831,7 +831,8 @@ make_and_annotate_umap = function(
         ) # possibly add rng_type = "deterministic"  
         
       }else if(algorithm == "tumap"){
-        X = df %>% as.matrix()
+        #X = df %>% as.matrix()
+        X = df
         umap_args = list(
           X=X,
           n_neighbors = n_neighbors,
@@ -845,7 +846,7 @@ make_and_annotate_umap = function(
           n_sgd_threads = 1,
           rng_type = "deterministic"
         )
-        umap_out = tumap(
+        embedding = tumap(
           X,
           n_neighbors = n_neighbors,
           metric = metric,
@@ -861,6 +862,7 @@ make_and_annotate_umap = function(
       }else{
         stop("unsupported algorithm option")
       }
+      umap_out = embedding
     }else{
       #supervised
       if(missing(metadata)){
@@ -868,7 +870,7 @@ make_and_annotate_umap = function(
       }
       metadata[[target_column]] = factor(metadata[[target_column]])
       print(table(metadata[[target_column]]))
-      umap_out = umap2(
+      embedding = umap2(
         df %>% as.matrix(),
         n_neighbors = n_neighbors,
         min_dist = min_dist,
@@ -885,7 +887,7 @@ make_and_annotate_umap = function(
     }
     
   }else{
-    umap_out = umap_transform(
+    embedding = umap_transform(
       X=df,
       model=umap_out,
       seed=seed,
@@ -895,10 +897,10 @@ make_and_annotate_umap = function(
       )
   }
   
-  if(!is.null(names(umap_out))){
-    umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
+  if(!is.null(names(embedding))){
+    umap_df = as.data.frame(embedding$embedding) %>% rownames_to_column(join_column)
   }else{
-    umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
+    umap_df = as.data.frame(embedding) %>% rownames_to_column(join_column)
   }
   if(!missing(metadata)){
     umap_df = left_join(umap_df,metadata,by=join_column)
@@ -1028,30 +1030,24 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   other_pred = NULL
   for(na_option in na_opt){
     if(missing(umap_out)){
-      outs = make_and_annotate_umap(df=combined_mutation_status_df,
-                              min_dist = 0,
-                              n_neighbors = 55,
-                              n_epochs = 1500,
-                              seed=seed,
-                              metadata=metadata_df,
-                              ret_model=T,
-                              metric="cosine",
-                              join_column="sample_id",
-                              na_vals = na_option)
-    }else{
-      #project onto existing model instead of re-running UMAP
-      outs = make_and_annotate_umap(df=combined_mutation_status_df,
-                              umap_out = umap_out,
-                              min_dist = 0,
-                              n_neighbors = 55,
-                              n_epochs = 1500,
-                              seed=seed,
-                              metadata=metadata_df,
-                              ret_model=T,
-                              metric="cosine",
-                              join_column="sample_id",
-                              na_vals = na_option)
+      stop("umap_out must be provided by running make_and_annotate_umap first")
     }
+
+    #project onto existing model instead of re-running UMAP
+    outs = make_and_annotate_umap(
+      df=combined_mutation_status_df,
+      umap_out = umap_out,
+      min_dist = 0,
+      n_neighbors = 55,
+      n_epochs = 1500,
+      seed=seed,
+      metadata=metadata_df,
+      ret_model=T,
+      metric="cosine",
+      join_column="sample_id",
+      na_vals = na_option
+    )
+
     ignore_top = FALSE
     if(is.null(eval_group)){
       ignore_top = TRUE
@@ -2019,7 +2015,7 @@ predict_single_sample_DLBCLone <- function(
 #' @examples
 make_umap_scatterplot = function(
   df,
-  title,
+  title = NULL,
   drop_composite = TRUE,
   colour_by="lymphgen",
   drop_other = FALSE,
