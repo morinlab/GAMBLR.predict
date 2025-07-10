@@ -1722,7 +1722,7 @@ predict_single_sample_DLBCLone <- function(
     message("Warning: you have supplied more than one sample to test with. Will proceed with all")
   }
 
-  trained_features <- train_df %>% column_to_rownames("sample_id") %>% select(where(is.numeric)) %>% colnames()
+  trained_features = colnames(optimize_params$features)
 
   train_df = train_df %>%
     column_to_rownames("sample_id") %>%
