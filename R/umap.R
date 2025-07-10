@@ -1036,7 +1036,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     #project onto existing model instead of re-running UMAP
     outs = make_and_annotate_umap(
       df=combined_mutation_status_df,
-      umap_out = umap_out,
+      umap_out = umap_out$model,
       min_dist = 0,
       n_neighbors = 55,
       n_epochs = 1500,
@@ -1301,6 +1301,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 model=best_fit$model,
                 features=best_fit$features,
                 df=outs$df,
+                truth_classes = truth_classes,
                 predictions=xx_d)
   if(!"Other" %in% truth_classes && n_other > 0){
     to_ret[["predictions_other"]] = xx_o
@@ -1669,9 +1670,8 @@ make_neighborhood_plot <- function(
 #' @param test_df Data frame containing the mutation status of the test sample
 #' @param train_df Data frame containing the mutation status of the training samples
 #' @param train_metadata Metadata for training samples with truth labels in lymphgen column
-#' @param umap_out UMAP output from a previous run. The function will use this model to project the data, useful
-#' for reproducibility and for using the same UMAP model on different datasets.
-#' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
+#' @param optimize_params list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a 
+#' previous, Data frame with the best parameters. useful for reproducibility.
 #' @param other_df Data frame containing the predictions for samples in the "Other" class 
 #' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
 #' distance = 0. This is usually only relevant when re-classifying labeled
@@ -1694,8 +1694,7 @@ make_neighborhood_plot <- function(
 #'    test_df = test_df,
 #'    train_df = train_df,
 #'    train_metadata = train_metadata,
-#'    umap_out = umap_out,
-#'    best_params = best_params,
+#'    optimize_params = optimize_params,
 #'    predictions_df = predictions_df,
 #'    annotate_accuracy = TRUE
 #' )
@@ -1704,8 +1703,7 @@ predict_single_sample_DLBCLone <- function(
   test_df,
   train_df,
   train_metadata,
-  umap_out,
-  best_params,
+  optimize_params,
   other_df,
   ignore_top = FALSE,
   truth_classes = c("EZB","MCD","ST2","BN2"),
@@ -1783,11 +1781,11 @@ predict_single_sample_DLBCLone <- function(
   projection <- make_and_annotate_umap(
     df = combined_df,
     metadata = combined_metadata,
-    umap_out = umap_out,
+    umap_out = optimize_params$model,
     ret_model = FALSE,
     seed = seed,
     join_column = "sample_id",
-    na_vals = best_params$na_option
+    na_vals = optimize_params$best_params$na_option
   )
 
   train_coords = dplyr::filter(
@@ -1822,21 +1820,21 @@ predict_single_sample_DLBCLone <- function(
     train_coords = train_coords,
     train_labels = train_labels,
     test_coords = test_coords,
-    k = best_params$k,
-    conf_threshold = best_params$threshold,
+    k = optimize_params$best_params$k,
+    conf_threshold = optimize_params$best_params$threshold,
     na_label = "Other",
-    use_weights = best_params$use_w,
+    use_weights = optimize_params$best_params$use_w,
     ignore_top = ignore_top,
     max_neighbors = max_neighbors
   )
   test_pred <- as.data.frame(test_pred)
-  prefix <- paste0("k_", best_params$k, ".")
+  prefix <- paste0("k_", optimize_params$best_params$k, ".")
   colnames(test_pred) <- sub(prefix, "", colnames(test_pred))
   test_pred = rownames_to_column(test_pred, var = "sample_id")
 
-  if(best_params$threshold_outgroup > 0){ # optimize_for_other = T in DLBCLone_optimize_params
+  if(optimize_params$best_params$threshold_outgroup > 0){ # optimize_for_other = T in DLBCLone_optimize_params
     test_pred = mutate(test_pred,predicted_label_optimized = ifelse(
-      other_score > best_params$threshold_outgroup,
+      other_score > optimize_params$best_params$threshold_outgroup,
       "Other",
       predicted_label
     ))
@@ -1871,12 +1869,12 @@ predict_single_sample_DLBCLone <- function(
 
   if(make_plot){
     title = paste0(
-      "N_class:", best_params$num_classes," N_feats:",best_params$num_features,
-      " k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3)
+      "N_class:", optimize_params$best_params$num_classes," N_feats:",optimize_params$best_params$num_features,
+      " k=",optimize_params$best_params$k," threshold=",optimize_params$best_params$threshold," bacc=",round(optimize_params$best_params$accuracy,3)
     )
     
     if("BN2" %in% truth_classes){
-    #  print(best_params)
+    #  print(optimize_params$best_params)
       acc_df = data.frame(
         lymphgen = c(
         #  "N1",
@@ -1888,13 +1886,13 @@ predict_single_sample_DLBCLone <- function(
           "A53"
         ),
         accuracy = c(
-        #  best_params$N1_bacc,
-          best_params$BN2_bacc,
-          best_params$EZB_bacc,
-          best_params$MCD_bacc,
-          best_params$ST2_bacc,
-          best_params$Other_bacc,
-          best_params$A53_bacc
+        #  optimize_params$best_params$N1_bacc,
+          optimize_params$best_params$BN2_bacc,
+          optimize_params$best_params$EZB_bacc,
+          optimize_params$best_params$MCD_bacc,
+          optimize_params$best_params$ST2_bacc,
+          optimize_params$best_params$Other_bacc,
+          optimize_params$best_params$A53_bacc
         )
       )
     }else if("C1" %in% truth_classes){
@@ -1907,11 +1905,11 @@ predict_single_sample_DLBCLone <- function(
           "C5"
         ),
         accuracy = c(
-          best_params$C1_bacc,
-          best_params$C2_bacc,
-          best_params$C3_bacc,
-          best_params$C4_bacc,
-          best_params$C5_bacc
+          optimize_params$best_params$C1_bacc,
+          optimize_params$best_params$C2_bacc,
+          optimize_params$best_params$C3_bacc,
+          optimize_params$best_params$C4_bacc,
+          optimize_params$best_params$C5_bacc
         )
       )
     }else{
@@ -1990,7 +1988,7 @@ predict_single_sample_DLBCLone <- function(
   return(list(
     prediction = test_pred, 
     umap_input_features = trained_features, 
-    model=umap_out,
+    model=optimize_params$model,
     plot = pp,
     anno_df = predictions_df,
     projection = projection$df
@@ -2146,13 +2144,9 @@ make_umap_scatterplot = function(
 #'  name_prefix="test_A"
 #' )
 #'
-DLBCLone_save_optimized = function(
-    combined_mutation_df,
-    metadata,
-    truth_classes = c("MCD","EZB","BN2","ST2","N1","Other"),
-    optimized_out=NULL,
-    predict_single=NULL,
-    neighborhood_plot=NULL,
+
+DLBCLone_save_optimized = function( # <- ensure rownmaes works, restore lsit option of umap_out not umap_out$model to all fxs
+    optimized_params=NULL,
     path="models/",
     name_prefix="test"
 ){
@@ -2160,47 +2154,22 @@ DLBCLone_save_optimized = function(
   prefix = paste0(path,"/",name_prefix)
   
   out_mut = paste0(prefix,"_mutation_status_df.tsv")
-  write_tsv(combined_mutation_df,file=out_mut)
+  write_tsv(optimized_params$features,file=out_mut)
 
   out_meta = paste0(prefix,"_metadata.tsv")
-  write_tsv(metadata,file=out_meta)
+  write_tsv(optimized_params$df,file=out_meta)
+  
+  out_param = paste0(prefix,"_optimized_best_params.rds")
+  saveRDS(optimized_params$best_params,file=out_param)
+  
+  out_model = paste0(prefix,"_optimized_uwot.rds")
+  save_uwot(optimized_params$model,file=out_model)
+
+  out_pred = paste0(prefix,"_optimized_pred.tsv")
+  write_tsv(optimized_params$predictions,file=out_pred)
 
   out_classes = paste0(prefix,"_classes.txt")
-  write.table(truth_classes,file=out_classes,quote=F,row.names=F)
-  
-  if(!is.null(optimized_out)){ # DLBCLone_optimize_params()
-    out_param = paste0(prefix,"_optimized_best_params.rds")
-    saveRDS(optimized_out$best_params,file=out_param)
-  
-    out_model = paste0(prefix,"_optimized_uwot.rds")
-    save_uwot(optimized_out$model,file=out_model)
-
-    out_pred = paste0(prefix,"_optimized_pred.tsv")
-    write_tsv(optimized_out$predictions,file=out_pred)
-  }
-
-  if(!is.null(predict_single)){ # predict_single_sample_DLBCLone()
-    out_prediction = paste0(prefix,"_predict_single_prediction.tsv")
-    write_tsv(predict_single$prediction,file=out_prediction)
-
-    out_projection = paste0(prefix,"_predict_single_projection.tsv")
-    write_tsv(predict_single$projection,file=out_projection)
-
-    out_anno_df = paste0(prefix, "_predict_single_anno_df.tsv")
-    write_tsv(predict_single$anno_df,file=out_anno_df)
-
-    out_plot = paste0(prefix,"_predict_single_plot.pdf")
-    pdf(out_plot, width = 10, height = 14) 
-    predict_single$plot
-    dev.off() 
-  }
-
-  if(!is.null(neighborhood_plot)){ # make_neighborhood_plot()  
-    out_neighbor = paste0(prefix,"_neighborhood_plot.pdf")
-    pdf(out_neighbor, width = 10, height = 14) 
-    neighborhood_plot
-    dev.off()
-  }
+  write.table(optimized_params$truth_classes,file=out_classes,quote=F,row.names=F)
 }
 
 
@@ -2224,7 +2193,7 @@ DLBCLone_save_optimized = function(
 #' )
 #'
 
-DLBCLone_load_optimized <- function(
+DLBCLone_load_optimized <- function( # set sample_id to rownames
   path="models/",
   name_prefix="test"
 ){

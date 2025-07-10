@@ -5,17 +5,16 @@
 \title{modal storage for DLBCLone outputs}
 \usage{
 DLBCLone_save_optimized(
-  combined_mutation_df,
-  metadata,
-  truth_classes = c("MCD", "EZB", "BN2", "ST2", "N1", "Other"),
-  optimized_out = NULL,
-  predict_single = NULL,
-  neighborhood_plot = NULL,
+  optimized_params = NULL,
   path = "models/",
   name_prefix = "test"
 )
 }
 \arguments{
+\item{path}{Path to save the files}
+
+\item{name_prefix}{Prefix for the saved files, all files will be in path and start with name_prefix}
+
 \item{combined_mutation_df}{Data frame containing the mutation status of the samples used}
 
 \item{metadata}{Metadata with truth labels in lymphgen column}
@@ -27,10 +26,6 @@ DLBCLone_save_optimized(
 \item{predict_single}{output of predict_single_sample_DLBCLone(), if set to NULL values will not be saved}
 
 \item{neighborhood_plot}{output of make_neighborhood_plot(), if set to NULL values will not be saved}
-
-\item{path}{Path to save the files}
-
-\item{name_prefix}{Prefix for the saved files, all files will be in path and start with name_prefix}
 }
 \value{
 saves the files to the specified path

@@ -8,8 +8,7 @@ predict_single_sample_DLBCLone(
   test_df,
   train_df,
   train_metadata,
-  umap_out,
-  best_params,
+  optimize_params,
   other_df,
   ignore_top = FALSE,
   truth_classes = c("EZB", "MCD", "ST2", "BN2"),
@@ -31,10 +30,8 @@ predict_single_sample_DLBCLone(
 
 \item{train_metadata}{Metadata for training samples with truth labels in lymphgen column}
 
-\item{umap_out}{UMAP output from a previous run. The function will use this model to project the data, useful
-for reproducibility and for using the same UMAP model on different datasets.}
-
-\item{best_params}{Data frame from DLBCLone_optimize_params with the best parameters}
+\item{optimize_params}{list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a
+previous, Data frame with the best parameters. useful for reproducibility.}
 
 \item{other_df}{Data frame containing the predictions for samples in the "Other" class}
 
@@ -72,8 +69,7 @@ predict_single_sample_DLBCLone(
    test_df = test_df,
    train_df = train_df,
    train_metadata = train_metadata,
-   umap_out = umap_out,
-   best_params = best_params,
+   optimize_params = optimize_params,
    predictions_df = predictions_df,
    annotate_accuracy = TRUE
 )
