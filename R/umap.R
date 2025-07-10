@@ -661,25 +661,38 @@ make_and_annotate_umap = function(df,
       numeric_cols = names(df)[!sapply(df, is.factor)]
       df <- df[, colSums(is.na(df[,numeric_cols])) == 0]
         rs = rowSums(df[,numeric_cols],na.rm=TRUE)
+        dropped_rows = df[rs==0,]
         df = df[rs>0,]
     } else{
       df <- df[, colSums(is.na(df)) == 0]
         rs = rowSums(df,na.rm=TRUE)
+        dropped_rows = df[rs==0,]
         df = df[rs>0,]
     }
     
   }
-
-  
+ 
 
   if(missing(df)){
     stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
   }
   if(!missing(metadata)){
+    if(nrow(df)< original_n){
+      nrem = original_n-nrow(df)
+      pct_rem = round(nrem/original_n*100,2)
+      message(paste0("removed ",nrem," (",pct_rem,"%) rows from the data that had no features"))
+      no_feat_samples = rownames(dropped_rows)
+  
+    }else{
+      no_feat_samples = NULL
+    }
+
     keep_rows = rownames(df)[rownames(df) %in% metadata[[join_column]]]
     df= df[keep_rows,]
+    no_feat_metadata = filter(metadata,!!sym(join_column) %in% no_feat_samples)
     metadata= filter(metadata,!!sym(join_column) %in% rownames(df))
-    message(paste("kept",nrow(metadata),"rows of the data that match the metadata provided"))
+    
+    message(paste("kept",nrow(metadata),"rows of the data that have features and match the metadata provided"))
   }
   
   if(missing(umap_out)){
@@ -793,7 +806,9 @@ make_and_annotate_umap = function(df,
   
   results[["df"]]=umap_df
   results[["features"]] = df
-  
+  results[["dropped_rows"]] = no_feat_samples
+  results[["total_samples_available"]] = nrow(metadata) + nrow(no_feat_metadata)
+  results[["sample_metadata_no_features"]] = no_feat_metadata
   if(ret_model){
     results[["model"]]= umap_out
   }
@@ -1030,8 +1045,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           overall_accuracy <- conf_matrix$overall[["Accuracy"]]
           
           overall_sensitivity<- mean(sn[!names(sn) == "Class: Other"], na.rm = TRUE)
-          print("HERE")
-          
+  
           if(optimize_for_other){
    
             optimized_accuracy_and_thresh = optimize_outgroup(pred_factor,
@@ -1042,7 +1056,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                              exclude_other_for_accuracy = exclude_other_for_accuracy)
             
             out_opt_thresh = optimized_accuracy_and_thresh$threshold
-            print(optimized_accuracy_and_thresh$average_accuracy)
+            #print(optimized_accuracy_and_thresh$average_accuracy)
             
             #optimized_accuracy_and_thresh$average_accuracy[is.na(optimized_accuracy_and_thresh$average_accuracy)] = 0
             out_opt_acc = optimized_accuracy_and_thresh$average_accuracy
@@ -1067,7 +1081,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             
             this_accuracy = overall_accuracy
           }
-          print(paste("accuracy:",this_accuracy, "out_opt_acc",out_opt_acc))
+          #print(paste("accuracy:",this_accuracy, "out_opt_acc",out_opt_acc))
           if(out_opt_acc > this_accuracy){
             this_accuracy = out_opt_acc
           }
