@@ -1,4 +1,4 @@
-
+ 
 #' Summarize SSM (Somatic Single Nucleotide Mutation) Status Across Samples
 #'
 #' This function summarizes the mutation status for a set of genes
@@ -1028,6 +1028,11 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   this_accuracy = 0
   best_pred = NULL
   other_pred = NULL
+
+  if("sample_id" %in% colnames(combined_mutation_status_df)){
+    combined_mutation_status_df = combined_mutation_status_df %>% column_to_rownames(var = "sample_id")
+  }
+
   for(na_option in na_opt){
     if(missing(umap_out)){
       stop("umap_out must be provided by running make_and_annotate_umap first")
@@ -1057,14 +1062,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
         test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-        train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
-        rownames(train_coords) = train_ids
       }else{
         test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
         train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
-        train_ids = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(sample_id)
-        rownames(train_coords) = train_ids
       }
 
       pred_all = weighted_knn_predict_with_conf(
@@ -1085,14 +1086,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           test_coords = filter(outs$df,lymphgen %in% "Other") %>% select(V1,V2)
           train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
           train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-          train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
-          rownames(train_coords) = train_ids
         }else{
           test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% select(V1,V2)
           train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
           train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
-          train_ids = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(sample_id)
-          rownames(train_coords) = train_ids
         }
         n_other = nrow(test_coords)
 
@@ -1272,8 +1269,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   test_coords = outs$df %>% select(V1,V2)
   train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
   train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-  train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
-  rownames(train_coords) = train_ids
   pred = weighted_knn_predict_with_conf(
             train_coords = train_coords, 
             train_labels = train_labels,
@@ -1605,26 +1600,32 @@ make_neighborhood_plot <- function(
   }else if(missing(single_sample_prediction_output)){
     #Just plot the single sample in the context of the rest based on the optimization
     single_sample_prediction_output = list()
-    single_sample_prediction_output[["prediction"]] = filter(training_predictions, sample_id==this_sample_id) 
+    single_sample_prediction_output[["prediction"]] = filter(
+      training_predictions, 
+      rownames(training_predictions) == this_sample_id
+    ) 
     single_sample_prediction_output[["anno_df"]] = training_predictions
   }else{
-    single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
+    single_sample_prediction_output$prediction = filter(
+      single_sample_prediction_output$prediction, 
+      rownames(single_sample_prediction_output$prediction) == this_sample_id
+    )
   }
 
   #extract the sample_id for all the nearest neighbors with non-Other labels
   my_neighbours = filter(
     single_sample_prediction_output$prediction,
-    sample_id == this_sample_id
+    rownames(single_sample_prediction_output$prediction) == this_sample_id
     ) %>% 
       pull(neighbor_id) %>% 
       strsplit(.,",") %>% 
       unlist()
 
   #set up links connecting each neighbor to the sample's point
-  links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
+  links_df = filter(training_predictions,rownames(training_predictions) %in% my_neighbours) %>% mutate(group=lymphgen)
 
   sample_row <- single_sample_prediction_output$anno_df %>%
-    filter(sample_id == this_sample_id) %>%
+    filter(rownames(single_sample_prediction_output$anno_df) == this_sample_id) %>%
     slice_head(n = 1) # ensures 1 sample_id selected. Duplicates may occur when ignore_top = TRUE.
   my_x <- sample_row$V1
   my_y <- sample_row$V2
@@ -1705,7 +1706,7 @@ predict_single_sample_DLBCLone <- function(
   train_metadata,
   optimize_params,
   other_df,
-  ignore_top = FALSE,
+  ignore_top = TRUE,
   truth_classes = c("EZB","MCD","ST2","BN2"),
   drop_unlabeled_from_training=TRUE,
   make_plot = TRUE,
@@ -1720,6 +1721,15 @@ predict_single_sample_DLBCLone <- function(
 
   if(nrow(test_df)>1){
     message("Warning: you have supplied more than one sample to test with. Will proceed with all")
+  }
+
+  # cannot have duplicate rownames, sample_id needs to be a column in function, outputted as rownames
+  if(!"sample_id" %in% colnames(train_df)){ 
+    train_df = train_df %>% rownames_to_column("sample_id")
+  }
+
+  if(!"sample_id" %in% colnames(test_df)){ 
+    test_df = test_df %>% rownames_to_column("sample_id")
   }
 
   trained_features = colnames(optimize_params$features)
@@ -1858,14 +1868,23 @@ predict_single_sample_DLBCLone <- function(
     )
 
   predictions_test_df <- left_join(test_pred, projection$df, by = "sample_id")
+
+  test_pred <- test_pred %>%
+    column_to_rownames("sample_id") 
   
   missing_cols <- setdiff(names(predictions_test_df), names(projection$df))
   na_cols <- setNames(rep(list(NA), length(missing_cols)), missing_cols)
   projection_filled <- projection$df %>%
     filter(sample_id %in% train_id) %>%
     mutate(!!!na_cols)
-  
-  predictions_df <- bind_rows(predictions_test_df, projection_filled)
+
+  predictions_df <- bind_rows(
+    predictions_test_df,
+    projection_filled %>% filter(!(sample_id %in% predictions_test_df$sample_id))
+  )
+
+  predictions_df <- predictions_df %>%
+    column_to_rownames("sample_id")
 
   if(make_plot){
     title = paste0(

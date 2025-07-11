@@ -10,7 +10,7 @@ predict_single_sample_DLBCLone(
   train_metadata,
   optimize_params,
   other_df,
-  ignore_top = FALSE,
+  ignore_top = TRUE,
   truth_classes = c("EZB", "MCD", "ST2", "BN2"),
   drop_unlabeled_from_training = TRUE,
   make_plot = TRUE,
