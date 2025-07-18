@@ -552,7 +552,9 @@ optimize_outgroup <- function(
   exclude_other_for_accuracy = FALSE
 ){
   
-  rel_thresholds = seq(1,10,0.1)
+  rel_thresholds <- seq(1,10,0.1)
+  dlbclass_threshold <- 0.70
+
   sens_df = data.frame()
   acc_df = data.frame()
   predictions = data.frame(
@@ -561,71 +563,71 @@ optimize_outgroup <- function(
   )
 
   if (optimize_for_dlbclass) {
-    if ("sample_id" %in% colnames(metadata)) {
-      metadata <- metadata %>% column_to_rownames(var = "sample_id")
+    if (!"sample_id" %in% colnames(metadata)) {
+      metadata <- metadata %>% rownames_to_column(var = "sample_id")
     }
-    
-    dlbclass_labels <- metadata %>% select(Confidence_dlbclass, Predicted_dlbclass)
-    dlbclass_thresholds <- seq(0.90, 0.98, 0.04)
+
+    dlbclass_data <- metadata %>% 
+      select(sample_id, Confidence_dlbclass, Predicted_dlbclass) %>%
+      mutate(
+        Predicted_dlbclass = recode(
+          Predicted_dlbclass, 
+          "C1" = "BN2", "C3" = "EZB", "C4" = "ST2", "C5" = "MCD", "C2" = "Other"
+        )
+      )
     
     for (threshold in rel_thresholds) {
-      for (conf_threshold in dlbclass_thresholds) {
-        # Initial Other assignment
-        predictions_new <- mutate(
-          predictions,
-          predicted_label = ifelse(
-            other_score < threshold,
-            predicted_label,
-            "Other"
+      # Initial Other assignment
+      predictions_new <- mutate(
+        predictions,
+        predicted_label = ifelse(
+          other_score < threshold,
+          predicted_label,
+          "Other"
+        )
+      )
+        
+      predictions_new <- predictions_new %>% rownames_to_column("sample_id")
+
+      # Apply per-row override
+      predictions_new <- predictions_new %>%
+        left_join(dlbclass_data, by = "sample_id") %>%
+        mutate(
+          predicted_label = case_when(
+            predicted_label == "Other" & Confidence_dlbclass > dlbclass_threshold ~ Predicted_dlbclass,
+            TRUE ~ predicted_label
           )
         )
         
-        # Join with DLBCL mapping
-        preds_df <- predictions_new %>% rownames_to_column("sample_id")
-        labels_df <- dlbclass_labels %>% rownames_to_column("sample_id")
-        predictions_bound <- inner_join(preds_df, labels_df, by = "sample_id")
-        
-        # Apply per-row override
-        predictions_bound <- predictions_bound %>%
-          mutate(
-            predicted_label = ifelse(
-              predicted_label == "Other" & Confidence_dlbclass > conf_threshold,
-              case_when(
-                Predicted_dlbclass == "C1" ~ "BN2",
-                Predicted_dlbclass == "C3" ~ "EZB",
-                Predicted_dlbclass == "C4" ~ "ST2",
-                Predicted_dlbclass == "C5" ~ "MCD",
-                TRUE ~ "Other"
-              ),
-              predicted_label
-            )
-          )
-        
-        predictions_new <- predictions_bound %>%
-          select(predicted_label, true_label)
-        
-        pred <- factor(predictions_new[["predicted_label"]], levels = all_classes)
-        truth <- factor(predictions_new[["true_label"]], levels = all_classes)
-        
-        conf_matrix <- confusionMatrix(pred, truth)
-        bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
-        
-        if (maximize == "balanced_accuracy") {
-          bal_acc$average_accuracy <- mean(bal_acc)
-        } else {
-          bal_acc$average_accuracy <- conf_matrix$overall[["Accuracy"]]
-        }
-        
-        bal_acc$threshold <- threshold
-        bal_acc$dlbclass_threshold <- conf_threshold
-        acc_df <- bind_rows(acc_df, bal_acc)
-        
-        sn <- conf_matrix$byClass[, "Sensitivity"]
-        sn$average_sensitivity <- mean(sn)
-        sn$threshold <- threshold
-        sn$dlbclass_threshold <- conf_threshold
-        sens_df <- bind_rows(sens_df, sn)
+      # Join with DLBCL mapping
+      pred = factor(predictions_new$predicted_label, levels = all_classes)
+      truth = factor(predictions_new$true_label, levels = all_classes)
+
+      if(exclude_other_for_accuracy){
+        keep <- truth != "Other"
+        pred <- pred[keep]
+        truth <- truth[keep]
       }
+        
+      conf_matrix <- confusionMatrix(pred, truth)
+
+      bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
+        
+      if (maximize == "balanced_accuracy") {
+        bal_acc$average_accuracy <- mean(bal_acc)
+      } else {
+        bal_acc$average_accuracy <- conf_matrix$overall[["Accuracy"]]
+      }
+        
+      bal_acc$threshold <- threshold
+      bal_acc$dlbclass_threshold <- dlbclass_threshold
+      acc_df <- bind_rows(acc_df, bal_acc)
+        
+      sn <- conf_matrix$byClass[, "Sensitivity"]
+      sn$average_sensitivity <- mean(sn)
+      sn$threshold <- threshold
+      sn$dlbclass_threshold <- dlbclass_threshold
+      sens_df <- bind_rows(sens_df, sn)
     }
 
   }else{
@@ -668,7 +670,6 @@ optimize_outgroup <- function(
   
   return(best)
 }
-
 
 #' Plot the result of a DLBCLone classification
 #'
@@ -1398,7 +1399,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     pred <- pred %>%
       mutate(
         predicted_label_optimized = ifelse(
-          other_score >= best_params$threshold,  # mark as Other
+          other_score >= best_params$threshold_outgroup,  # mark as Other
           "Other",
           predicted_label
         )
@@ -1415,25 +1416,22 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
     # Join DLBCL cluster predictions
     dlbclass_labels <- metadata_df %>%
-      select(sample_id, Confidence_dlbclass, Predicted_dlbclass)
+      select(sample_id, Confidence_dlbclass, Predicted_dlbclass) %>%
+      mutate(
+        Predicted_dlbclass = recode(
+          Predicted_dlbclass,
+          "C1" = "BN2", "C3" = "EZB", "C4" = "ST2", "C5" = "MCD", "C2" = "Other")
+      )
 
-    pred <- inner_join(pred, dlbclass_labels, by = "sample_id") %>%
+    pred <- pred %>%
+      left_join(dlbclass_labels, by = "sample_id") %>%
       mutate(
         predicted_label_optimized = ifelse(
           predicted_label_optimized == "Other" & Confidence_dlbclass > best_params$threshold_dlbclass,
-          case_when(
-            Predicted_dlbclass == "C1" ~ "BN2",
-            Predicted_dlbclass == "C2" ~ "Other",
-            Predicted_dlbclass == "C3" ~ "EZB",
-            Predicted_dlbclass == "C4" ~ "ST2",
-            Predicted_dlbclass == "C5" ~ "MCD",
-            TRUE ~ predicted_label_optimized
-          ),
+          Predicted_dlbclass,
           predicted_label_optimized
         )
-      )
-
-    pred <- rownames_to_column(pred)
+      ) 
 
   }else if(optimize_for_other){
 
@@ -1448,7 +1446,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
   }else{
 
-    pred = mutate(pred,predicted_label_optimized = predicted_label)
+    pred = mutate(
+      pred,
+      predicted_label_optimized = predicted_label
+    )
 
   }
 
