@@ -10,6 +10,7 @@ DLBCLone_optimize_params(
   umap_out,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
   optimize_for_other = FALSE,
+  optimize_for_dlbclass = FALSE,
   eval_group = NULL,
   min_k = 3,
   max_k = 33,
@@ -42,6 +43,10 @@ a separate score that considers how many Other and non-Other samples are
 in the neighborhood of the sample in question. This parameter will NOT change
 the value in predicted_label. Instead, the predicted_label_optimized column
 will contain the optimized label. Default: FALSE}
+
+\item{optimize_for_dlbclass}{Set to TRUE to optimize the optimized other thresholds into
+assigning lymphgen labels only if scoring a high confidence assoicated dlbclass label. Default:
+FALSE}
 
 \item{eval_group}{If desired, use this to specify which rows will be
 evaluated and held out from training rather than using all samples.

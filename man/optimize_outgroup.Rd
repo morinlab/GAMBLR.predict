@@ -5,20 +5,29 @@
 \title{Optimize the threshold for classifying samples as "Other"}
 \usage{
 optimize_outgroup(
+  metadata,
   predicted_labels,
   true_labels,
   other_score,
+  optimize_for_dlbclass = FALSE,
   all_classes = c("MCD", "EZB", "BN2", "N1", "ST2", "Other"),
   maximize = "balanced_accuracy",
   exclude_other_for_accuracy = FALSE
 )
 }
 \arguments{
+\item{metadata}{Metadata data frame with one row per sample and a column sample_id that
+matches the row names of df. This data frame will be joined to the UMAP output.}
+
 \item{predicted_labels}{Vector of predicted labels for the samples}
 
 \item{true_labels}{Vector of true labels for the samples}
 
 \item{other_score}{Vector of scores for the "Other" class for each sample ()}
+
+\item{optimize_for_dlbclass}{Set to TRUE to optimize the optimized other thresholds into
+assigning lymphgen labels only if scoring a high confidence assoicated dlbclass label. Default:
+FALSE}
 
 \item{all_classes}{Vector of classes to use for training and testing.
 Default: c("MCD","EZB","BN2","N1","ST2","Other")}
