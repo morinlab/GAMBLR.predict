@@ -56,6 +56,8 @@ samples to estimate overall accuracy}
 \item{title3}{additional argument}
 
 \item{seed}{Random seed for reproducibility}
+
+\item{max_neighbors}{Maximum number of neighbors to consider for each sample. Default 500.}
 }
 \value{
 a list of data frames with the predictions, the UMAP input, the UMAP projected output, the model, and a ggplot object

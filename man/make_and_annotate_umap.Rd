@@ -44,7 +44,7 @@ for reproducibility and for using the same UMAP model on different datasets.}
 
 \item{init}{Passed to UMAP2. The initialization method for the UMAP algorithm.}
 
-\item{ret_model}{additional argument}
+\item{ret_model}{If TRUE, the function will return the UMAP model object in addition to the UMAP coordinates.}
 
 \item{na_vals}{How to deal with NA values. Two options are "drop", which
 will remove all columns containing at least one NA or "to_zero", which sets
@@ -53,6 +53,17 @@ all NA to zero and leaves the column intact.}
 \item{join_column}{The column name in the metadata data frame that contains the sample IDs (default sample_id).}
 
 \item{seed}{Passed to UMAP2. The random seed for reproducibility.}
+
+\item{target_column}{If provided, the function will run a supervised UMAP
+using the specified target column from the metadata. If not provided, the function will run an unsupervised UMAP.}
+
+\item{target_metric}{The distance metric to use for the supervised UMAP.
+Default: "euclidean". Passed to UMAP2.}
+
+\item{target_weight}{The weight to assign to the target column in the supervised UMAP.
+Default: 0.5. Passed to UMAP2.}
+
+\item{calc_dispersion}{If TRUE, calculates the pairwise dispersion of the UMAP coordinates}
 }
 \description{
 Run UMAP and attach result to metadata

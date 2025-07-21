@@ -17,19 +17,21 @@ make_umap_scatterplot(
 )
 }
 \arguments{
-\item{df}{}
+\item{df}{Data frame containing the UMAP coordinates and annotations.}
 
-\item{drop_composite}{}
+\item{title}{Title for the plot. Default: NULL.}
 
-\item{colour_by}{}
+\item{drop_composite}{If TRUE: removes composite labels from the lymphgen column.}
 
-\item{drop_other}{}
+\item{colour_by}{Column name to color the points by. Default: "lymphgen".}
 
-\item{high_confidence}{}
+\item{drop_other}{If TRUE: removes "Other" and "NOS" labels from the lymphgen column.}
 
-\item{custom_colours}{}
+\item{high_confidence}{If TRUE: filters the data to include only samples with confidence > 0.7.}
 
-\item{add_labels}{}
+\item{custom_colours}{Custom color palette for the plot. If not provided, uses default GAMBL colors.}
+
+\item{add_labels}{If TRUE: adds labels to the points based on the median coordinates of each group.}
 
 \item{facet}{If TRUE: truth, predicted, predicted_optimized, ggmarginal not used in order to fit nicely}
 }

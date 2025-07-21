@@ -9,17 +9,17 @@
 #' @param maf_df A data frame containing mutation annotation format (MAF) data,
 #' with at least the following columns:
 #'   \code{Hugo_Symbol}, \code{Variant_Classification}, and \code{Tumor_Sample_Barcode}.
+#' @param these_samples_metadata A data frame containing metadata for the samples,
+#' with at least a \code{sample_id} column.
+#' Any sample that does not have a matching sample_id in these_samples_metadata will be dropped.
+#' @param genes_of_interest A character vector of gene symbols to include
+#' in the summary. If missing, defaults to all Tier 1 B-cell lymphoma genes.
+#' @param synon_genes (Optional) A character vector of gene symbols for which
+#' synonymous mutations should be included. 
 #' @param silent_maf_df (Optional) A separate data frame containing silent mutation data if
 #' the user doesn't want to pull silent mutation status from \code{maf_df}.
 #' This argument is useful when you want to combine mutations from
 #' the output of get_coding_ssm and get_ssm_by_region or get_ssm_by_gene
-#' @param these_samples_metadata A data frame containing metadata for the samples,
-#' with at least a \code{sample_id} column.
-#' Any sample that does not have a matching sample_id in these_samples_metadata will be dropped. 
-#' @param genes_of_interest A character vector of gene symbols to include
-#' in the summary. If missing, defaults to all Tier 1 B-cell lymphoma genes.
-#' @param synon_genes (Optional) A character vector of gene symbols for which
-#' synonymous mutations should be included.
 #' @param separate_by_class_genes (Optional) A character vector of
 #' gene symbols for which mutations should be separated by class
 #' (e.g., "Nonsense_Mutation", "Missense_Mutation").
@@ -260,26 +260,31 @@ summarize_all_ssm_status <- function(
 #' @param synon_genes Vector of gene symbols for synonymous mutations.
 #' @param maf_with_synon MAF data frame including synonymous mutations.
 #' @param hotspot_genes Vector of hotspot genes.
+#' @param genome_build Genome build to use, default: "grch37".
 #' @param sv_value Value to assign for SV presence (default: 3).
 #' @param synon_value Value to assign for synonymous mutations (default: 1).
 #' @param coding_value Value to assign for coding mutations (default: 2).
+#' @param include_ashm Logical if TRUE, includes aSHM counts in the feature matrix.
+#' @param annotated_sv Annotated SV data frame.
 #' @param verbose Defaults to FALSE
 #'
 #' @return Matrix of assembled features for each sample.
 #' @export
-assemble_genetic_features <- function(these_samples_metadata,
-                metadata_columns = c("bcl2_ba","bcl6_ba","myc_ba"),
-                genes,
-                synon_genes,
-                maf_with_synon,
-                hotspot_genes,
-                genome_build = "grch37",
-                sv_value = 3,
-                synon_value = 1,
-                coding_value = 2,
-                include_ashm = TRUE,
-                annotated_sv,
-                verbose = FALSE){
+assemble_genetic_features <- function(
+  these_samples_metadata,
+  metadata_columns = c("bcl2_ba","bcl6_ba","myc_ba"),
+  genes,
+  synon_genes,
+  maf_with_synon,
+  hotspot_genes,
+  genome_build = "grch37",
+  sv_value = 3,
+  synon_value = 1,
+  coding_value = 2,
+  include_ashm = TRUE,
+  annotated_sv,
+  verbose = FALSE
+){
   if(include_ashm){
       #TODO: ensure this supports both genome builds correctly
     some_regions = GAMBLR.utils::create_bed_data(
@@ -713,17 +718,24 @@ DLBCLone_train_test_plot = function(test_df,
 #' @param umap_out Optional UMAP output from a previous run. If provided, the function
 #' will use this model to project the data instead of re-running UMAP. This is useful
 #' for reproducibility and for using the same UMAP model on different datasets.
-#' @param join_column The column name in the metadata data frame that contains the sample IDs (default sample_id).
 #' @param n_neighbors Passed to UMAP2. The number of neighbors to consider when calculating the UMAP embedding.
 #' @param min_dist Passed to UMAP2. The minimum distance between points in the UMAP embedding.
 #' @param metric Passed to UMAP2. The distance metric to use for calculating distances between points.
 #' @param n_epochs Passed to UMAP2. The number of epochs to run the UMAP algorithm.
 #' @param init Passed to UMAP2. The initialization method for the UMAP algorithm.
+#' @param ret_model If TRUE, the function will return the UMAP model object in addition to the UMAP coordinates.
 #' @param na_vals How to deal with NA values. Two options are "drop", which
 #' will remove all columns containing at least one NA or "to_zero", which sets
 #' all NA to zero and leaves the column intact.
+#' @param join_column The column name in the metadata data frame that contains the sample IDs (default sample_id).
 #' @param seed Passed to UMAP2. The random seed for reproducibility.
-#' @param ret_model additional argument
+#' @param target_column If provided, the function will run a supervised UMAP
+#' using the specified target column from the metadata. If not provided, the function will run an unsupervised UMAP.
+#' @param target_metric The distance metric to use for the supervised UMAP.
+#' Default: "euclidean". Passed to UMAP2.
+#' @param target_weight The weight to assign to the target column in the supervised UMAP.
+#' Default: 0.5. Passed to UMAP2.
+#' @param calc_dispersion If TRUE, calculates the pairwise dispersion of the UMAP coordinates
 #'
 #' @import uwot
 #' @export
@@ -931,16 +943,11 @@ make_and_annotate_umap = function(
 #' one column per mutation
 #' @param metadata_df Data frame of metadata with one row per sample and
 #' three required columns: sample_id, dataset and lymphgen
-#' @param truth_classes Vector of classes to use for training and testing.
-#' Default: c("EZB","MCD","ST2","N1","BN2","Other")
-#' @param eval_group If desired, use this to specify which rows will be
-#' evaluated and held out from training rather than using all samples. 
-#' NOTE: this parameter will probably become deprecated!
 #' @param umap_out The output of a previous run of make_and_annotate_umap.
 #' If provided, the function will use this model to project the data
 #' instead of re-running UMAP.
-#' @param min_k Starting k for knn (Default: 3)
-#' @param max_k Ending k for knn (Default: 33)
+#' @param truth_classes Vector of classes to use for training and testing.
+#' Default: c("EZB","MCD","ST2","N1","BN2","Other")
 #' @param optimize_for_other Set to TRUE to optimize the threshold for 
 #' classifying samples as "Other" based on the relative proportion of 
 #' samples near the sample in UMAP space with the "Other" label. Rather than
@@ -949,13 +956,22 @@ make_and_annotate_umap = function(
 #' in the neighborhood of the sample in question. This parameter will NOT change
 #' the value in predicted_label. Instead, the predicted_label_optimized column
 #' will contain the optimized label. Default: FALSE
-#' 
+#' @param eval_group If desired, use this to specify which rows will be
+#' evaluated and held out from training rather than using all samples. 
+#' NOTE: this parameter will probably become deprecated!
+#' @param min_k Starting k for knn (Default: 3)
+#' @param max_k Ending k for knn (Default: 33)
 #' @param verbose Whether to print verbose outputs to console
 #' @param seed Random seed to use for reproducibility (default: 12345)
 #' @param maximize Metric to use for optimization. Either "sensitivity"
 #' (average sensitivity across all classes), "accuracy"
 #' (actual accuracy across all samples) or "balanced_accuracy" (the mean of the
 #' balanced accuracy values across all classes). Default: "balanced_accuracy"
+#' @param exclude_other_for_accuracy Set to TRUE to exclude the
+#' "Other" class from the 'lymphgen' column when calculating accuracy metrics
+#' (passed to DLBCLone_optimize_params). Default: FALSE
+#' @param weights_opt Vector of TRUE/FALSE values to indicate whether to use
+#' weighted knn or not. Default: c(TRUE).
 #'
 #' @returns List of data frames with the results of the parameter optimization
 #' including the best model, the associated knn parameters and the annotated
@@ -988,25 +1004,28 @@ make_and_annotate_umap = function(
 #'  truth_classes = c("MCD","EZB","ST2","BN2","Other"))
 #'
 
-DLBCLone_optimize_params = function(combined_mutation_status_df,
-                           metadata_df,
-                           umap_out,
-                           truth_classes = c("EZB",
-                                             "MCD",
-                                             "ST2",
-                                             "N1",
-                                             "BN2",
-                                             "Other"),
-                           optimize_for_other = FALSE,
-                           eval_group = NULL,
-                           min_k=3,
-                           max_k=33,
-                           verbose = FALSE,
-                           seed = 12345,
-                           maximize = "balanced_accuracy",
-                           exclude_other_for_accuracy = FALSE,
-                           weights_opt = c(TRUE)
-                           ) {
+DLBCLone_optimize_params = function(
+  combined_mutation_status_df,
+  metadata_df,
+  umap_out,
+  truth_classes = c(
+    "EZB",
+    "MCD",
+    "ST2",
+    "N1",
+    "BN2",
+    "Other"
+  ),
+  optimize_for_other = FALSE,
+  eval_group = NULL,
+  min_k=3,
+  max_k=33,
+  verbose = FALSE,
+  seed = 12345,
+  maximize = "balanced_accuracy",
+  exclude_other_for_accuracy = FALSE,
+  weights_opt = c(TRUE)
+){
   if(optimize_for_other){
     exclude_other_for_accuracy = FALSE
   }else{
@@ -1346,6 +1365,9 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 #' distance = 0. This is usually only relevant when re-classifying labeled
 #' samples to estimate overall accuracy
 #' @param track_neighbors Set to TRUE to include details for the nearest neighbors of each sample
+#' @param separate_other Set to TRUE to treat the "Other" class separately
+#' when calculating the confidence. 
+#' @param max_neighbors Maximum number of neighbors to consider for each sample. Default 500.
 #'
 #' @returns data frame with labels and confidence values for rows in test_coords
 #' @export
@@ -1576,8 +1598,10 @@ weighted_knn_predict_with_conf <- function(
 #' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
 #' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted label in the plot title.
 #' @param add_circle Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.
-#' @param drop_other Logical. If \code{TRUE}, samples with the "Other" label will be excluded from the plot.
 #' @param label_column Does nothing, i.e. this is not currently working.
+#' @param point_size Numeric. Size of the points in the plot. Default: 0.5.
+#' @param point_alpha Numeric. Transparency of the points in the plot. Default: 0.9.
+#' @param line_alpha Numeric. Transparency of the lines connecting the sample to its neighbors. Default: 0.9.
 #'
 #' @return A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
 #'
@@ -1686,7 +1710,6 @@ make_neighborhood_plot <- function(
 
 #' Predict class for a single sample without using umap_transform and plot result of classification
 #'
-#' @param seed Random seed for reproducibility
 #' @param test_df Data frame containing the mutation status of the test sample
 #' @param train_df Data frame containing the mutation status of the training samples
 #' @param train_metadata Metadata for training samples with truth labels in lymphgen column
@@ -1704,6 +1727,8 @@ make_neighborhood_plot <- function(
 #' @param title1 additional argument
 #' @param title2 additional argument
 #' @param title3 additional argument
+#' @param seed Random seed for reproducibility
+#' @param max_neighbors Maximum number of neighbors to consider for each sample. Default 500.
 #'
 #' @returns a list of data frames with the predictions, the UMAP input, the UMAP projected output, the model, and a ggplot object
 #' @export
@@ -2035,14 +2060,14 @@ predict_single_sample_DLBCLone <- function(
 
 #' Make UMAP scatterplot
 #'
-#' @param df 
-#' @param title
-#' @param drop_composite 
-#' @param colour_by 
-#' @param drop_other 
-#' @param high_confidence 
-#' @param custom_colours 
-#' @param add_labels 
+#' @param df Data frame containing the UMAP coordinates and annotations. 
+#' @param title Title for the plot. Default: NULL.
+#' @param drop_composite If TRUE: removes composite labels from the lymphgen column.
+#' @param colour_by Column name to color the points by. Default: "lymphgen". 
+#' @param drop_other If TRUE: removes "Other" and "NOS" labels from the lymphgen column. 
+#' @param high_confidence If TRUE: filters the data to include only samples with confidence > 0.7.
+#' @param custom_colours Custom color palette for the plot. If not provided, uses default GAMBL colors.
+#' @param add_labels If TRUE: adds labels to the points based on the median coordinates of each group. 
 #' @param facet If TRUE: truth, predicted, predicted_optimized, ggmarginal not used in order to fit nicely
 #'
 #' @returns
@@ -2154,12 +2179,7 @@ make_umap_scatterplot = function(
 
 #' modal storage for DLBCLone outputs
 #' 
-#' @param combined_mutation_df Data frame containing the mutation status of the samples used
-#' @param metadata Metadata with truth labels in lymphgen column
-#' @param truth_classes Vector of classes to used for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")
-#' @param optimized_out output of DLBCLone_optimize_params(), if set to NULL values will not be saved
-#' @param predict_single output of predict_single_sample_DLBCLone(), if set to NULL values will not be saved
-#' @param neighborhood_plot output of make_neighborhood_plot(), if set to NULL values will not be saved
+#' @param optimized_params List containing the optimized parameters from DLBCLone_optimize_params
 #' @param path Path to save the files
 #' @param name_prefix Prefix for the saved files, all files will be in path and start with name_prefix
 #'
@@ -2172,23 +2192,18 @@ make_umap_scatterplot = function(
 #'
 #' @examples
 #' DLBCLone_save_optimized(
-#'  combined_mutation_df = status_df,
-#'  metadata = status_metadata,
-#'  truth_classes = c("MCD","EZB","BN2","ST2","N1","Other"),
-#'  optimized_out = lymphgen_DLBCLone,
-#'  predict_single=NULL,
-#'  neighborhood_plot=NULL,
+#'  optimzied_params = optimized_params,
 #'  path="/save_optimized/trial_folder",
 #'  name_prefix="test_A"
 #' )
 #'
 
-DLBCLone_save_optimized = function( # <- ensure rownmaes works, restore lsit option of umap_out not umap_out$model to all fxs
+DLBCLone_save_optimized = function( 
     optimized_params=NULL,
     path="models/",
     name_prefix="test"
 ){
-  #all files will be in path and start with name_prefix
+  # all files will be in path and start with name_prefix
   prefix = paste0(path,"/",name_prefix)
   
   out_mut = paste0(prefix,"_mutation_status_df.tsv")

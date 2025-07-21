@@ -30,7 +30,11 @@ Must include elements \code{prediction} (data frame with prediction results) and
 
 \item{label_column}{Does nothing, i.e. this is not currently working.}
 
-\item{drop_other}{Logical. If \code{TRUE}, samples with the "Other" label will be excluded from the plot.}
+\item{point_size}{Numeric. Size of the points in the plot. Default: 0.5.}
+
+\item{point_alpha}{Numeric. Transparency of the points in the plot. Default: 0.9.}
+
+\item{line_alpha}{Numeric. Transparency of the lines connecting the sample to its neighbors. Default: 0.9.}
 }
 \value{
 A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.

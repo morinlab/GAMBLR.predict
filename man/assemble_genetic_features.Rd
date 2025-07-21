@@ -33,11 +33,17 @@ assemble_genetic_features(
 
 \item{hotspot_genes}{Vector of hotspot genes.}
 
+\item{genome_build}{Genome build to use, default: "grch37".}
+
 \item{sv_value}{Value to assign for SV presence (default: 3).}
 
 \item{synon_value}{Value to assign for synonymous mutations (default: 1).}
 
 \item{coding_value}{Value to assign for coding mutations (default: 2).}
+
+\item{include_ashm}{Logical if TRUE, includes aSHM counts in the feature matrix.}
+
+\item{annotated_sv}{Annotated SV data frame.}
 
 \item{verbose}{Defaults to FALSE}
 }

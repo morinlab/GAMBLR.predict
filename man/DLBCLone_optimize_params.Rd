@@ -59,6 +59,13 @@ NOTE: this parameter will probably become deprecated!}
 (average sensitivity across all classes), "accuracy"
 (actual accuracy across all samples) or "balanced_accuracy" (the mean of the
 balanced accuracy values across all classes). Default: "balanced_accuracy"}
+
+\item{exclude_other_for_accuracy}{Set to TRUE to exclude the
+"Other" class from the 'lymphgen' column when calculating accuracy metrics
+(passed to DLBCLone_optimize_params). Default: FALSE}
+
+\item{weights_opt}{Vector of TRUE/FALSE values to indicate whether to use
+weighted knn or not. Default: c(TRUE).}
 }
 \value{
 List of data frames with the results of the parameter optimization

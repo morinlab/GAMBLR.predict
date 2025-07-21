@@ -11,21 +11,11 @@ DLBCLone_save_optimized(
 )
 }
 \arguments{
+\item{optimized_params}{List containing the optimized parameters from DLBCLone_optimize_params}
+
 \item{path}{Path to save the files}
 
 \item{name_prefix}{Prefix for the saved files, all files will be in path and start with name_prefix}
-
-\item{combined_mutation_df}{Data frame containing the mutation status of the samples used}
-
-\item{metadata}{Metadata with truth labels in lymphgen column}
-
-\item{truth_classes}{Vector of classes to used for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")}
-
-\item{optimized_out}{output of DLBCLone_optimize_params(), if set to NULL values will not be saved}
-
-\item{predict_single}{output of predict_single_sample_DLBCLone(), if set to NULL values will not be saved}
-
-\item{neighborhood_plot}{output of make_neighborhood_plot(), if set to NULL values will not be saved}
 }
 \value{
 saves the files to the specified path
@@ -35,12 +25,7 @@ modal storage for DLBCLone outputs
 }
 \examples{
 DLBCLone_save_optimized(
- combined_mutation_df = status_df,
- metadata = status_metadata,
- truth_classes = c("MCD","EZB","BN2","ST2","N1","Other"),
- optimized_out = lymphgen_DLBCLone,
- predict_single=NULL,
- neighborhood_plot=NULL,
+ optimzied_params = optimized_params,
  path="/save_optimized/trial_folder",
  name_prefix="test_A"
 )

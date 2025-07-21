@@ -51,6 +51,11 @@ distance = 0. This is usually only relevant when re-classifying labeled
 samples to estimate overall accuracy}
 
 \item{track_neighbors}{Set to TRUE to include details for the nearest neighbors of each sample}
+
+\item{separate_other}{Set to TRUE to treat the "Other" class separately
+when calculating the confidence.}
+
+\item{max_neighbors}{Maximum number of neighbors to consider for each sample. Default 500.}
 }
 \value{
 data frame with labels and confidence values for rows in test_coords
