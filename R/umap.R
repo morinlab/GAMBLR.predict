@@ -1144,20 +1144,12 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     for(use_w in weights_opt){
       if(is.null(eval_group)){
         test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-        test_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
-        rownames(test_coords) = test_ids
         train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-        train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
-        rownames(train_coords) = train_ids
       }else{
         test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
-        test_ids = filter(outs$df,dataset == eval_group) %>% pull(sample_id)
-        rownames(test_coords) = test_ids
         train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
-        train_ids = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(sample_id)
-        rownames(train_coords) = train_ids
       }
 
       pred_all = weighted_knn_predict_with_conf(
@@ -1176,20 +1168,12 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
       if(!"Other" %in% truth_classes){
         if(is.null(eval_group)){
           test_coords = filter(outs$df,lymphgen %in% "Other") %>% select(V1,V2)
-          test_ids = filter(outs$df,lymphgen %in% "Other") %>% pull(sample_id)
-          rownames(test_coords) = test_ids
           train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
           train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-          train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
-          rownames(train_coords) = train_ids
         }else{
           test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% select(V1,V2)
-          test_ids = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% pull(sample_id)
-          rownames(test_coords) = test_ids
           train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
           train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
-          train_ids = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(sample_id)
-          rownames(train_coords) = train_ids
         }
         n_other = nrow(test_coords)
 
@@ -1372,13 +1356,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   best_params$seed = seed
 
   test_coords = outs$df %>% select(V1,V2)
-  test_ids = filter(outs$df) %>% pull(sample_id)
-  rownames(test_coords) = test_ids
   train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
   train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-  train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
-  rownames(train_coords) = train_ids
-
   pred = weighted_knn_predict_with_conf(
             train_coords = train_coords, 
             train_labels = train_labels,
