@@ -513,14 +513,9 @@ old_assemble_genetic_features <- function(these_samples_metadata,
 #' based on the specified metric (balanced accuracy or accuracy). 
 #' This function is not generally meant to be called directly but rather is
 #' a helper function used by DLBCLone_optimize_params.
-#' @param metadata Metadata data frame with one row per sample and a column sample_id that
-#' matches the row names of df. This data frame will be joined to the UMAP output.
 #' @param predicted_labels Vector of predicted labels for the samples
 #' @param true_labels Vector of true labels for the samples
 #' @param other_score Vector of scores for the "Other" class for each sample ()
-#' @param optimize_for_dlbclass Set to TRUE to optimize the optimized other thresholds into 
-#' assigning lymphgen labels only if scoring a high confidence assoicated dlbclass label. Default: 
-#' FALSE
 #' @param all_classes Vector of classes to use for training and testing.
 #' Default: c("MCD","EZB","BN2","N1","ST2","Other")
 #' @param maximize Metric to use for optimization.
@@ -535,11 +530,9 @@ old_assemble_genetic_features <- function(these_samples_metadata,
 #' @export
 #'
 optimize_outgroup <- function(
-  metadata,
   predicted_labels,
   true_labels,
   other_score,
-  optimize_for_dlbclass = FALSE,
   all_classes = c(
     "MCD",
     "EZB",
@@ -552,9 +545,7 @@ optimize_outgroup <- function(
   exclude_other_for_accuracy = FALSE
 ){
   
-  rel_thresholds <- seq(1,10,0.1)
-  dlbclass_threshold <- 0.70
-
+  rel_thresholds = seq(1,10,0.1)
   sens_df = data.frame()
   acc_df = data.frame()
   predictions = data.frame(
@@ -562,106 +553,33 @@ optimize_outgroup <- function(
     true_label=as.character(true_labels)
   )
 
-  if (optimize_for_dlbclass) {
-    if (!"sample_id" %in% colnames(metadata)) {
-      metadata <- metadata %>% rownames_to_column(var = "sample_id")
-    }
-
-    dlbclass_data <- metadata %>% 
-      select(sample_id, Confidence_dlbclass, Predicted_dlbclass) %>%
-      mutate(
-        Predicted_dlbclass = recode(
-          Predicted_dlbclass, 
-          "C1" = "BN2", "C3" = "EZB", "C4" = "ST2", "C5" = "MCD", "C2" = "Other"
-        )
+  for(threshold in rel_thresholds){
+    predictions_new = mutate(
+      predictions,
+      predicted_label = ifelse(
+        other_score < threshold,
+        predicted_label,
+        "Other"
       )
-    
-    for (threshold in rel_thresholds) {
-      # Initial Other assignment
-      predictions_new <- mutate(
-        predictions,
-        predicted_label = ifelse(
-          other_score < threshold,
-          predicted_label,
-          "Other"
-        )
-      )
-        
-      predictions_new <- predictions_new %>% rownames_to_column("sample_id")
+    )
 
-      # Apply per-row override
-      predictions_new <- predictions_new %>%
-        left_join(dlbclass_data, by = "sample_id") %>%
-        mutate(
-          predicted_label = case_when(
-            predicted_label == "Other" & Confidence_dlbclass > dlbclass_threshold ~ Predicted_dlbclass,
-            TRUE ~ predicted_label
-          )
-        )
-        
-      # Join with DLBCL mapping
-      pred = factor(predictions_new$predicted_label, levels = all_classes)
-      truth = factor(predictions_new$true_label, levels = all_classes)
+    pred = factor(predictions_new[["predicted_label"]],levels=all_classes)
+    truth = factor(predictions_new[["true_label"]],levels=all_classes)
+    conf_matrix <- confusionMatrix(pred, truth)
 
-      if(exclude_other_for_accuracy){
-        keep <- truth != "Other"
-        pred <- pred[keep]
-        truth <- truth[keep]
-      }
-        
-      conf_matrix <- confusionMatrix(pred, truth)
-
-      bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
-        
-      if (maximize == "balanced_accuracy") {
-        bal_acc$average_accuracy <- mean(bal_acc)
-      } else {
-        bal_acc$average_accuracy <- conf_matrix$overall[["Accuracy"]]
-      }
-        
-      bal_acc$threshold <- threshold
-      bal_acc$dlbclass_threshold <- dlbclass_threshold
-      acc_df <- bind_rows(acc_df, bal_acc)
-        
-      sn <- conf_matrix$byClass[, "Sensitivity"]
-      sn$average_sensitivity <- mean(sn)
-      sn$threshold <- threshold
-      sn$dlbclass_threshold <- dlbclass_threshold
-      sens_df <- bind_rows(sens_df, sn)
+    bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
+    if(maximize == "balanced_accuracy"){
+      bal_acc$average_accuracy = mean(bal_acc)
+    }else{
+      bal_acc$average_accuracy = conf_matrix$overall[["Accuracy"]]
     }
-
-  }else{
-
-    for(threshold in rel_thresholds){
-      predictions_new = mutate(
-        predictions,
-        predicted_label = ifelse(
-          other_score < threshold,
-          predicted_label,
-          "Other"
-        )
-      )
-
-      pred = factor(predictions_new[["predicted_label"]],levels=all_classes)
-      truth = factor(predictions_new[["true_label"]],levels=all_classes)
-      conf_matrix <- confusionMatrix(pred, truth)
-
-      bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
-      if(maximize == "balanced_accuracy"){
-        bal_acc$average_accuracy = mean(bal_acc)
-      }else{
-        bal_acc$average_accuracy = conf_matrix$overall[["Accuracy"]]
-      }
-      bal_acc$threshold = threshold
-      acc_df = bind_rows(acc_df,bal_acc)
-      sn <- conf_matrix$byClass[, "Sensitivity"]  
-      sn$average_sensitivity = mean(sn)
-      sn$threshold = threshold
-      sens_df = bind_rows(sens_df,sn)
-    }
-
+    bal_acc$threshold = threshold
+    acc_df = bind_rows(acc_df,bal_acc)
+    sn <- conf_matrix$byClass[, "Sensitivity"]  
+    sn$average_sensitivity = mean(sn)
+    sn$threshold = threshold
+    sens_df = bind_rows(sens_df,sn)
   }
-
   if(maximize %in% c("balanced_accuracy","accuracy")){
     best = slice_head(arrange(acc_df,desc(average_accuracy)),n=1)
   }else{
@@ -1031,9 +949,6 @@ make_and_annotate_umap = function(
 #' in the neighborhood of the sample in question. This parameter will NOT change
 #' the value in predicted_label. Instead, the predicted_label_optimized column
 #' will contain the optimized label. Default: FALSE
-#' @param optimize_for_dlbclass Set to TRUE to optimize the optimized other thresholds into 
-#' assigning lymphgen labels only if scoring a high confidence assoicated dlbclass label. Default: 
-#' FALSE
 #' 
 #' @param verbose Whether to print verbose outputs to console
 #' @param seed Random seed to use for reproducibility (default: 12345)
@@ -1083,7 +998,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                              "BN2",
                                              "Other"),
                            optimize_for_other = FALSE,
-                           optimize_for_dlbclass = FALSE,
                            eval_group = NULL,
                            min_k=3,
                            max_k=33,
@@ -1144,12 +1058,20 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     for(use_w in weights_opt){
       if(is.null(eval_group)){
         test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
+        test_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+        rownames(test_coords) = test_ids
         train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+        train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+        rownames(train_coords) = train_ids
       }else{
         test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
+        test_ids = filter(outs$df,dataset == eval_group) %>% pull(sample_id)
+        rownames(test_coords) = test_ids
         train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
+        train_ids = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(sample_id)
+        rownames(train_coords) = train_ids
       }
 
       pred_all = weighted_knn_predict_with_conf(
@@ -1168,12 +1090,20 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
       if(!"Other" %in% truth_classes){
         if(is.null(eval_group)){
           test_coords = filter(outs$df,lymphgen %in% "Other") %>% select(V1,V2)
+          test_ids = filter(outs$df,lymphgen %in% "Other") %>% pull(sample_id)
+          rownames(test_coords) = test_ids
           train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
           train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+          train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+          rownames(train_coords) = train_ids
         }else{
           test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% select(V1,V2)
+          test_ids = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% pull(sample_id)
+          rownames(test_coords) = test_ids
           train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
           train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
+          train_ids = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(sample_id)
+          rownames(train_coords) = train_ids
         }
         n_other = nrow(test_coords)
 
@@ -1276,24 +1206,20 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           if(optimize_for_other){
 
             optimized_accuracy_and_thresh = optimize_outgroup(
-              metadata = metadata_df,
               pred_factor,
               true_factor,
               xx_d$other_score,
-              optimize_for_dlbclass = optimize_for_dlbclass,
               all_classes = truth_classes,
               maximize = maximize,
               exclude_other_for_accuracy = exclude_other_for_accuracy
             )
             out_opt_thresh = optimized_accuracy_and_thresh$threshold
-            out_opt_thresh_dlbclass = optimized_accuracy_and_thresh$dlbclass_threshold
             optimized_accuracy_and_thresh$average_accuracy[is.na(optimized_accuracy_and_thresh$average_accuracy)] = 0
             out_opt_acc = optimized_accuracy_and_thresh$average_accuracy 
 
           }else{
             out_opt_acc = 0
             out_opt_thresh = 0
-            out_opt_thresh_dlbclass = 0
           }
 
           if(maximize == "sensitivity"){
@@ -1329,7 +1255,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                             C5_bacc = unname(bal_acc["Class: C5"]),
                             ST2_bacc = unname(bal_acc["Class: ST2"]),
                             threshold_outgroup = out_opt_thresh, 
-                            threshold_dlbclass = if(length(out_opt_thresh_dlbclass) == 0) NA else out_opt_thresh_dlbclass,
                             accuracy_out = out_opt_acc,
                             na_option= na_option) 
 
@@ -1356,8 +1281,13 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   best_params$seed = seed
 
   test_coords = outs$df %>% select(V1,V2)
+  test_ids = filter(outs$df) %>% pull(sample_id)
+  rownames(test_coords) = test_ids
   train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
   train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+  train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+  rownames(train_coords) = train_ids
+
   pred = weighted_knn_predict_with_conf(
             train_coords = train_coords, 
             train_labels = train_labels,
@@ -1372,70 +1302,14 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   )
   pred = pred[[1]]
 
-  if(optimize_for_other & optimize_for_dlbclass){
-
-    # Start from predicted_label
-    pred <- pred %>%
-      mutate(
-        predicted_label_optimized = ifelse(
-          other_score >= best_params$threshold_outgroup,  # mark as Other
-          "Other",
-          predicted_label
-        )
-      )
-
-    # Ensure sample_id is present
-    if (!"sample_id" %in% colnames(pred)) {
-      pred <- pred %>% rownames_to_column(var = "sample_id")
-    }
-
-    if (!"sample_id" %in% colnames(metadata_df)) {
-      metadata_df <- metadata_df %>% rownames_to_column(var = "sample_id")
-    }
-
-    # Join DLBCL cluster predictions
-    dlbclass_labels <- metadata_df %>%
-      select(sample_id, Confidence_dlbclass, Predicted_dlbclass) %>%
-      mutate(
-        Predicted_dlbclass = recode(
-          Predicted_dlbclass,
-          "C1" = "BN2", "C3" = "EZB", "C4" = "ST2", "C5" = "MCD", "C2" = "Other")
-      )
-
-    pred <- pred %>%
-      left_join(dlbclass_labels, by = "sample_id") %>%
-      mutate(
-        predicted_label_optimized = ifelse(
-          predicted_label_optimized == "Other" & Confidence_dlbclass > best_params$threshold_dlbclass,
-          Predicted_dlbclass,
-          predicted_label_optimized
-        )
-      ) 
-
-  }else if(optimize_for_other){
-
-    pred = mutate(
-      pred,
-      predicted_label_optimized = ifelse(
-        other_score > best_params$threshold_outgroup,
-        "Other",
-        predicted_label
-      )
-    )
-
+  if(optimize_for_other){
+    pred = mutate(pred,predicted_label_optimized = ifelse(other_score > best_params$threshold_outgroup,
+                                                          "Other",
+                                                          predicted_label))
   }else{
-
-    pred = mutate(
-      pred,
-      predicted_label_optimized = predicted_label
-    )
-
+    pred = mutate(pred,predicted_label_optimized = predicted_label)
   }
-
-  xx_d <- bind_cols(
-    outs$df,
-    pred %>% select(-any_of(colnames(outs$df)))
-  )
+  xx_d = bind_cols(outs$df,pred)
   to_ret = list(params=results,
                 best_params = best_params,
                 model=best_fit$model,
