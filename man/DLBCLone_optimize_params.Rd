@@ -9,6 +9,7 @@ DLBCLone_optimize_params(
   metadata_df,
   umap_out,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
+  truth_column = "lymphgen",
   optimize_for_other = FALSE,
   eval_group = NULL,
   min_k = 3,

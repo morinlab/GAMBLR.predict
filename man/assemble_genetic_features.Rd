@@ -17,6 +17,8 @@ assemble_genetic_features(
   coding_value = 2,
   include_ashm = TRUE,
   annotated_sv,
+  include_GAMBL_sv = TRUE,
+  review_hotspots = TRUE,
   verbose = FALSE
 )
 }

@@ -1,4 +1,3 @@
-
 #' Summarize SSM (Somatic Single Nucleotide Mutation) Status Across Samples
 #'
 #' This function summarizes the mutation status for a set of genes
@@ -169,7 +168,16 @@ assemble_genetic_features <- function(these_samples_metadata,
                 coding_value = 2,
                 include_ashm = TRUE,
                 annotated_sv,
+                include_GAMBL_sv= TRUE,
+                review_hotspots = TRUE,
                 verbose = FALSE){
+  #if("genome_build" %in% )
+  if(!"maf_data" %in% class(maf_with_synon)){
+    warning(paste("maf_with_synon should be a maf_data object, but is not.",
+                "Proceeding anyway with genome_build = ", genome_build))
+  }else{
+    genome_build = attr(maf_with_synon,"genome_build")
+  }
   if(include_ashm){
       #TODO: ensure this supports both genome builds correctly
     some_regions = GAMBLR.utils::create_bed_data(
@@ -179,33 +187,34 @@ assemble_genetic_features <- function(these_samples_metadata,
                   sep="-")
     #make the aSHM count matrix and combine if necessary
     if ("genome" %in% these_samples_metadata$seq_type){
-    ashm_matrix_genome <- get_ashm_count_matrix(
-    regions_bed = some_regions,
-    this_seq_type = "genome",
-    these_samples_metadata = these_samples_metadata
-    )
+      ashm_matrix_genome <- get_ashm_count_matrix(
+      regions_bed = some_regions,
+      this_seq_type = "genome",
+      these_samples_metadata = these_samples_metadata
+      )
 
-    colnames(ashm_matrix_genome) = gsub("-.+","",colnames(ashm_matrix_genome))
+      colnames(ashm_matrix_genome) = gsub("-.+","",colnames(ashm_matrix_genome))
     }
-    if ("capture" %in% these_samples_metadata$seq_type){
-    ashm_matrix_cap <- get_ashm_count_matrix(
-    regions_bed = some_regions,
-    this_seq_type = "capture",
-    these_samples_metadata = these_samples_metadata
-    )
-    colnames(ashm_matrix_cap) = gsub("-.+","",colnames(ashm_matrix_cap))
-    }
-    if ("genome"  %in% these_samples_metadata$seq_type && "capture" %in% these_samples_metadata$seq_type){
-      ashm_matrix = bind_rows(ashm_matrix_genome, ashm_matrix_cap)
-    }else if("genome" %in% these_samples_metadata$seq_type){
-      ashm_matrix = ashm_matrix_genome
-    }else if("capture" %in% these_samples_metadata$seq_type){
-      ashm_matrix = ashm_matrix_cap
+
+      if ("capture" %in% these_samples_metadata$seq_type){
+      ashm_matrix_cap <- get_ashm_count_matrix(
+      regions_bed = some_regions,
+      this_seq_type = "capture",
+      these_samples_metadata = these_samples_metadata
+      )
+      colnames(ashm_matrix_cap) = gsub("-.+","",colnames(ashm_matrix_cap))
+      }
+      if ("genome"  %in% these_samples_metadata$seq_type && "capture" %in% these_samples_metadata$seq_type){
+        ashm_matrix = bind_rows(ashm_matrix_genome, ashm_matrix_cap)
+      }else if("genome" %in% these_samples_metadata$seq_type){
+        ashm_matrix = ashm_matrix_genome
+      }else if("capture" %in% these_samples_metadata$seq_type){
+        ashm_matrix = ashm_matrix_cap
       
-    }else{
-      stop("no eligible seq_type provided in these_samples_metadata")
+      }else{
+        stop("no eligible seq_type provided in these_samples_metadata")
+      }
     }
-  }
   
 
 
@@ -236,7 +245,7 @@ assemble_genetic_features <- function(these_samples_metadata,
     print(colnames(status_with_silent)[!colnames(status_with_silent) %in% colnames(status_without_silent)])
     stop("some columns are missing from the status_without_silent matrix")
   }
-  # Instead of just relying on the MAF(s) supplied by
+  # Instead of just relying on the MAF(s) supplied by the user
   if (include_ashm){
     ashm_matrix = select(ashm_matrix, any_of(colnames(status_with_silent))) %>% select(any_of(synon_genes))
     ashm_matrix[ashm_matrix>1]= 1
@@ -260,7 +269,16 @@ assemble_genetic_features <- function(these_samples_metadata,
            colnames(fill)] = fill
 
   }
-    
+
+  #ensure all columns in status_with_silent are present in status_without_silent
+  if (any(! colnames(status_without_silent) %in% colnames(status_with_silent))){
+    print(colnames(status_without_silent)[!colnames(status_without_silent) %in% colnames(status_with_silent)])
+    stop("some columns are missing from the status_with_silent matrix")
+  }
+
+  # ensure column order is identical in the two matrices
+
+  status_with_silent = status_with_silent[,colnames(status_without_silent)]
 
   status_combined = status_with_silent + status_without_silent
   if(coding_value == 1){
@@ -270,18 +288,18 @@ assemble_genetic_features <- function(these_samples_metadata,
   bcl2_id = these_samples_metadata[which(these_samples_metadata$bcl2_ba=="POS"),] %>% pull(sample_id)
   bcl6_id = these_samples_metadata[which(these_samples_metadata$bcl6_ba=="POS"),] %>% pull(sample_id)
   myc_id = these_samples_metadata[which(these_samples_metadata$myc_ba=="POS"),] %>% pull(sample_id)
-  
+ 
   # include SV from provided annotated SV data frame
-  if(!missing(annotated_sv)){
+  if(!missing(annotated_sv) & include_GAMBL_sv){
     annotated_sv = filter(annotated_sv,tumour_sample_id %in% these_samples_metadata$sample_id)
     bcl2_sv_id = filter(annotated_sv,!is.na(partner),gene=="BCL2") %>% pull(tumour_sample_id)
     bcl6_sv_id = filter(annotated_sv,!is.na(partner),gene=="BCL6") %>% pull(tumour_sample_id)
     myc_sv_id = filter(annotated_sv,!is.na(partner),gene=="MYC") %>% pull(tumour_sample_id)
     n_b = length(bcl2_id)
-    print(paste(n_b,"BCL2 FISH"))
+
     bcl2_id = unique(c(bcl2_id,bcl2_sv_id))
     n_b = length(bcl2_id)
-    print(paste(n_b,"BCL2 FISH or SV"))
+
     bcl6_id = unique(c(bcl6_id,bcl6_sv_id))
     myc_id = unique(c(myc_id,myc_sv_id))
   }
@@ -629,6 +647,10 @@ DLBCLone_train_test_plot = function(test_df,
 make_and_annotate_umap = function(df,
                               metadata,
                               umap_out,
+                              
+                              core_features = NULL,
+                              core_feature_multiplier = 1.5,
+                              hidden_features = NULL,
                               n_neighbors=55,
                               min_dist=0,
                               metric="cosine",
@@ -642,14 +664,11 @@ make_and_annotate_umap = function(df,
                               target_metric="euclidean",
                               target_weight=0.5,
                               calc_dispersion = FALSE,
-                              algorithm = "tumap"){
+                              algorithm = "tumap",
+                              make_plot = FALSE
+                              ){
   
-  # Function to compute mean (or median) pairwise distance within a group
-  pairwise_dispersion <- function(df_group) {
-    coords <- as.matrix(df_group[, c("V1", "V2")])
-    dists <- dist(coords)  # Euclidean pairwise distances
-    return(median(dists))    
-  }
+  
   if("sample_id" %in% colnames(df)){
     df = df %>% column_to_rownames(var = "sample_id")
   }
@@ -676,6 +695,30 @@ make_and_annotate_umap = function(df,
   if(missing(df)){
     stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
   }
+  if(!is.null(core_features)){
+    if(any(weighted_status>1)){
+     stop("values > 1 detected. Weighting of core features is only supported for binary features (0/1).")
+    }
+    if(!is.numeric(core_feature_multiplier)){
+      stop("core_feature_multiplier must be a numeric value")
+    }
+    if(!all(core_features %in% colnames(df))){
+      stop("core_features must be a vector of column names in df")
+    }
+    #multiply the core features by the multiplier
+    ncore = length(core_features)
+    message(paste0("multiplying ",ncore," core features by ",core_feature_multiplier))
+    df[core_features] = df[core_features] * core_feature_multiplier
+  }
+  if(!is.null(hidden_features)){
+    if(!all(hidden_features %in% colnames(df))){
+      stop("hidden_features must be a vector of column names in df")
+    }
+
+    message(paste0("dropping ",length(hidden_features)," hidden features"))
+    df = df %>% select(-any_of(hidden_features))
+  }
+  no_feat_samples = NULL
   if(!missing(metadata)){
     if(nrow(df)< original_n){
       nrem = original_n-nrow(df)
@@ -683,8 +726,6 @@ make_and_annotate_umap = function(df,
       message(paste0("removed ",nrem," (",pct_rem,"%) rows from the data that had no features"))
       no_feat_samples = rownames(dropped_rows)
   
-    }else{
-      no_feat_samples = NULL
     }
 
     keep_rows = rownames(df)[rownames(df) %in% metadata[[join_column]]]
@@ -753,7 +794,7 @@ make_and_annotate_umap = function(df,
         stop("metadata must be provided for supervised UMAP")
       }
       metadata[[target_column]] = factor(metadata[[target_column]])
-      print(table(metadata[[target_column]]))
+      #print(table(metadata[[target_column]]))
       umap_out = umap2(df %>% as.matrix(),
                        n_neighbors = n_neighbors,
                        min_dist = min_dist,
@@ -772,48 +813,368 @@ make_and_annotate_umap = function(df,
     
 
   }else{
-    umap_out = umap_transform(X=df,
+    message("transforming each data point individually using the provided UMAP model")
+    umap_df = data.frame()
+    for(sample in rownames(df)){
+      this_row = df[sample,]
+      this_umap_df = umap_transform(X=this_row,
                               model=umap_out$model,
                               seed=seed,
                               batch = TRUE,
                               n_threads = 1,
                               n_sgd_threads = 1)
+      this_umap_df = as.data.frame(this_umap_df) 
+      
+      umap_df = bind_rows(umap_df,this_umap_df)
+    }
+    message("done")
+
     
   }
   
   
   if(!is.null(names(umap_out))){
-    umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
+    # model was generated here
+    #umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
+    umap_df = as.data.frame(umap_df) %>% rownames_to_column(var=join_column)
+    #print("shouldn't be here")
   }else{
     umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
+    #umap_df = as.data.frame(umap_df) %>% rownames_to_column(var=join_column)
+    #print(head(umap_df))
   }
   if(!missing(metadata)){
     umap_df = left_join(umap_df,metadata,by=join_column)
   }
   results = list()
-  if(calc_dispersion){
-      print("calculating pairwise dispersion")
-      dispersion_df <- umap_df %>%
-      group_by(lymphgen) %>%
-      summarise(
-        n = n(),
-        mean_pairwise_distance = pairwise_dispersion(cur_data())
-      ) %>%
-      arrange(mean_pairwise_distance)
-      results[["dispersion"]] = dispersion_df
-  }
+
 
   
   results[["df"]]=umap_df
   results[["features"]] = df
   results[["dropped_rows"]] = no_feat_samples
-  results[["total_samples_available"]] = nrow(metadata) + nrow(no_feat_metadata)
-  results[["sample_metadata_no_features"]] = no_feat_metadata
+  if(!missing(metadata)){
+    results[["total_samples_available"]] = nrow(metadata) + nrow(no_feat_metadata)
+    results[["sample_metadata_no_features"]] = no_feat_metadata
+  }
+  
   if(ret_model){
     results[["model"]]= umap_out
   }
+  if(make_plot){
+    ms = make_umap_scatterplot(umap_df,
+                                  title = "UMAP projection")
+    print(ms)
+    results[["plot"]] = ms
+  }
   return(results)
 }
+
+#' Process KNN Vote Strings and Scores for Classification
+#'
+#' This function processes the raw neighbor label strings and weighted vote scores from k-nearest neighbor (KNN) classification results.
+#' It computes per-class neighbor counts, weighted scores, and identifies the top group by count and score for each sample.
+#' The function also supports custom logic for handling the "Other" class, including vote multipliers and purity requirements.
+#'
+#' @param df Data frame containing kNN results, including columns with neighbor labels and weighted votes.
+#' @param raw_col Name of the column containing the comma-separated neighbor labels (default: "label").
+#' @param group_labels Character vector of all possible class labels to consider (default: c("EZB", "MCD", "ST2", "BN2", "N1", "Other")).
+#' @param vote_labels_col Name of the column containing the comma-separated neighbor labels for weighted votes (default: "vote_labels").
+#' @param k Number of neighbors used in kNN (required).
+#' @param other_vote_multiplier Multiplier for the "Other" class when determining if a sample should be reclassified as "Other" (default: 2).
+#' @param score_purity_requirement Minimum ratio of top group score to "Other" score to assign a sample to the top group (default: 1).
+#' @param weighted_votes_col Name of the column containing the comma-separated weighted votes (default: "weighted_votes").
+#'
+#' @return Data frame with additional columns for per-class neighbor counts, scores, top group assignments, and summary statistics for each sample.
+#'
+#' @details
+#' - Computes the number of neighbors for each class and the sum of weighted votes per class.
+#' - Identifies the top group by count and by weighted score, and applies custom logic for the "Other" class if present.
+#' - Adds columns for counts, scores, top group, top group score, score ratios, and optimized group assignments.
+#' - Designed for downstream use in DLBCLone and similar kNN-based classification workflows.
+#'
+#' @examples
+#' # Example usage:
+#' # result <- process_votes(knn_output_df, k = 7)
+#'
+#' @export
+process_votes <- function(df,
+                          raw_col = "label",
+                          group_labels = c("EZB", "MCD", "ST2", "BN2", "N1", "Other"),
+                          vote_labels_col = "vote_labels",
+                          k,
+                          other_vote_multiplier = 2,
+                          score_purity_requirement = 1,
+                          weighted_votes_col = "weighted_votes") {
+  if(missing(k)){
+    stop("k value is required")
+  }
+  score_thresh = 2 * k
+
+  count_labels_in_string <- function(string, labels) {
+    tokens <- str_split(string, ",")[[1]]
+    map_int(labels, ~ sum(tokens == .x))
+  }
+
+  extract_weighted_scores <- function(label_str, vote_str, labels) {
+    lbls  <- str_split(label_str, ",")[[1]]
+    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    map_dbl(labels, ~ sum(votes[lbls == .x])) %>%
+      set_names(paste0(labels, "_score"))
+  }
+
+  get_top_score_group <- function(label_str, vote_str, labels) {
+    lbls  <- str_split(label_str, ",")[[1]]
+    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    scores_by_label <- set_names(map_dbl(labels, ~ sum(votes[lbls == .x])), labels)
+    top    <- names(scores_by_label)[which.max(scores_by_label)]
+    value  <- scores_by_label[[top]]
+    list(top_score_group = top, top_group_score = value)
+  }
+
+  df_out <- df %>%
+    mutate(.id = row_number()) %>%
+    rowwise() %>%
+    mutate(
+      # 1) counts
+      counts = list(
+        set_names(
+          count_labels_in_string(.data[[raw_col]], group_labels),
+          paste0(group_labels, "_NN_count")
+        )
+      ),
+      top_group = {
+        cnts <- count_labels_in_string(.data[[raw_col]], group_labels)
+        group_labels[which.max(cnts)]
+      },
+
+      # 2) scores
+      scores = list(
+        if (!is.null(vote_labels_col) && !is.null(weighted_votes_col)) {
+          extract_weighted_scores(
+            .data[[vote_labels_col]],
+            .data[[weighted_votes_col]],
+            group_labels
+          )
+        } else {
+          set_names(rep(0, length(group_labels)), paste0(group_labels, "_score"))
+        }
+      ),
+
+      # 3) top score group summary
+      score_summary = list(
+        if (!is.null(vote_labels_col) && !is.null(weighted_votes_col)) {
+          get_top_score_group(
+            .data[[vote_labels_col]],
+            .data[[weighted_votes_col]],
+            group_labels
+          )
+        } else {
+          list(top_score_group = NA_character_, top_group_score = NA_real_)
+        }
+      )
+    ) %>%
+    ungroup() %>%
+    unnest_wider(counts) %>%
+    unnest_wider(scores) %>%
+    unnest_wider(score_summary) %>%
+    rowwise() %>%
+mutate(
+  top_group_count = get(paste0(top_group, "_NN_count"))
+) %>%
+ungroup()
+
+  # Optional adjustments based on external columns (if present)
+  if ("neighbors_other" %in% colnames(df)) {
+    df_out <- df_out %>%
+      mutate(Other_count = neighbors_other)
+  }
+
+  if ("other_weighted_votes" %in% colnames(df)) {
+    df_out <- df_out %>%
+      mutate(Other_score = other_weighted_votes)
+  }
+
+  # Optional override of top group if Other dominates by a fold
+  if (all(c("top_group_count", "Other_count") %in% colnames(df_out))) {
+    df_out <- df_out %>%
+      mutate(by_vote = top_group_count) %>%
+      mutate(by_vote_opt = ifelse(top_group_count * other_vote_multiplier > Other_count, top_group, "Other"))
+  }
+  
+  df_out = mutate(df_out,
+                  by_score = top_score_group,
+                  score_ratio = top_group_score / Other_score,
+                  by_score_opt=ifelse(score_ratio > score_purity_requirement | top_group_score > score_thresh,top_score_group,"Other"))
+  
+  return(df_out)
+}
+
+#' Optimize Purity Threshold for Classification Assignment
+#'
+#' This function searches for the optimal purity threshold to assign samples to their predicted class or to "Other" based on the score ratio in processed kNN vote results.
+#' It iteratively tests a range of purity thresholds, updating the predicted class if the score ratio meets or exceeds the threshold, and computes the accuracy for each threshold.
+#' The function returns the best accuracy achieved and the corresponding purity threshold.
+#'
+#' @param processed_votes Data frame output from `process_votes`, containing at least the columns for score ratio, by_score_opt, and the relevant prediction and truth columns.
+#' @param prediction_column Name of the column in `processed_votes` to update with the optimized prediction.
+#' @param truth_column Name of the column in `processed_votes` containing the true class labels.
+#'
+#' @return A list with two elements: `best_accuracy` (numeric, the highest accuracy achieved) and `best_purity_threshold` (numeric, the threshold at which this accuracy was achieved).
+#'
+#' @details
+#' - For each threshold in the range 0.1 to 0.95 (step 0.05), the function updates the prediction column to assign the class from `by_score_opt` if the score ratio meets the threshold, otherwise assigns "Other".
+#' - Accuracy is computed as the proportion of correct assignments (diagonal of the confusion matrix).
+#' - The function is intended for use in optimizing classification purity in kNN-based workflows, especially when distinguishing between confident class assignments and ambiguous ("Other") cases.
+#'
+#' @examples
+#' # Example usage:
+#' # result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+#'
+#' @export
+optimize_purity <- function(optimized_model_object,
+                            vote_df, 
+                            mode, 
+                            optimize_by = "balanced_accuracy", #or overall_accuracy
+                            truth_column, 
+                            all_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+                            k,
+                            exclude_other_for_accuracy = FALSE) {
+  if(mode == "DLBCLone_w"){
+    in_column = "by_score"
+    out_column = mode
+  }
+  if(!missing(optimized_model_object)){
+    if(!is.null(optimized_model_object$best_params)){
+      if(!missing(k)){
+        message("k is provided in the optimized_model_object, ignoring the k parameter")
+      }
+      k = optimized_model_object$best_params$k
+    }else{
+      stop("optimized_model_object must contain best_params with k value")
+    }
+    vote_df = optimized_model_object$predictions
+  }
+
+  #all_classes = unique(vote_df[[truth_column]])
+  some_classes = all_classes[all_classes != "Other"]
+  score_thresh = 2 * k
+
+  processed_votes = process_votes(vote_df,
+                group_labels=all_classes,
+                k=k,
+                score_purity_requirement=0.5)
+  # Function to optimize purity based on processed votes and truth labels
+  if(!truth_column %in% colnames(processed_votes)){
+    stop("truth_column must be a column in processed_votes")
+  }
+  best_accuracy <- 0
+  best_purity_threshold <- 0
+
+  processed_votes = mutate(processed_votes,!!sym(truth_column):= as.character(!!sym(truth_column))) 
+  
+  no_other_df = processed_votes %>%
+    filter(!!sym(truth_column) != "Other")
+  for(purity_threshold in seq(3, 0, -0.05)){
+    updated_votes <- processed_votes %>%
+      mutate(!!sym(out_column) := ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
+    updated_no_other_df <- no_other_df %>%
+      mutate(!!sym(out_column) := ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
+
+
+
+
+    if(!exclude_other_for_accuracy){
+      
+      xx = select(updated_votes, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
+        mutate(match=ifelse(!!sym(truth_column) == !!sym(out_column),TRUE,FALSE)) %>%
+        group_by(match) %>%
+        #summarise(concordant) %>%
+        summarise(concordant=sum(match==TRUE), discordant = sum(match==FALSE)) %>%
+        ungroup() %>%
+        summarise(all_conc = sum(concordant), dis = sum(discordant), total=all_conc+dis, percent=100*sum(concordant)/total)
+        pc_conc = xx$percent %>% round(.,1)
+        num_conc = xx$all_conc
+        num_dis = xx$dis
+      
+      # calculate accuracy
+      updated_votes = mutate(updated_votes,!!sym(out_column) := factor(!!sym(out_column),levels=all_classes))
+      updated_votes = mutate(updated_votes,!!sym(truth_column) := factor(!!sym(truth_column),levels=all_classes))
+      confusion_matrix <- table(updated_votes[[truth_column]],updated_votes[[out_column]])
+      conf_matrix <- confusionMatrix(updated_votes[[out_column]], updated_votes[[truth_column]])
+
+
+    }else{
+      xx = select(updated_no_other_df, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
+        filter(!!sym(truth_column) != "Other") %>%
+        mutate(match=ifelse(!!sym(truth_column) == !!sym(out_column),TRUE,FALSE)) %>%
+        group_by(match) %>%
+        #summarise(concordant) %>%
+        summarise(concordant=sum(match==TRUE), discordant = sum(match==FALSE)) %>%
+        ungroup() %>%
+        summarise(all_conc = sum(concordant), dis = sum(discordant), total=all_conc+dis, percent=100*sum(concordant)/total)
+      updated_no_other_df = mutate(updated_no_other_df,
+        !!sym(out_column) := factor(!!sym(out_column),levels=all_classes),
+        !!sym(truth_column) := factor(!!sym(truth_column),levels=all_classes))
+      confusion_matrix <- table(updated_no_other_df[[truth_column]],updated_no_other_df[[out_column]])
+
+      conf_matrix <- confusionMatrix(updated_no_other_df[[out_column]], updated_no_other_df[[truth_column]])
+
+    }
+    accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+
+    bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
+    oa = conf_matrix$overall[["Accuracy"]]
+    pc_conc = xx$percent %>% round(.,1)
+    bal_acc = mean(bal_acc,na.rm=T)
+    
+    if(optimize_by == "balanced_accuracy"){
+      accuracy = bal_acc
+    }else if(optimize_by == "overall_accuracy"){
+      accuracy = oa
+    }
+    num_conc = xx$all_conc
+    num_dis = xx$dis
+    
+    #if(accuracy > best_accuracy){
+    if(accuracy > best_accuracy){
+      #print(confusion_matrix)
+      #print(bal_acc)
+      #print(paste("Percent: ",pc_conc,"Overall:",oa, "Balanced:",mean(bal_acc,na.rm=T)))
+      #print(conf_matrix)
+      #message(paste0("New best accuracy: ", round(accuracy, 3)))
+      #message(paste0("Matches:" ,num_conc, " %Concordance: ",pc_conc, " Mismatches: ",num_dis))
+      #message(paste0(" at purity threshold: ", round(purity_threshold, 2)))
+      best_accuracy <- accuracy
+      best_purity_threshold <- purity_threshold
+    }else{
+      #print(paste("No improvement", accuracy, "vs", best_accuracy, "at threshold", purity_threshold))
+    }
+
+    #print(confusion_matrix_ignore_other)
+  }
+  best_out = processed_votes %>%
+      mutate(!!sym(out_column) := ifelse(score_ratio >= best_purity_threshold | top_group_score > score_thresh, by_score, "Other")) 
+
+  
+  if(missing(optimized_model_object)){
+    optimized_model_object = list()
+    optimized_model_object$best_params = list(k=k,
+                                                purity_threshold=best_purity_threshold,
+                                                accuracy=best_accuracy,
+                                                num_classes=length(unique(best_out$predicted_label)),
+                                                num_features=ncol(best_out)-3, #minus V1,V2,sample_id
+                                                seed=12345)  
+  }
+  optimized_model_object$predictions = best_out
+  optimized_model_object$best_accuracy = best_accuracy  
+  optimized_model_object$best_purity_threshold = best_purity_threshold
+  optimized_model_object$maximize = optimize_by
+  optimized_model_object$score_thresh = score_thresh
+  optimized_model_object$exclude_other_for_accuracy = exclude_other_for_accuracy
+  return(optimized_model_object)
+}
+
 
 #' Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 #'
@@ -887,10 +1248,11 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                              "N1",
                                              "BN2",
                                              "Other"),
+                           truth_column = "lymphgen",
                            optimize_for_other = FALSE,
                            eval_group = NULL,
                            min_k=3,
-                           max_k=33,
+                           max_k=23,
                            verbose = FALSE,
                            seed = 12345,
                            maximize = "balanced_accuracy",
@@ -912,10 +1274,15 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
   use_w = TRUE
   best_acc = 0
+  best_acc_w = 0
+  best_pred_w = NULL
+  best_k_w = 0
   best_fit = NULL
   this_accuracy = 0
   best_pred = NULL
   other_pred = NULL
+  best_w_score_thresh = NULL
+  best_w_purity = NULL
   for(na_option in na_opt){
     if(missing(umap_out)){
       outs = make_and_annotate_umap(df=combined_mutation_status_df,
@@ -948,23 +1315,15 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     }
     for(use_w in weights_opt){
       for(k in ks){
+        best_w_acc = NULL
         message(paste("K:",k))
         for (threshold in threshs){
-          if(is.null(eval_group)){
-            test_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-            train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-            train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-            train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+            test_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
+            train_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
+            train_labels = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(!!sym(truth_column))
+            train_ids = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(sample_id)
             rownames(train_coords) = train_ids
 
-          }else{
-
-            test_coords = filter(outs$df,dataset == eval_group) %>% select(V1,V2)
-            train_coords = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% select(V1,V2)
-            train_labels = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(lymphgen)
-            train_ids = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes) %>% pull(sample_id)
-            rownames(train_coords) = train_ids
-          }
           if(verbose){
             print(paste("k:",k,"threshold:",threshold,"use_weights:",use_w,"na_option:",na_option))
           }
@@ -978,26 +1337,57 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             use_weights = use_w,
             ignore_top = ignore_top,
             verbose = verbose)
-
-          if(is.null(eval_group)){
-            xx_d = bind_cols(filter(outs$df,lymphgen %in% truth_classes) ,pred)
-            train_d = filter(outs$df,lymphgen %in% truth_classes)
-          }else{
-            xx_d = bind_cols(filter(outs$df,dataset == eval_group) ,pred)
-            train_d = filter(outs$df,dataset != eval_group,lymphgen %in% truth_classes)
-          }
-          if("Other" %in% truth_classes){
-            xx_d$lymphgen = factor(xx_d$lymphgen)
-          }else{
-            if(is.null(eval_group)){
-              test_coords = filter(outs$df,lymphgen %in% "Other") %>% select(V1,V2)
-              train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-              train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
-            }else{
-              test_coords = filter(outs$df,dataset == eval_group,lymphgen %in% "Other") %>% select(V1,V2)
-              train_coords = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% select(V1,V2)
-              train_labels = filter(outs$df,dataset == eval_group,lymphgen %in% unique(c("Other",truth_classes))) %>% pull(lymphgen)
+          #print(head(pred))
+          if(is.null(best_w_acc)){
+            some_outs = filter(outs$df,!!sym(truth_column) %in% truth_classes)
+            pred_with_truth = bind_cols(some_outs ,pred)
+            if(verbose){
+              print(dim(pred_with_truth))
+              print(table(pred_with_truth[[truth_column]]))
             }
+
+            #return(pred_with_truth)
+            pred_w = 
+            #suppressMessages(
+             optimize_purity(
+              vote_df = pred_with_truth,
+              mode = "DLBCLone_w",
+              truth_column = truth_column,
+              all_classes = truth_classes,
+              optimize_by = maximize,
+              k = k
+             )
+            #)
+            if(verbose){
+              print("running optimize_purity for the first time at k:", k)
+            }
+          
+            
+            #print(names(pred_w))
+            best_w_acc = pred_w$best_accuracy
+            if(best_w_acc > best_acc_w){
+              message(paste("best accuracy DLBCLone_wo:",pred_w$best_accuracy, "purity threshold:", pred_w$best_purity_threshold))
+              best_acc_w = best_w_acc
+              best_k_w = k
+              best_fit = pred_with_truth
+              
+              best_w_purity = pred_w$best_purity_threshold
+              best_w_score_thresh = pred_w$score_thresh
+            }
+            best_pred_w = pred_w$predictions
+            
+          }
+
+
+          xx_d = bind_cols(filter(outs$df,!!sym(truth_column) %in% truth_classes) ,pred)
+          train_d = filter(outs$df,!!sym(truth_column) %in% truth_classes)
+
+          if("Other" %in% truth_classes){
+            xx_d[[truth_column]] = factor(xx_d[[truth_column]])
+          }else{
+            test_coords = filter(outs$df,!!sym(truth_column) %in% "Other" | is.na(!!sym(truth_column))) %>% select(V1,V2)
+            train_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
+            train_labels = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(!!sym(truth_column))
             n_other = nrow(test_coords)
 
             if(!"Other" %in% truth_classes && n_other > 0){
@@ -1012,18 +1402,18 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 ignore_top = ignore_top,
                 verbose = verbose)
 
-              if(!is.null(eval_group)){
-                xx_o = bind_cols(filter(outs$df,dataset == eval_group,lymphgen =="Other") ,pred_other)
-              }else{
-                xx_o = bind_cols(filter(outs$df,lymphgen == "Other") ,pred_other)
-              }
+              #if(!is.null(eval_group)){
+              #  xx_o = bind_cols(filter(outs$df,dataset == eval_group,!!sym(truth_column) =="Other") ,pred_other)
+              #}else{
+              xx_o = bind_cols(filter(outs$df,!!sym(truth_column) == "Other" | is.na(!!sym(truth_column))) ,pred_other)
+              #}
             }
-            xx_d$lymphgen = factor(xx_d$lymphgen,levels = c(unique(xx_d$lymphgen),"Other"))
+            xx_d[[truth_column]] = factor(xx_d[[truth_column]],levels = c(unique(xx_d[[truth_column]]),"Other"))
 
           }
-          true_factor = xx_d$lymphgen
-          pred_factor = factor(xx_d$predicted_label,levels = levels(xx_d$lymphgen))
-          
+          true_factor = xx_d[[truth_column]]
+          pred_factor = factor(xx_d$predicted_label,levels = levels(xx_d[[truth_column]]))
+
           if(verbose){
             print("true_factor")
             print(levels(true_factor ))
@@ -1113,9 +1503,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           
           if(this_accuracy > best_acc){
             best_acc = this_accuracy
-   
-            message(paste("best accuracy:",best_acc,"k:",k,"threshold:",threshold,"Other_thresh:",out_opt_thresh,"na:",na_option,"Balanced accuracy:",overall_accuracy, "sensitivity:",overall_sensitivity))
-
+            message(paste("best accuracy DLBCLone_io:",best_acc, "threshold_outgroup:", row$threshold_outgroup))
+            
             best_fit = outs
             best_pred = xx_d
             if(!"Other" %in% truth_classes  && n_other > 0){
@@ -1130,25 +1519,53 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     }
   }
   best_params$num_classes = num_class
-  best_params$num_features = ncol(best_fit$features)
+  best_params$num_features = ncol(umap_out$features)
   best_params$seed = seed
 
   test_coords = outs$df %>% select(V1,V2)
-  train_coords = filter(outs$df,lymphgen %in% truth_classes) %>% select(V1,V2)
-  train_ids = filter(outs$df,lymphgen %in% truth_classes) %>% pull(sample_id)
+  
+  #train_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
+  #train_ids = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(sample_id)
+  #rownames(train_coords) = train_ids
+  #train_labels = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(!!sym(truth_column))
+  train_coords = outs$df %>% select(V1,V2)
+  train_ids = outs$df %>% pull(sample_id)
   rownames(train_coords) = train_ids
-  train_labels = filter(outs$df,lymphgen %in% truth_classes) %>% pull(lymphgen)
+  train_labels = outs$df %>% pull(!!sym(truth_column))
   pred = weighted_knn_predict_with_conf(
             train_coords = train_coords,
             train_labels = train_labels,
             test_coords = test_coords,
             k=best_params$k,
             conf_threshold =best_params$threshold,
-            na_label="Other",
+            #na_label="Other",
             use_weights = best_params$use_weights,
             ignore_top = ignore_top,
             verbose = verbose,
             track_neighbors = TRUE)
+  
+  pred_with_truth_full = bind_cols(outs$df %>% select(sample_id, !!sym(truth_column)), pred)
+  #best_pred_w = 
+    #suppressMessages(
+  #    optimize_purity(
+  #            vote_df = pred_with_truth_full,
+  #            mode = "DLBCLone_w",
+  #            truth_column = truth_column, 
+  #            optimize_by = maximize,
+  #            all_classes = truth_classes,
+  #            k = best_k_w
+  #  )$predictions
+    #)
+  if(verbose){
+    print(paste("TOP score threshold:",best_w_score_thresh, "purity:", best_w_purity))  
+  }
+  best_pred_w = process_votes(df=pred_with_truth_full,
+                              group_labels=truth_classes,
+                              k=k) %>%
+
+      mutate(DLBCLone_w = ifelse(score_ratio >= best_w_purity | top_group_score > best_w_score_thresh, by_score, "Other")) 
+
+
   if(optimize_for_other){
     
     pred = mutate(pred,predicted_label_optimized = ifelse(other_score > best_params$threshold_outgroup,
@@ -1157,17 +1574,33 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   }else{
     pred = mutate(pred,predicted_label_optimized = predicted_label)
   }
+  #new naming convention
+  pred = mutate(pred, DLBCLone_i = predicted_label, DLBCLone_io = predicted_label_optimized)
+  best_pred_w = rename(best_pred_w, DLBCLone_wo = DLBCLone_w) #optimized
+  best_pred_w = rename(best_pred_w, DLBCLone_w = by_score) #greedy
   xx_d = bind_cols(outs$df,pred)
+  xx_d = left_join(xx_d, select(best_pred_w, sample_id, DLBCLone_w, DLBCLone_wo), by="sample_id")
   to_ret = list(params=results,
                 best_params = best_params,
-                model=best_fit$model,
-                features=best_fit$features,
-                df=outs$df,
+                model=umap_out$model,
+                features=umap_out$features,
+                best_k_w = best_k_w,
+                df=outs$df, 
                 predictions=xx_d)
   if(!"Other" %in% truth_classes && n_other > 0){
     to_ret[["predictions_other"]] = xx_o
     to_ret[["predictions_combined"]] = bind_rows(xx_o,best_pred)
   }
+  #TODO: roll components of umap_out into to_ret
+  if(any(!names(outs) %in% names(to_ret))){
+    missing_names = names(outs)[!names(outs) %in% names(to_ret)]
+    for(mn in missing_names){
+      to_ret[[mn]] = outs[[mn]] 
+    }
+  }
+  to_ret$truth_classes = truth_classes
+  to_ret$optimize_for_other = optimize_for_other
+  to_ret$truth_column = truth_column
   return(to_ret)
 }
 
@@ -1410,108 +1843,6 @@ weighted_knn_predict_with_conf <- function(train_coords,
   return(to_return)
 }
 
-#' @title Make Neighborhood Plot
-#' @description
-#' Generates a UMAP plot highlighting the neighborhood of a given sample, showing its nearest neighbors and their group assignments.
-#'
-#' @param single_sample_prediction_output A list containing prediction results and annotation data frames. 
-#'        Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).
-#' @param training_predictions The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)
-#' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
-#' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted label in the plot title.
-#' @param add_circle Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.
-#' @param label_column Does nothing, i.e. this is not currently working.
-#'
-#' @return A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
-#'
-#' @details
-#' The function extracts the nearest neighbors of the specified sample, draws segments connecting the sample to its neighbors, and colors points by group (e.g., lymphgen subtype). The plot title can optionally include the predicted label.
-#'
-#' @import dplyr
-#' @import ggplot2
-#' @importFrom rlang sym
-#'
-#' @export
-#' @examples
-#' 
-#' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
-#' # and 'output' is the result of DLBCLone_predict_single_sample
-#' # on sample_id "SAMPLE123":
-#' make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
-make_neighborhood_plot <- function(single_sample_prediction_output,
-                                   training_predictions,
-                                  this_sample_id,
-                                  prediction_in_title = TRUE,
-                                  add_circle = TRUE,
-                                  label_column = "predicted_label_optimized",
-                                  point_size = 0.5, 
-                                  point_alpha = 0.9,
-                                  line_alpha = 0.9) {
-
-  circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
-    r = diameter / 2
-    tt <- seq(0,2*pi,length.out = npoints)
-    xx <- center[1] + r * cos(tt)
-    yy <- center[2] + r * sin(tt)
-    return(data.frame(x = xx, y = yy))
-  }
-  if(missing(training_predictions)){
-    training_predictions = single_sample_prediction_output$anno_df
-  }else if(missing(single_sample_prediction_output)){
-
-    #Just plot the single sample in the context of the rest based on the optimization
-    single_sample_prediction_output = list()
-    single_sample_prediction_output[["prediction"]] = filter(training_predictions, sample_id==this_sample_id) 
-     single_sample_prediction_output[["anno_df"]] = training_predictions
-  }else{
-    single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
-  
-  }
-  #extract the sample_id for all the nearest neighbors with non-Other labels
-  my_neighbours = filter(single_sample_prediction_output$prediction,
-                         sample_id == this_sample_id) %>% 
-                  pull(neighbor_id) %>% strsplit(.,",") %>% unlist()
-
-  #set up links connecting each neighbor to the sample's point
-  links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
-  my_x = filter(single_sample_prediction_output$anno_df,
-                sample_id==this_sample_id) %>% pull(V1)
-  my_y = filter(single_sample_prediction_output$anno_df,
-                sample_id==this_sample_id) %>% pull(V2)
-  if(prediction_in_title){
-    title = paste(this_sample_id,
-                  pull(single_sample_prediction_output$prediction,
-                       !!sym(label_column)))
-    if(single_sample_prediction_output$prediction$predicted_label_optimized == "Other" && single_sample_prediction_output$prediction$predicted_label !="Other"){
-      title = paste(title,"(",single_sample_prediction_output$prediction$predicted_label,")")
-    }
-
-  }else{
-    title = this_sample_id
-  }
-  links_df = mutate(links_df,my_x=my_x,my_y=my_y)
-  links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
-  
-  
-  pp=ggplot(mutate(training_predictions,group=lymphgen),
-         aes(x=V1,y=V2,colour=group)) + 
-    geom_point(alpha=point_alpha,size=point_size) + 
-    geom_segment(data=links_df,aes(x=V1,y=V2,xend=my_x,yend=my_y),alpha=line_alpha)+
-    scale_colour_manual(values=get_gambl_colours()) + 
-    ggtitle(title)+
-    theme_minimal()
-  if(add_circle){
-    #add a circle around the sample
-    max_d = 1
-    d = max(links_df$length)*2
-    if(d>max_d){
-      d = max_d
-    }
-    circle = circleFun(c(my_x,my_y),diameter=d,npoints=100)
-    pp = pp + geom_path(data=circle,aes(x=x,y=y),colour="black",alpha=1,inherit.aes=FALSE)
-  }
-  return(pp)
-}
 
 
 #' Predict class for a single sample without using umap_transform and plot result of classification
@@ -1555,6 +1886,7 @@ predict_single_sample_DLBCLone <- function(
     test_df,
     train_df,
     train_metadata,
+    projection,
     umap_out,
     best_params,
     other_df,
@@ -1610,15 +1942,20 @@ predict_single_sample_DLBCLone <- function(
     test_id <- test_df$sample_id
     
     combined_df <- bind_rows(train_df, test_df)
-
-    projection <- make_and_annotate_umap(
+    
+    if(missing(projection)){
+      projection <- make_and_annotate_umap(
         df = combined_df,
         umap_out = umap_out,
         ret_model = FALSE,
         seed = seed,
         join_column = "sample_id",
         na_vals = best_params$na_option
-    )
+      )
+    }else{
+      message("Using provided projection for prediction")
+    }
+    
 
     train_coords = dplyr::filter(
         projection$df,
@@ -1679,11 +2016,14 @@ predict_single_sample_DLBCLone <- function(
     )
 
     test_pred = rownames_to_column(test_pred, var = "sample_id")
-
+    test_pred = mutate(test_pred, DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
+                                                          "Other",
+                                                          predicted_label))
     anno_umap = select(projection$df, sample_id, V1, V2)
 
     anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
         mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
+    
     anno_out = anno_out %>%
     mutate(
         V1 = as.numeric(V1),
@@ -1701,185 +2041,17 @@ predict_single_sample_DLBCLone <- function(
     predictions_df = bind_rows(predictions_train_df %>% select(sample_id, V1, V2), 
                                predictions_test_df  %>% select(sample_id, V1, V2))
 
-    if(make_plot){
-        title = paste0("N_class:", best_params$num_classes," N_feats:",best_params$num_features," k=",best_params$k," threshold=",best_params$threshold," bacc=",round(best_params$accuracy,3))
-        if("BN2" %in% truth_classes){
-            print(best_params)
-            acc_df = data.frame(
-                lymphgen = c(
-                    #"N1",
-                    "BN2",
-                    "EZB",
-                    "MCD",
-                    "ST2",
-                    "Other",
-                    "A53"
-                ),
-                accuracy = c(
-                    #best_params$N1_bacc,
-                    best_params$BN2_bacc,
-                    best_params$EZB_bacc,
-                    best_params$MCD_bacc,
-                    best_params$ST2_bacc,
-                    best_params$Other_bacc,
-                    best_params$A53_bacc
-                )
-            )
-        }else if("C1" %in% truth_classes){
-            acc_df = data.frame(
-                lymphgen = c(
-                    "C1",
-                    "C2",
-                    "C3",
-                    "C4",
-                    "C5"
-                ),
-                accuracy = c(
-                    best_params$C1_bacc,
-                    best_params$C2_bacc,
-                    best_params$C3_bacc,
-                    best_params$C4_bacc,
-                    best_params$C5_bacc
-                )
-            )
-        }else{
-            stop("no labels to add?")
-        }
-
-        # Add the predicted labels for Other (unclassified) cases, if provided
-        if(!missing(other_df)){
-            in_df = bind_rows(
-                train_df_proj,
-                mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
-                mutate(other_df,dataset=title3,lymphgen=predicted_label)
-            )
-        }else{
-            in_df = bind_rows(
-                train_df_proj,
-                mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
-            )
-        }
-
-        pp = ggplot(in_df) +
-            geom_point(aes(x=V1,y=V2,colour=lymphgen),alpha=0.8) +
-            scale_colour_manual(values=get_gambl_colours()) +
-            facet_wrap(~dataset,ncol=1) +
-            theme_Morons() + ggtitle(title)
-
-        if(annotate_accuracy){
-            #add labels and set nudge direction based on what quadrant each group sits in
-            centroids = filter(predictions_df,predicted_label %in% truth_classes) %>%
-                group_by(predicted_label) %>%
-                summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
-                mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
-                mutate(lymphgen=predicted_label)
-                centroids = left_join(centroids,acc_df) %>%
-                mutate(label=paste(lymphgen,":",round(accuracy,3)))
-
-            pp = pp + 
-                geom_label_repel(
-                    data=filter(centroids,nudge_y < 0, nudge_x < 0),
-                    aes(x=mean_V1,y=mean_V2,label=label),
-                    fill="white",
-                    size=5,
-                    nudge_y = -1 * label_offset, 
-                    nudge_x = -1 * label_offset
-                ) +
-                geom_label_repel(
-                    data=filter(centroids,nudge_y < 0, nudge_x > 0),
-                    aes(x=mean_V1,y=mean_V2,label=label),
-                    size=5,
-                    nudge_y = -1 * label_offset, 
-                    nudge_x = 1 * label_offset
-                ) +
-                geom_label_repel(
-                    data=filter(centroids,nudge_y > 0, nudge_x < 0),
-                    aes(x=mean_V1,y=mean_V2,label=label),
-                    size=5,
-                    nudge_y = 1 * label_offset, 
-                    nudge_x = -1 * label_offset
-                ) +
-                geom_label_repel(
-                    data=filter(centroids,nudge_y > 0, nudge_x > 0),
-                    aes(x=mean_V1,y=mean_V2,label=label),
-                    fill="white",
-                    size=5,
-                    nudge_y = 1 * label_offset, 
-                    nudge_x = 1 * label_offset
-                ) +
-                geom_label_repel(
-                    data = anno_out,
-                    aes(x=V1,y=V2,label=label),
-                    nudge_y = 1 * label_offset, 
-                    nudge_x = 1 * label_offset,
-                    colour="red"
-                ) 
-        }
-    }
-    return(list(
+    
+    to_return = list(
         prediction = test_pred, 
+        projection = projection$df,
         umap_input = umap_out$features, 
         model=umap_out$model,
-        plot = pp,
+        
         df = predictions_df,
         anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id") 
-    ))
-}
+      )
 
-#' Make UMAP scatterplot
-#'
-#' @param df 
-#' @param drop_composite 
-#' @param colour_by 
-#' @param drop_other 
-#' @param high_confidence 
-#' @param custom_colours 
-#' @param add_labels 
-#'
-#' @returns
-#' @export
-#'
-#' @examples
-make_umap_scatterplot = function(df,
-                                 drop_composite = TRUE,
-                                 colour_by="lymphgen",
-                                 drop_other = FALSE,
-                                 high_confidence = FALSE,
-                                 custom_colours,
-                                 add_labels = FALSE){
-  
-  if(!missing(custom_colours)){
-    cols = custom_colours
-  }else{
-    cols = get_gambl_colours()
-  }
-  if(drop_composite){
-    df = filter(df,!is.na(lymphgen),!grepl("COMP",lymphgen))
-  }
-  if(drop_other){
-    df = filter(df,!is.na(lymphgen),lymphgen!="Other",lymphgen!="NOS")
-  }
-  if(high_confidence){
-    df = filter(df,Confidence > 0.7)
-  }
-  if(add_labels){
-    labels = group_by(df,!!sym(colour_by)) %>%
-      summarise(median_x = median(V1),median_y = median(V2)) 
-  }
-  unique_lg = unique(df$lymphgen)
-  if(any(!unique_lg %in% names(cols))){
-    missing = unique_lg[!unique_lg %in% names(cols)]
-    print(paste("missing colour for:",paste(missing,collapse=",")))
-
-  }
-  p = ggplot(df,
-             aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + geom_point(alpha=0.8) + 
-    scale_colour_manual(values=cols) + theme_Morons() + 
-    guides(colour = guide_legend(nrow = 1))
-  if(add_labels){
-    p = p + geom_label_repel(data=labels,aes(x=median_x,y=median_y,label=!!sym(colour_by)))
-  }
-  ggMarginal(p,groupColour = TRUE,groupFill=TRUE)
-  
+    return(to_return)
 }
 
