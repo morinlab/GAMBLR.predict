@@ -8,6 +8,7 @@ predict_single_sample_DLBCLone(
   test_df,
   train_df,
   train_metadata,
+  projection,
   umap_out,
   best_params,
   other_df,

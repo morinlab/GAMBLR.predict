@@ -13,7 +13,7 @@ DLBCLone_optimize_params(
   optimize_for_other = FALSE,
   eval_group = NULL,
   min_k = 3,
-  max_k = 33,
+  max_k = 23,
   verbose = FALSE,
   seed = 12345,
   maximize = "balanced_accuracy",

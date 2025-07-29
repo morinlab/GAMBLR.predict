@@ -8,6 +8,9 @@ make_and_annotate_umap(
   df,
   metadata,
   umap_out,
+  core_features = NULL,
+  core_feature_multiplier = 1.5,
+  hidden_features = NULL,
   n_neighbors = 55,
   min_dist = 0,
   metric = "cosine",
@@ -21,7 +24,8 @@ make_and_annotate_umap(
   target_metric = "euclidean",
   target_weight = 0.5,
   calc_dispersion = FALSE,
-  algorithm = "tumap"
+  algorithm = "tumap",
+  make_plot = FALSE
 )
 }
 \arguments{

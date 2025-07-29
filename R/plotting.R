@@ -1,3 +1,75 @@
+
+#' Summarize and Export DLBCLone Model Results
+#'
+#' Generates and saves a set of summary plots and tables for a DLBCLone model, including UMAP scatterplots, alluvial plots, and oncoplots.
+#' Results are saved as PDF files in a directory named after the provided base name.
+#'
+#' @param base_name Character. The base name (and directory) for saving output files.
+#' @param optimized_model List. The output from DLBCLone optimization, containing predictions, features, and metadata.
+#'
+#' @details
+#' - Creates a directory for results if it does not exist.
+#' - Saves UMAP scatterplots for all samples and for non-"Other" samples.
+#' - Generates alluvial plots for different DLBCLone predictions
+#' - Exports an oncoplot summarizing mutation and classification results.
+#' - Uses `make_umap_scatterplot`, `make_alluvial`, and `prettyOncoplot` for visualization.
+#'
+#' @return No return value. Side effect: writes multiple PDF files to disk.
+#'
+#' @examples
+#' DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
+#'
+#' @export
+DLBCLone_summarize_model = function(base_name,optimized_model){
+  base_dir = here::here()
+  full_dir = paste0(base_dir,"/",base_name)
+  if(!dir.exists(full_dir)){
+    dir.create(full_dir)
+  }
+  umap1 = paste0(full_dir,"/UMAP_all.pdf")
+  cairo_pdf(umap1,width=8,height=8)
+  p = make_umap_scatterplot(optimized_model$df,colour_by = optimized_model$truth_column,
+                            title="all samples, projected")
+  print(p)
+  dev.off()
+  
+  umap2 = paste0(full_dir,"/UMAP_no_Other.pdf")
+  cairo_pdf(umap2,width=8,height=8)
+  p = make_umap_scatterplot(optimized_model$df,
+                            colour_by = optimized_model$truth_column,
+                            drop_other = T,title="non-Other samples, projected")
+  print(p)
+  dev.off()
+  cairo_pdf(paste0(full_dir,"/Alluvial_DLBCLone_io.pdf"),width=8,height=12)
+  p = make_alluvial(optimized_model,pred_column = "DLBCLone_io",
+                    truth_column = optimized_model$truth_column)
+  print(p)
+  dev.off()
+  cairo_pdf(paste0(full_dir,"/Alluvial_DLBCLone_wo.pdf"),width=8,height=12)
+  p = make_alluvial(optimized_model,pred_column = "DLBCLone_wo",
+                    truth_column = optimized_model$truth_column)
+  print(p)
+  dev.off()
+  cairo_pdf(paste0(full_dir,"/Oncoplot.pdf"),width=16,height=14)
+  mc = c("lymphgen","DLBCLone_wo","DLBCLone_io","DLBCLone_w","DLBCLone_i","DLBClass")
+  sc = c("DLBCLone_wo","DLBCLone_io","lymphgen","DLBClass","DLBCLone_w","DLBCLone_i","confidence")
+  mc = mc[mc %in% colnames(optimized_model$predictions)]
+  sc = sc[sc %in% colnames(optimized_model$predictions)]
+  prettyOncoplot(all_maf_with_s,
+               these_samples_metadata =optimized_model$predictions,
+               genes = colnames(optimized_model$features),
+               minMutationPercent = 1,
+               metadataColumns =  mc,
+               sortByColumns = sc,
+               numericMetadataColumns = "confidence",
+               simplify_annotation = T,
+               cluster_rows=T
+               )
+  dev.off()
+
+}
+
+
 #' @title Make Neighborhood Plot
 #' @description
 #' Generates a UMAP plot highlighting the neighborhood of a given sample, showing its nearest neighbors and their group assignments.

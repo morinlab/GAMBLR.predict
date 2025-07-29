@@ -668,7 +668,11 @@ make_and_annotate_umap = function(df,
                               make_plot = FALSE
                               ){
   
-  
+  if(!missing(umap_out)){
+    model_provided = TRUE
+  }else{
+    model_provided = FALSE
+  }
   if("sample_id" %in% colnames(df)){
     df = df %>% column_to_rownames(var = "sample_id")
   }
@@ -739,6 +743,7 @@ make_and_annotate_umap = function(df,
   if(missing(umap_out)){
     if(missing(target_column)){
       if(algorithm == "umap"){
+        message("running umap2")
         umap_out = umap2(df %>% as.matrix(),
                          n_neighbors = n_neighbors,
                          min_dist = min_dist,
@@ -758,6 +763,7 @@ make_and_annotate_umap = function(df,
         
       }else if(algorithm == "tumap"){
         #X = df %>% as.matrix()
+        message("running tumap")
         X = df
         umap_args = list(X=X,
                          n_neighbors = n_neighbors,
@@ -771,9 +777,6 @@ make_and_annotate_umap = function(df,
                          n_sgd_threads = 1,
                          rng_type = "deterministic")
       
-        #print(colnames(X))
-        #print(head(X))
-        #return(X)
         umap_out = tumap(X,
                          n_neighbors = n_neighbors,
                          metric = metric,
@@ -785,6 +788,7 @@ make_and_annotate_umap = function(df,
                          batch = TRUE,
                          n_sgd_threads = 1,
                          rng_type = "deterministic")
+        message("done!")
       }else{
         stop("unsupported algorithm option")
       }
@@ -813,7 +817,7 @@ make_and_annotate_umap = function(df,
     
 
   }else{
-    message("transforming each data point individually using the provided UMAP model")
+    message("transforming each data point individually using the provided UMAP model. This will take some time.")
     umap_df = data.frame()
     for(sample in rownames(df)){
       this_row = df[sample,]
@@ -833,13 +837,16 @@ make_and_annotate_umap = function(df,
   }
   
   
-  if(!is.null(names(umap_out))){
+  if(model_provided){
     # model was generated here
-    #umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
+    print("model given to function")
+    
     umap_df = as.data.frame(umap_df) %>% rownames_to_column(var=join_column)
-    #print("shouldn't be here")
+    
   }else{
-    umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
+    print("model not provided, created here")
+    umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
+    #umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
     #umap_df = as.data.frame(umap_df) %>% rownames_to_column(var=join_column)
     #print(head(umap_df))
   }
