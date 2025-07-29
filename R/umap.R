@@ -448,8 +448,9 @@ optimize_outgroup <- function(predicted_labels,
                                             "ST2",
                                             "Other"),
                             maximize ="balanced_accuracy",
-                            exclude_other_for_accuracy = FALSE){
-  
+                            exclude_other_for_accuracy = FALSE,
+                            verbose = FALSE){
+  #print(paste("Exclude Other?",exclude_other_for_accuracy))
   rel_thresholds = seq(1,10,0.1)
   sens_df = data.frame()
   acc_df = data.frame()
@@ -839,12 +840,12 @@ make_and_annotate_umap = function(df,
   
   if(model_provided){
     # model was generated here
-    print("model given to function")
+    #message("model given to function")
     
     umap_df = as.data.frame(umap_df) %>% rownames_to_column(var=join_column)
     
   }else{
-    print("model not provided, created here")
+    #message("model not provided, created here")
     umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
     #umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
     #umap_df = as.data.frame(umap_df) %>% rownames_to_column(var=join_column)
@@ -1257,6 +1258,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                              "Other"),
                            truth_column = "lymphgen",
                            optimize_for_other = FALSE,
+                           
                            eval_group = NULL,
                            min_k=3,
                            max_k=23,
@@ -1266,15 +1268,17 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            exclude_other_for_accuracy = FALSE,
                            weights_opt = c(TRUE)
                            ) {
-  if(optimize_for_other){
-    exclude_other_for_accuracy = FALSE
-  }else{
-    exclude_other_for_accuracy = TRUE
-  }
+  #if(optimize_for_other){
+  #  exclude_other_for_accuracy = FALSE
+  #}else{
+  exclude_other_for_accuracy = TRUE
+  #}
   na_opt = c("drop")
   num_class = length(truth_classes)
   
   threshs = seq(0,0.9,0.1)
+  #threshs = 0.5
+  
   ks = seq(min_k,max_k,2)
   results <- data.frame()
   best_params <- data.frame()
@@ -1290,6 +1294,9 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   other_pred = NULL
   best_w_score_thresh = NULL
   best_w_purity = NULL
+  
+  ignore_self = TRUE
+
   for(na_option in na_opt){
     if(missing(umap_out)){
       outs = make_and_annotate_umap(df=combined_mutation_status_df,
@@ -1316,36 +1323,44 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                               join_column="sample_id",
                               na_vals = na_option)
     }
-    ignore_top = FALSE
-    if(is.null(eval_group)){
-      ignore_top = TRUE
-    }
+    
+
     for(use_w in weights_opt){
       for(k in ks){
         best_w_acc = NULL
         message(paste("K:",k))
-        for (threshold in threshs){
-            test_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
-            train_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
-            train_labels = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(!!sym(truth_column))
-            train_ids = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(sample_id)
-            rownames(train_coords) = train_ids
 
+        #for (threshold in threshs){
+        test_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
+        train_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
+        train_labels = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(!!sym(truth_column))
+        train_ids = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(sample_id)
+        test_ids = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(sample_id)
+        rownames(train_coords) = train_ids
+        rownames(test_coords) = test_ids
+
+
+
+        pred = weighted_knn_predict_with_conf(
+          train_coords = train_coords,
+          train_labels = train_labels,
+          test_coords = test_coords,
+          k=k,
+          conf_threshold =threshold,
+          na_label="Other",
+          use_weights = use_w,
+          ignore_self = ignore_self,
+          verbose = verbose)
+
+        for(threshold in threshs){
           if(verbose){
             print(paste("k:",k,"threshold:",threshold,"use_weights:",use_w,"na_option:",na_option))
           }
-          pred = weighted_knn_predict_with_conf(
-            train_coords = train_coords,
-            train_labels = train_labels,
-            test_coords = test_coords,
-            k=k,
-            conf_threshold =threshold,
-            na_label="Other",
-            use_weights = use_w,
-            ignore_top = ignore_top,
-            verbose = verbose)
-          #print(head(pred))
+          pred_thresh = mutate(pred,
+            predicted_label = ifelse(confidence >= threshold, predicted_label, "Other"))
+          
           if(is.null(best_w_acc)){
+            #DLBCLone_wo
             some_outs = filter(outs$df,!!sym(truth_column) %in% truth_classes)
             pred_with_truth = bind_cols(some_outs ,pred)
             if(verbose){
@@ -1386,8 +1401,9 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           }
 
 
-          xx_d = bind_cols(filter(outs$df,!!sym(truth_column) %in% truth_classes) ,pred)
+          
           train_d = filter(outs$df,!!sym(truth_column) %in% truth_classes)
+          xx_d = bind_cols(train_d ,pred_thresh)
 
           if("Other" %in% truth_classes){
             xx_d[[truth_column]] = factor(xx_d[[truth_column]])
@@ -1406,7 +1422,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 conf_threshold =threshold,
                 na_label="Other",
                 use_weights = use_w,
-                ignore_top = ignore_top,
+                ignore_self = ignore_self,
                 verbose = verbose)
 
               #if(!is.null(eval_group)){
@@ -1429,10 +1445,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           }
 
           conf_matrix <- confusionMatrix(pred_factor, true_factor)
-
+          #print(conf_matrix)
           bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
           sn <- conf_matrix$byClass[, "Sensitivity"]  # one per class
-
+          #bal_acc = report_accuracy(xx_d,pred = "predicted_label")$mean_balanced_accuracy
           if(verbose){
             print(bal_acc)
             print(conf_matrix$overall)
@@ -1480,6 +1496,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           }
           #print(paste("accuracy:",this_accuracy, "out_opt_acc",out_opt_acc))
           if(out_opt_acc > this_accuracy){
+            
             this_accuracy = out_opt_acc
           }
           row <- data.frame(k = k,
@@ -1510,8 +1527,11 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           
           if(this_accuracy > best_acc){
             best_acc = this_accuracy
-            message(paste("best accuracy DLBCLone_io:",best_acc, "threshold_outgroup:", row$threshold_outgroup))
-            
+            #(xx_d))
+            xx_d = mutate(xx_d, predicted_label_optimized = ifelse(other_score > out_opt_thresh, "Other", predicted_label))
+            no_other_acc = report_accuracy(xx_d,pred = "predicted_label_optimized")$mean_balanced_accuracy
+            message(paste("best accuracy DLBCLone_io:",best_acc, "without other: ", no_other_acc, "threshold_outgroup:", row$threshold_outgroup))
+
             best_fit = outs
             best_pred = xx_d
             if(!"Other" %in% truth_classes  && n_other > 0){
@@ -1539,6 +1559,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   train_ids = outs$df %>% pull(sample_id)
   rownames(train_coords) = train_ids
   train_labels = outs$df %>% pull(!!sym(truth_column))
+  rownames(test_coords) = outs$df %>% pull(sample_id)
   pred = weighted_knn_predict_with_conf(
             train_coords = train_coords,
             train_labels = train_labels,
@@ -1547,7 +1568,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             conf_threshold =best_params$threshold,
             #na_label="Other",
             use_weights = best_params$use_weights,
-            ignore_top = ignore_top,
+            ignore_self = ignore_self,
             verbose = verbose,
             track_neighbors = TRUE)
   
@@ -1592,6 +1613,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 model=umap_out$model,
                 features=umap_out$features,
                 best_k_w = best_k_w,
+                best_w_purity = best_w_purity,
+                best_w_score_thresh = best_w_score_thresh,
                 df=outs$df, 
                 predictions=xx_d)
   if(!"Other" %in% truth_classes && n_other > 0){
@@ -1631,7 +1654,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 #' @param verbose Whether to print verbose outputs to console
 #' @param use_weights Set to FALSE for all neigbors to have equal weight when
 #' calculating the confidence
-#' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
+#' @param ignore_self Set to TRUE to avoid considering a nearest neighbor with
 #' distance = 0. This is usually only relevant when re-classifying labeled
 #' samples to estimate overall accuracy
 #' @param track_neighbors Set to TRUE to include details for the nearest neighbors of each sample
@@ -1648,10 +1671,11 @@ weighted_knn_predict_with_conf <- function(train_coords,
                                            na_label = "Other",
                                            verbose = FALSE,
                                            use_weights = TRUE,
-                                           ignore_top = FALSE,
+                                           ignore_self = TRUE,
                                            track_neighbors = TRUE,
                                            separate_other = TRUE,
                                            max_neighbors = 500) { #big change here. Other is considered separately for optimization
+  #ignore_self = TRUE
   if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
     print("train_coords:")
     print(nrow(train_coords))
@@ -1667,21 +1691,27 @@ weighted_knn_predict_with_conf <- function(train_coords,
 
   train_labels = as.character(train_labels)
   for (i in 1:nrow(test_coords)) {
+
+    self = rownames(test_coords)[i]
+
     if(verbose){
       print(paste("index:",i))
       print(test_coords[i,])
     }
     neighbors <- nn$nn.index[i, ]
     distances <- nn$nn.dist[i, ]
-    if(ignore_top){
-      #ignore a neighbor if it has identical V1 and V2
-      distances <- nn$nn.dist[i, ]
-      if(distances[1] == 0){
-        neighbors = neighbors[-1]
-        distances = distances[-1]
+    if(ignore_self){
+      nns = length(neighbors) 
+      neighbor_ids = rownames(train_coords)[neighbors]
+      neighbors <- neighbors[neighbor_ids != self]
+      distances <- distances[neighbor_ids != self]
+      if(length(neighbors) == nns){
+        print(paste("self was not dropped",paste(neighbor_ids,collapse=","),"i:",i,"self:",self))
+        print(paste(neighbor_ids,collapse=","))
+        stop()
       }
-
     }
+    
     
     distances = distances +  epsilon
     weights <- 1 / distances
@@ -1784,13 +1814,13 @@ weighted_knn_predict_with_conf <- function(train_coords,
       confidence <- pred_weight / total_weight
 
       # Confidence thresholding
-      if (!is.null(conf_threshold) && confidence < conf_threshold) {
-        preds[i] <- na_label
-        confs[i] <- confidence
-      } else {
-        preds[i] <- predicted_label
-        confs[i] <- confidence
-      }
+      #if (!is.null(conf_threshold) && confidence < conf_threshold) {
+      #  preds[i] <- na_label
+      #  confs[i] <- confidence
+      #} else {
+      preds[i] <- predicted_label
+      confs[i] <- confidence
+      #}
     }
 
     if(track_neighbors){
@@ -1862,7 +1892,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #' for reproducibility and for using the same UMAP model on different datasets.
 #' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
 #' @param other_df Data frame containing the predictions for samples in the "Other" class
-#' @param ignore_top Set to TRUE to avoid considering a nearest neighbor with
+#' @param ignore_self Set to TRUE to avoid considering a neighbor with the same ID
 #' distance = 0. This is usually only relevant when re-classifying labeled
 #' samples to estimate overall accuracy
 #' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")
@@ -1896,8 +1926,9 @@ predict_single_sample_DLBCLone <- function(
     projection,
     umap_out,
     best_params,
+    optimized_model = NULL,
     other_df,
-    ignore_top = FALSE,
+    ignore_self = FALSE,
     truth_classes = c("EZB","MCD","ST2","N1","BN2"),
     drop_unlabeled_from_training=TRUE,
     make_plot = TRUE,
@@ -1911,7 +1942,7 @@ predict_single_sample_DLBCLone <- function(
 ){
     set.seed(seed)
     
-    if(ignore_top){
+    if(ignore_self){
         # Allow overlapping samples: rename test duplicates temporarily
         dupes <- intersect(train_df$sample_id, test_df$sample_id)
         if(length(dupes) > 0){
@@ -1928,7 +1959,7 @@ predict_single_sample_DLBCLone <- function(
         if(length(dupes) > 0){
             warning(paste("Removing", length(dupes),
                           "overlapping samples from train_df to avoid duplicated rownames.\n",
-                          "Consider setting ignore_top = TRUE to avoid inaccurate high confidence, and to keep all training samples."))
+                          "Consider setting ignore_self = TRUE to avoid inaccurate high confidence, and to keep all training samples."))
             train_df <- train_df %>% filter(!sample_id %in% dupes)
             train_metadata <- train_metadata %>% filter(!sample_id %in% dupes)
         }
@@ -2019,7 +2050,7 @@ predict_single_sample_DLBCLone <- function(
         conf_threshold = best_params$threshold,
         na_label = "Other",
         use_weights = best_params$use_weights,
-        ignore_top = ignore_top
+        ignore_self = ignore_self
       )
 
       train_pred = rownames_to_column(train_pred, var = "sample_id")
@@ -2034,15 +2065,18 @@ predict_single_sample_DLBCLone <- function(
         conf_threshold = best_params$threshold,
         na_label = "Other",
         use_weights = best_params$use_weights,
-        ignore_top = ignore_top,
+        ignore_self = ignore_self,
         max_neighbors = max_neighbors
     )
 
     test_pred = rownames_to_column(test_pred, var = "sample_id")
-    test_pred = mutate(test_pred, DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
+    test_pred = mutate(test_pred, 
+                       DLBCLone_i = predicted_label,
+                       DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
                                                           "Other",
-                                                          predicted_label))
-    anno_umap = select(projection$df, sample_id, V1, V2)
+                                                          predicted_label)) 
+
+    anno_umap = select(test_projection$df, sample_id, V1, V2)
 
     anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
         mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
@@ -2064,15 +2098,28 @@ predict_single_sample_DLBCLone <- function(
     predictions_df = bind_rows(predictions_train_df %>% select(sample_id, V1, V2), 
                                predictions_test_df  %>% select(sample_id, V1, V2))
 
-    
+    if(!is.null(optimized_model)){
+      best_w_purity = optimized_model$best_w_purity
+      best_w_score_thresh = optimized_model$best_w_score_thresh
+      predictions_test_df = process_votes(
+        df=predictions_test_df,
+        group_labels=optimized_model$truth_classes,
+        k=optimized_model$best_params$k) 
+      print(head(predictions_test_df))
+      predictions_test_df = predictions_test_df %>%
+        mutate(DLBCLone_w = by_score,
+          DLBCLone_wo = ifelse(score_ratio >= best_w_purity | top_group_score > best_w_score_thresh, by_score, "Other"))
+
+    }
     to_return = list(
-        prediction = test_pred, 
+        prediction = predictions_test_df, 
         projection = projection$df,
         umap_input = umap_out$features, 
         model=umap_out$model,
         
         df = predictions_df,
-        anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id") 
+        anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id"),
+        anno_out = anno_out
       )
 
     return(to_return)

@@ -405,7 +405,7 @@ make_alluvial <- function(
     print("setting group order:")
   }
   
-  print(group_order)
+  #print(group_order)
 
   if(is.null(truth_column) && !is.null(optimized$truth_column)){
     truth_column = optimized$truth_column
@@ -416,7 +416,7 @@ make_alluvial <- function(
         pred = pred_column,
         per_group = accuracy_per_group)
   }
-  print("Done accuracyies")
+  #print("Done accuracyies")
   if(count_excluded_as_other){
     excluded_meta = optimized$sample_metadata_no_features %>%
       mutate(!!pred_column := "Other")
@@ -436,7 +436,7 @@ make_alluvial <- function(
       #!!new_name := predicted_label_optimized
       !!pred_name := !!sym(pred_column)
     ) 
-  print("Done renaming")
+  #print("Done renaming")
   xx <- xx %>%
     group_by(!!sym(truth_name), !!sym(pred_name)) %>%
     summarize(num = n(), .groups = "drop")
@@ -446,12 +446,12 @@ make_alluvial <- function(
     !!sym(truth_name) := group_order,
     !!sym(pred_name) := group_order
   )
-  print(colnames(grid))
-  print(colnames(xx))
+  #print(colnames(grid))
+  #print(colnames(xx))
   xx <- grid %>%
     left_join(xx, by = c(truth_name, pred_name)) %>%
     mutate(num = replace_na(num, 0))
-print("Done joining")
+    #print("Done joining")
   xx[[truth_name]] <- factor(xx[[truth_name]], levels = group_order)
   xx[[pred_name]] <- factor(xx[[pred_name]], levels = group_order)
 
