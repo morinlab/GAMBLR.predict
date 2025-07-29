@@ -1573,25 +1573,16 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             track_neighbors = TRUE)
   
   pred_with_truth_full = bind_cols(outs$df %>% select(sample_id, !!sym(truth_column)), pred)
-  #best_pred_w = 
-    #suppressMessages(
-  #    optimize_purity(
-  #            vote_df = pred_with_truth_full,
-  #            mode = "DLBCLone_w",
-  #            truth_column = truth_column, 
-  #            optimize_by = maximize,
-  #            all_classes = truth_classes,
-  #            k = best_k_w
-  #  )$predictions
-    #)
+
   if(verbose){
     print(paste("TOP score threshold:",best_w_score_thresh, "purity:", best_w_purity))  
   }
   best_pred_w = process_votes(df=pred_with_truth_full,
                               group_labels=truth_classes,
                               k=k) %>%
-
-      mutate(DLBCLone_w = ifelse(score_ratio >= best_w_purity | top_group_score > best_w_score_thresh, by_score, "Other")) 
+                mutate(DLBCLone_w = ifelse(score_ratio >= best_w_purity | top_group_score > best_w_score_thresh,
+                                           by_score,
+                                           "Other")) 
 
 
   if(optimize_for_other){
@@ -1612,9 +1603,9 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 best_params = best_params,
                 model=umap_out$model,
                 features=umap_out$features,
-                best_k_w = best_k_w,
-                best_w_purity = best_w_purity,
-                best_w_score_thresh = best_w_score_thresh,
+                k_DLBCLone_w = best_k_w,
+                purity_DLBCLone_w = best_w_purity,
+                score_thresh_DLBCLone_w = best_w_score_thresh,
                 df=outs$df, 
                 predictions=xx_d)
   if(!"Other" %in% truth_classes && n_other > 0){
@@ -1941,7 +1932,9 @@ predict_single_sample_DLBCLone <- function(
     max_neighbors = 500
 ){
     set.seed(seed)
-    
+    if(is.null(optimized_model)){
+      warning("optimized_model will become a required argument in the future. Please update your code accordingly")
+    }
     if(ignore_self){
         # Allow overlapping samples: rename test duplicates temporarily
         dupes <- intersect(train_df$sample_id, test_df$sample_id)
@@ -2034,12 +2027,7 @@ predict_single_sample_DLBCLone <- function(
     ) %>% 
         select(sample_id,V1,V2) %>%
         column_to_rownames("sample_id")
-    #test_coords = dplyr::filter(
-    #    projection$df,
-    #    sample_id %in% test_id
-    #) %>% 
-    #    select(sample_id,V1,V2) %>%
-    #    column_to_rownames("sample_id")
+
     predict_training = FALSE
     if(predict_training){
       train_pred = weighted_knn_predict_with_conf(
@@ -2070,11 +2058,20 @@ predict_single_sample_DLBCLone <- function(
     )
 
     test_pred = rownames_to_column(test_pred, var = "sample_id")
-    test_pred = mutate(test_pred, 
+    if(!is.null(optimized_model)){
+      test_pred = mutate(test_pred, 
                        DLBCLone_i = predicted_label,
                        DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
                                                           "Other",
                                                           predicted_label)) 
+
+    }else{
+      test_pred = mutate(test_pred, 
+                       DLBCLone_i = predicted_label,
+                       DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
+                                                          "Other",
+                                                          predicted_label)) 
+    }
 
     anno_umap = select(test_projection$df, sample_id, V1, V2)
 
@@ -2104,11 +2101,14 @@ predict_single_sample_DLBCLone <- function(
       predictions_test_df = process_votes(
         df=predictions_test_df,
         group_labels=optimized_model$truth_classes,
-        k=optimized_model$best_params$k) 
-      print(head(predictions_test_df))
+        k=optimized_model$k_DLBCLone_w) 
+
       predictions_test_df = predictions_test_df %>%
         mutate(DLBCLone_w = by_score,
-          DLBCLone_wo = ifelse(score_ratio >= best_w_purity | top_group_score > best_w_score_thresh, by_score, "Other"))
+          DLBCLone_wo = ifelse(score_ratio >= optimized_model$purity_DLBCLone_w | 
+                                  top_group_score > optimized_model$score_thresh_DLBCLone_w, 
+                                by_score, 
+                                "Other"))
 
     }
     to_return = list(
