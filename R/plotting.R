@@ -26,6 +26,14 @@ DLBCLone_summarize_model = function(base_name,optimized_model){
   if(!dir.exists(full_dir)){
     dir.create(full_dir)
   }
+  #save the predictions
+  pred_out = paste0(full_dir,"/DLBCLone_predictions_bulk.tsv")
+  print(paste("Saving predictions to",pred_out))
+  to_save = optimized_model$predictions %>% 
+    select(sample_id,!!sym(optimized_model$truth_column),DLBCLone_i:DLBCLone_wo,confidence:other_score,V1,V2)
+
+  write_tsv(to_save,
+                file = pred_out)
   umap1 = paste0(full_dir,"/UMAP_all.pdf")
   cairo_pdf(umap1,width=8,height=8)
   p = make_umap_scatterplot(optimized_model$df,colour_by = optimized_model$truth_column,
@@ -66,6 +74,7 @@ DLBCLone_summarize_model = function(base_name,optimized_model){
                cluster_rows=T
                )
   dev.off()
+
 
 }
 

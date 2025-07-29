@@ -1987,12 +1987,28 @@ predict_single_sample_DLBCLone <- function(
     train_labels = train_df_proj %>%
         pull(lymphgen) 
 
+    #Obtain UMAP coordinates for the test sample(s)
+    print(paste("num rows:",nrow(test_df)))
+    test_projection <- make_and_annotate_umap(
+        df = test_df,
+        umap_out = umap_out,
+        ret_model = FALSE,
+        seed = seed,
+        join_column = "sample_id",
+        na_vals = best_params$na_option
+      )
     test_coords = dplyr::filter(
-        projection$df,
+        test_projection$df,
         sample_id %in% test_id
     ) %>% 
         select(sample_id,V1,V2) %>%
         column_to_rownames("sample_id")
+    #test_coords = dplyr::filter(
+    #    projection$df,
+    #    sample_id %in% test_id
+    #) %>% 
+    #    select(sample_id,V1,V2) %>%
+    #    column_to_rownames("sample_id")
     predict_training = FALSE
     if(predict_training){
       train_pred = weighted_knn_predict_with_conf(
