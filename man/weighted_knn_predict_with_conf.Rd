@@ -14,7 +14,7 @@ weighted_knn_predict_with_conf(
   na_label = "Other",
   verbose = FALSE,
   use_weights = TRUE,
-  ignore_top = FALSE,
+  ignore_self = TRUE,
   track_neighbors = TRUE,
   separate_other = TRUE,
   max_neighbors = 500
@@ -46,7 +46,7 @@ Default: Other}
 \item{use_weights}{Set to FALSE for all neigbors to have equal weight when
 calculating the confidence}
 
-\item{ignore_top}{Set to TRUE to avoid considering a nearest neighbor with
+\item{ignore_self}{Set to TRUE to avoid considering a nearest neighbor with
 distance = 0. This is usually only relevant when re-classifying labeled
 samples to estimate overall accuracy}
 

@@ -11,9 +11,10 @@ predict_single_sample_DLBCLone(
   projection,
   umap_out,
   best_params,
+  optimized_model = NULL,
   other_df,
-  ignore_top = FALSE,
-  truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2"),
+  ignore_self = FALSE,
+  truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
   drop_unlabeled_from_training = TRUE,
   make_plot = TRUE,
   annotate_accuracy = FALSE,
@@ -39,7 +40,7 @@ for reproducibility and for using the same UMAP model on different datasets.}
 
 \item{other_df}{Data frame containing the predictions for samples in the "Other" class}
 
-\item{ignore_top}{Set to TRUE to avoid considering a nearest neighbor with
+\item{ignore_self}{Set to TRUE to avoid considering a neighbor with the same ID
 distance = 0. This is usually only relevant when re-classifying labeled
 samples to estimate overall accuracy}
 

@@ -1923,7 +1923,7 @@ predict_single_sample_DLBCLone <- function(
     optimized_model = NULL,
     other_df,
     ignore_self = FALSE,
-    truth_classes = c("EZB","MCD","ST2","N1","BN2"),
+    truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
     drop_unlabeled_from_training=TRUE,
     make_plot = TRUE,
     annotate_accuracy = FALSE,
@@ -2240,3 +2240,192 @@ DLBCLone_load_optimized <- function( # set sample_id to rownames
     predictions = predictions
   ))
 }
+
+#' Train a Gaussian Mixture Model for DLBCLone Classification
+#'
+#' Fits a supervised Gaussian mixture model (GMM) to UMAP-projected data for DLBCLone subtypes, excluding samples labeled "Other".
+#' Assigns class predictions and optionally reclassifies samples as "Other" based on probability and density thresholds.
+#'
+#' @param umap_out List. Output from \code{make_and_annotate_umap}, containing a data frame with UMAP coordinates and truth labels.
+#' @param probability_threshold Numeric. Minimum posterior probability required to assign a class (default: 0.5).
+#' @param density_max_threshold Numeric. Minimum maximum density required to assign a class (default: 0.05).
+#' @param cohort Optional character. Cohort label to annotate predictions.
+#'
+#' @details
+#' - Uses \code{MclustDA} to fit a supervised mixture model to the UMAP coordinates (V1, V2) and class labels.
+#' - Predicts class membership and computes per-class densities for each sample.
+#' - Samples with low maximum probability or density are reclassified as "Other".
+#' - Returns both raw and thresholded class assignments, respectively under the columns DLBCLone_g and DLBCLone_go.
+#'
+#' @return A list with:
+#'   \item{gaussian_mixture_model}{Fitted \code{MclustDA} model object}
+#'   \item{predictions}{Data frame with sample IDs, UMAP coordinates, true labels, predicted classes, and thresholded assignments}
+#'   \item{probability_threshold}{Probability threshold used for "Other" assignment}
+#'
+#' @examples
+#' result <- DLBCLone_train_mixture_model(umap_out)
+#' head(result$predictions)
+#' @imports mclust
+#'
+#' @export
+DLBCLone_train_mixture_model = function(umap_out,
+                                        probability_threshold = 0.5,
+                                        density_max_threshold = 0.05,
+                                        truth_column = "lymphgen",
+                                        cohort = NULL
+                                        ){
+  df  = umap_out$df %>% select(sample_id,!!sym(truth_column),V1,V2) %>% filter(!!sym(truth_column) != "Other")
+
+  #mont_test_proj = montreal_gambl_c_mu$df %>% select(sample_id,lymphgen,V1,V2)
+
+  df[[truth_column]] <- as.factor(df[[truth_column]])
+
+
+  #model without Others
+  gmm_supervised <- MclustDA(
+    df[, c("V1", "V2")],
+    class = df[[truth_column]],
+    modelType = "MclustDA"   # instead of "EDDA"
+  )
+df  = umap_out$df %>% select(sample_id,!!sym(truth_column),V1,V2) #%>% filter(!!sym(truth_column) != "Other")
+
+pred <- predict(gmm_supervised, newdata = df[, c("V1", "V2")])
+
+
+densities_list <- lapply(names(gmm_supervised$models), function(class_name) {
+  model <- gmm_supervised$models[[class_name]]
+  
+  modelName <- model$modelName
+  params <- model$parameters
+  
+  # Compute log-densities for each component
+  logdens <- cdens(
+    data = df[, c("V1", "V2")],
+    modelName = modelName,
+    parameters = params,
+    logarithm = TRUE
+  )
+  
+  # cdens can return a matrix (samples x components); sum components
+  class_density <- exp(logdens)           # back to raw densities
+  if (is.matrix(class_density)) {
+    class_density <- rowSums(class_density)
+  }
+  
+  class_density
+})
+
+densities <- do.call(cbind, densities_list)
+colnames(densities) <- names(gmm_supervised$models)
+
+max_density <- apply(densities, 1, max)
+max_prob <- apply(pred$z, 1, max)
+
+
+df$DLBCLone_g = pred$classification
+
+
+df$DLBCLone_go <- ifelse(
+  (max_prob < probability_threshold) | (max_density < density_max_threshold),
+  "Other",
+  as.character(pred$classification)
+)
+
+
+df$cohort = cohort
+to_return = list(gaussian_mixture_model = gmm_supervised,
+                 predictions = df,
+                 probability_threshold = probability_threshold
+                 )
+return(to_return)
+}
+
+#' Predict DLBCLone Class Membership Using a Trained Gaussian Mixture Model
+#'
+#' Applies a previously trained supervised Gaussian mixture model (GMM) to UMAP-projected data for DLBCLone subtypes.
+#' Assigns class predictions and optionally reclassifies samples as "Other" based on probability and density thresholds.
+#'
+#' @param model Fitted \code{MclustDA} model object, as returned by \code{DLBCLone_train_mixture_model}.
+#' @param umap_out List. Output from \code{make_and_annotate_umap}, containing a data frame with UMAP
+#' coordinates for the samples to be classified with the model. This must be projected using the same UMAP model
+#' that was generated using the training data.
+#' @param probability_threshold Numeric. Minimum posterior probability required to assign a class (default: 0.5).
+#' @param density_max_threshold Numeric. Minimum maximum density required to assign a class (default: 0.05).
+#' @param cohort Optional character. Cohort label to annotate predictions.
+#'
+#' @details
+#' - Uses the provided \code{MclustDA} model to predict class membership for each sample in the UMAP projection.
+#' - Computes per-class densities and posterior probabilities for each sample.
+#' - Samples with low maximum probability or density are reclassified as "Other".
+#' - Returns both raw and thresholded class assignments, respectively under the columns DLBCLone_g and DLBCLone_go.
+#'
+#' @return A list with:
+#'   \item{gaussian_mixture_model}{Fitted \code{MclustDA} model object}
+#'   \item{predictions}{Data frame with sample IDs, UMAP coordinates, predicted classes, and thresholded assignments}
+#'   \item{probability_threshold}{Probability threshold used for "Other" assignment}
+#'
+#' @examples
+#' # Predict on new UMAP data using a trained mixture model:
+#' result <- DLBCLone_predict_mixture_model(model, umap_out)
+#' head(result$predictions)
+#'
+#' @importFrom mclust MclustDA predict cdens
+#' @export
+DLBCLone_predict_mixture_model = function(model,
+                                          umap_out,
+                                        probability_threshold = 0.5,
+                                        density_max_threshold = 0.05,
+                                        cohort = NULL
+                                        ){
+  df  = umap_out$df %>% select(sample_id,V1,V2) 
+  gmm_supervised = model
+pred <- predict(gmm_supervised, newdata = df[, c("V1", "V2")])
+
+densities_list <- lapply(names(gmm_supervised$models), function(class_name) {
+  model <- gmm_supervised$models[[class_name]]
+  modelName <- model$modelName
+  params <- model$parameters
+  
+  # Compute log-densities for each component
+  logdens <- cdens(
+    data = df[, c("V1", "V2")],
+    modelName = modelName,
+    parameters = params,
+    logarithm = TRUE
+  )
+  
+  # cdens can return a matrix (samples x components); sum components
+  class_density <- exp(logdens)           # back to raw densities
+  if (is.matrix(class_density)) {
+    class_density <- rowSums(class_density)
+  }
+  
+  class_density
+})
+
+densities <- do.call(cbind, densities_list)
+colnames(densities) <- names(gmm_supervised$models)
+
+max_density <- apply(densities, 1, max)
+max_prob <- apply(pred$z, 1, max)
+
+
+df$DLBCLone_g = pred$classification
+
+
+df$DLBCLone_go <- ifelse(
+  (max_prob < probability_threshold) | (max_density < density_max_threshold),
+  "Other",
+  as.character(pred$classification)
+)
+
+
+df$cohort = cohort
+to_return = list(gaussian_mixture_model = gmm_supervised,
+                 predictions = df,
+                 probability_threshold = probability_threshold
+                 )
+return(to_return)
+}
+
+

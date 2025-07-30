@@ -10,7 +10,8 @@ optimize_outgroup(
   other_score,
   all_classes = c("MCD", "EZB", "BN2", "N1", "ST2", "Other"),
   maximize = "balanced_accuracy",
-  exclude_other_for_accuracy = FALSE
+  exclude_other_for_accuracy = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{
