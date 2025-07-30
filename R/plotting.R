@@ -150,9 +150,13 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
 
   #set up links connecting each neighbor to the sample's point
   links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
-  my_x = filter(single_sample_prediction_output$anno_df,
+  #my_x = filter(single_sample_prediction_output$anno_df,
+  #              sample_id==this_sample_id) %>% pull(V1)
+  #my_y = filter(single_sample_prediction_output$anno_df,
+  #              sample_id==this_sample_id) %>% pull(V2)
+  my_x = filter(single_sample_prediction_output$anno_out,
                 sample_id==this_sample_id) %>% pull(V1)
-  my_y = filter(single_sample_prediction_output$anno_df,
+  my_y = filter(single_sample_prediction_output$anno_out,
                 sample_id==this_sample_id) %>% pull(V2)
   if(prediction_in_title){
     title = paste(this_sample_id,

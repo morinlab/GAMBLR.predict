@@ -216,13 +216,13 @@ assemble_genetic_features <- function(these_samples_metadata,
       }
     }
   
-
+  include_hotspots = ifelse(!missing(hotspot_genes), TRUE, FALSE)
 
   status_with_silent = get_coding_ssm_status(
     these_samples_metadata = these_samples_metadata,
     # drop all coding variants from this one
     maf_data = maf_with_synon,
-    include_hotspots = TRUE,
+    include_hotspots = include_hotspots,
     genes_of_interest = hotspot_genes,
     include_silent_genes = synon_genes[synon_genes %in% genes],
     gene_symbols = genes
@@ -232,7 +232,7 @@ assemble_genetic_features <- function(these_samples_metadata,
   status_without_silent = get_coding_ssm_status(
     these_samples_metadata = these_samples_metadata,
     maf_data = maf_with_synon,
-    include_hotspots = TRUE,
+    include_hotspots = include_hotspots,
     genes_of_interest = hotspot_genes,
     include_silent = FALSE,
     gene_symbols = genes
@@ -1603,6 +1603,9 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 best_params = best_params,
                 model=umap_out$model,
                 features=umap_out$features,
+                k_DLBCLone_i = best_params$k,
+                threshold_DLBCLone_i = best_params$threshold,
+                theshold_outgroup_DLBCLone_i = best_params$threshold_outgroup,
                 k_DLBCLone_w = best_k_w,
                 purity_DLBCLone_w = best_w_purity,
                 score_thresh_DLBCLone_w = best_w_score_thresh,
@@ -2058,6 +2061,7 @@ predict_single_sample_DLBCLone <- function(
     )
 
     test_pred = rownames_to_column(test_pred, var = "sample_id")
+    #test_pred = bind_cols(test_pred, test_coords)
     if(!is.null(optimized_model)){
       test_pred = mutate(test_pred, 
                        DLBCLone_i = predicted_label,
@@ -2072,12 +2076,12 @@ predict_single_sample_DLBCLone <- function(
                                                           "Other",
                                                           predicted_label)) 
     }
-
-    anno_umap = select(test_projection$df, sample_id, V1, V2)
+  
+    anno_umap = select(test_projection$df, sample_id, V1, V2) 
 
     anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
         mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
-    
+
     anno_out = anno_out %>%
     mutate(
         V1 = as.numeric(V1),
@@ -2090,19 +2094,22 @@ predict_single_sample_DLBCLone <- function(
       predictions_train_df = filter(projection$df, sample_id %in% train_id) %>%
         select(sample_id, V1, V2) 
     }
-    
-    predictions_test_df = left_join(test_pred, projection$df, by = "sample_id")
+    #This had assumed that projection$df contains the test samples!
+    #predictions_test_df = left_join(test_pred, projection$df, by = "sample_id")
+    predictions_test_df = left_join(test_pred, test_projection$df, by = "sample_id") 
+
     predictions_df = bind_rows(predictions_train_df %>% select(sample_id, V1, V2), 
                                predictions_test_df  %>% select(sample_id, V1, V2))
 
     if(!is.null(optimized_model)){
       best_w_purity = optimized_model$best_w_purity
       best_w_score_thresh = optimized_model$best_w_score_thresh
+      
       predictions_test_df = process_votes(
         df=predictions_test_df,
         group_labels=optimized_model$truth_classes,
         k=optimized_model$k_DLBCLone_w) 
-
+      
       predictions_test_df = predictions_test_df %>%
         mutate(DLBCLone_w = by_score,
           DLBCLone_wo = ifelse(score_ratio >= optimized_model$purity_DLBCLone_w | 
@@ -2125,3 +2132,111 @@ predict_single_sample_DLBCLone <- function(
     return(to_return)
 }
 
+#' model storage for DLBCLone outputs
+#' 
+#' @param optimized_params List containing the optimized parameters from DLBCLone_optimize_params
+#' @param path Path to save the files
+#' @param name_prefix Prefix for the saved files, all files will be in path and start with name_prefix
+#'
+#' @returns saves the files to the specified path
+#' 
+#' @import uwot
+#' @import readr
+#' 
+#' @export
+#'
+#' @examples
+#' DLBCLone_save_optimized(
+#'  optimzied_params = optimized_params,
+#'  path="/save_optimized/trial_folder",
+#'  name_prefix="test_A"
+#' )
+#'
+
+DLBCLone_save_optimized = function( 
+    optimized_params=NULL,
+    path="models/",
+    name_prefix="test"
+){
+  # all files will be in path and start with name_prefix
+  prefix = paste0(path,"/",name_prefix)
+  
+  out_mut = paste0(prefix,"_mutation_status_df.tsv")
+  write_tsv(optimized_params$features,file=out_mut)
+
+  out_meta = paste0(prefix,"_metadata.tsv")
+  write_tsv(optimized_params$df,file=out_meta)
+  
+  out_param = paste0(prefix,"_optimized_best_params.rds")
+  saveRDS(optimized_params$best_params,file=out_param)
+  
+  out_model = paste0(prefix,"_optimized_uwot.rds")
+  save_uwot(optimized_params$model,file=out_model)
+
+  out_pred = paste0(prefix,"_optimized_pred.tsv")
+  write_tsv(optimized_params$predictions,file=out_pred)
+
+  out_classes = paste0(prefix,"_classes.txt")
+  write.table(optimized_params$truth_classes,file=out_classes,quote=F,row.names=F)
+}
+
+
+#' load previously saved DLBCLone model and parameters
+#' 
+#' @param path Path to open saved the files
+#' @param name_prefix Prefix of the saved files, all files will be in path and start with name_prefix
+#'
+#' @returns saves the files to the specified path
+#' 
+#' @import uwot
+#' @import readr
+#' @import dplyr
+#' 
+#' @export
+#'
+#' @examples
+#' load_optimized <- DLBCLone_load_optimized(
+#'   path="/save_optimized/trial_folder",
+#'   name_prefix="test_A"
+#' )
+#'
+
+DLBCLone_load_optimized <- function( # set sample_id to rownames
+  path="models/",
+  name_prefix="test"
+){
+  #all files will be in path and start with name_prefix
+  prefix = paste0(path,"/",name_prefix)
+  
+  load_mut = paste0(prefix,"_mutation_status_df.tsv")
+  load_meta = paste0(prefix,"_metadata.tsv")
+  load_classes = paste0(prefix,"_classes.txt")
+  load_param = paste0(prefix,"_optimized_best_params.rds")
+  load_model = paste0(prefix,"_optimized_uwot.rds")
+  load_pred = paste0(prefix,"_optimized_pred.tsv")
+
+  required_files <- c(load_mut, load_meta, load_classes, load_param, load_model, load_pred)
+
+  # Check existence
+  missing_files <- required_files[!file.exists(required_files)]
+  if (length(missing_files) > 0) {
+    stop("The following required files are missing:\n", paste(missing_files, collapse = "\n"))
+  }
+
+  mut_df <- read_tsv(load_mut)
+  metadata <- read_tsv(load_meta) %>%
+    mutate(lymphgen = as.factor(lymphgen))
+  classes <- read.table(load_classes)
+  best_params <- readRDS(load_param)
+  uwot_model <- load_uwot(load_model)
+  predictions <- read_tsv(load_pred)
+
+  return(list(
+    df = mut_df,
+    metadata = metadata,
+    truth_classes = classes,
+    best_params = best_params,
+    model = uwot_model,
+    predictions = predictions
+  ))
+}
