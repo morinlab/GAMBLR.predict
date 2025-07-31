@@ -59,8 +59,12 @@ DLBCLone_summarize_model = function(base_name,optimized_model){
   print(p)
   dev.off()
   cairo_pdf(paste0(full_dir,"/Oncoplot.pdf"),width=16,height=14)
-  mc = c("lymphgen","DLBCLone_wo","DLBCLone_io","DLBCLone_w","DLBCLone_i","DLBClass")
-  sc = c("DLBCLone_wo","DLBCLone_io","lymphgen","DLBClass","DLBCLone_w","DLBCLone_i","confidence")
+  mc = c("lymphgen","DLBCLone_wo","DLBCLone_io","DLBCLone_w","DLBCLone_i")
+  sc = c("DLBCLone_wo","DLBCLone_io","lymphgen","DLBCLone_w","DLBCLone_i","confidence")
+  if("DLBClass" %in% colnames(optimized_model$predictions)){
+    mc = c(mc,"DLBClass")
+    sc = c(sc,"DLBClass")
+  }
   mc = mc[mc %in% colnames(optimized_model$predictions)]
   sc = sc[sc %in% colnames(optimized_model$predictions)]
   prettyOncoplot(all_maf_with_s,

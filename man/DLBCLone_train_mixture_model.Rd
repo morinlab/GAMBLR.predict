@@ -8,6 +8,7 @@ DLBCLone_train_mixture_model(
   umap_out,
   probability_threshold = 0.5,
   density_max_threshold = 0.05,
+  truth_column = "lymphgen",
   cohort = NULL
 )
 }

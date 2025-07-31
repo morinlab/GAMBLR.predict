@@ -2265,17 +2265,19 @@ DLBCLone_load_optimized <- function( # set sample_id to rownames
 #' @examples
 #' result <- DLBCLone_train_mixture_model(umap_out)
 #' head(result$predictions)
-#' @imports mclust
+#' @import mclust
 #'
 #' @export
 DLBCLone_train_mixture_model = function(umap_out,
                                         probability_threshold = 0.5,
                                         density_max_threshold = 0.05,
                                         truth_column = "lymphgen",
-                                        cohort = NULL
+                                        cohort = NULL,
+                                        truth_classes = c("EZB","MCD","ST2","N1","BN2","Other")
                                         ){
+  
   df  = umap_out$df %>% select(sample_id,!!sym(truth_column),V1,V2) %>% filter(!!sym(truth_column) != "Other")
-
+  df = filter(df,!!sym(truth_column) %in% truth_classes)
   #mont_test_proj = montreal_gambl_c_mu$df %>% select(sample_id,lymphgen,V1,V2)
 
   df[[truth_column]] <- as.factor(df[[truth_column]])
@@ -2335,8 +2337,11 @@ df$DLBCLone_go <- ifelse(
 df$cohort = cohort
 to_return = list(gaussian_mixture_model = gmm_supervised,
                  predictions = df,
+                 truth_classes = truth_classes,
+                 truth_column = truth_column,
                  probability_threshold = probability_threshold
                  )
+
 return(to_return)
 }
 
@@ -2369,7 +2374,7 @@ return(to_return)
 #' result <- DLBCLone_predict_mixture_model(model, umap_out)
 #' head(result$predictions)
 #'
-#' @importFrom mclust MclustDA predict cdens
+#' @import mclust
 #' @export
 DLBCLone_predict_mixture_model = function(model,
                                           umap_out,
