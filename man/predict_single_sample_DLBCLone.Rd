@@ -8,10 +8,10 @@ predict_single_sample_DLBCLone(
   test_df,
   train_df,
   train_metadata,
-  optimize_params,
+  projection,
+  optimized_model = NULL,
   other_df,
-  ignore_top = TRUE,
-  truth_classes = c("EZB", "MCD", "ST2", "BN2"),
+  truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
   drop_unlabeled_from_training = TRUE,
   make_plot = TRUE,
   annotate_accuracy = FALSE,
@@ -30,14 +30,12 @@ predict_single_sample_DLBCLone(
 
 \item{train_metadata}{Metadata for training samples with truth labels in lymphgen column}
 
-\item{optimize_params}{list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a
+\item{projection}{UMAP projection of the training data. If not provided, the function will run UMAP on the combined data.}
+
+\item{optimized_model}{list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a
 previous, Data frame with the best parameters. useful for reproducibility.}
 
 \item{other_df}{Data frame containing the predictions for samples in the "Other" class}
-
-\item{ignore_top}{Set to TRUE to avoid considering a nearest neighbor with
-distance = 0. This is usually only relevant when re-classifying labeled
-samples to estimate overall accuracy}
 
 \item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")}
 
@@ -60,7 +58,7 @@ samples to estimate overall accuracy}
 \item{max_neighbors}{Maximum number of neighbors to consider for each sample. Default 500.}
 }
 \value{
-a list of data frames with the predictions, the UMAP input, the UMAP projected output, the model, and a ggplot object
+a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
 }
 \description{
 Predict class for a single sample without using umap_transform and plot result of classification
@@ -71,7 +69,8 @@ predict_single_sample_DLBCLone(
    test_df = test_df,
    train_df = train_df,
    train_metadata = train_metadata,
-   optimize_params = optimize_params,
+   umap_out = umap_out,
+   best_params = best_params
    predictions_df = predictions_df,
    annotate_accuracy = TRUE
 )

@@ -2,7 +2,7 @@
 % Please edit documentation in R/umap.R
 \name{DLBCLone_load_optimized}
 \alias{DLBCLone_load_optimized}
-\title{load DLBCLone_save_optimized's DLBCLone_optimize_params outputs}
+\title{load previously saved DLBCLone model and parameters}
 \usage{
 DLBCLone_load_optimized(path = "models/", name_prefix = "test")
 }
@@ -15,7 +15,7 @@ DLBCLone_load_optimized(path = "models/", name_prefix = "test")
 saves the files to the specified path
 }
 \description{
-load DLBCLone_save_optimized's DLBCLone_optimize_params outputs
+load previously saved DLBCLone model and parameters
 }
 \examples{
 load_optimized <- DLBCLone_load_optimized(

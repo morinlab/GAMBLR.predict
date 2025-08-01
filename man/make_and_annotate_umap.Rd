@@ -8,6 +8,9 @@ make_and_annotate_umap(
   df,
   metadata,
   umap_out,
+  core_features = NULL,
+  core_feature_multiplier = 1.5,
+  hidden_features = NULL,
   n_neighbors = 55,
   min_dist = 0,
   metric = "cosine",
@@ -21,7 +24,8 @@ make_and_annotate_umap(
   target_metric = "euclidean",
   target_weight = 0.5,
   calc_dispersion = FALSE,
-  algorithm = "tumap"
+  algorithm = "tumap",
+  make_plot = FALSE
 )
 }
 \arguments{
@@ -34,6 +38,16 @@ matches the row names of df. This data frame will be joined to the UMAP output.}
 will use this model to project the data instead of re-running UMAP. This is useful
 for reproducibility and for using the same UMAP model on different datasets.}
 
+\item{core_features}{A vector of column names in df that should be multiplied by
+core_feature_multiplier. These features are considered "core" and will be weighted
+more heavily in the UMAP embedding.}
+
+\item{core_feature_multiplier}{A numeric value that will be used to multiply the
+core features specified in core_features. Default is 1.5.}
+
+\item{hidden_features}{A vector of column names in df that should be dropped from the
+UMAP input. These features are considered "hidden" and will not be used in the UMAP embedding.}
+
 \item{n_neighbors}{Passed to UMAP2. The number of neighbors to consider when calculating the UMAP embedding.}
 
 \item{min_dist}{Passed to UMAP2. The minimum distance between points in the UMAP embedding.}
@@ -44,7 +58,7 @@ for reproducibility and for using the same UMAP model on different datasets.}
 
 \item{init}{Passed to UMAP2. The initialization method for the UMAP algorithm.}
 
-\item{ret_model}{If TRUE, the function will return the UMAP model object in addition to the UMAP coordinates.}
+\item{ret_model}{additional argument}
 
 \item{na_vals}{How to deal with NA values. Two options are "drop", which
 will remove all columns containing at least one NA or "to_zero", which sets
@@ -54,16 +68,17 @@ all NA to zero and leaves the column intact.}
 
 \item{seed}{Passed to UMAP2. The random seed for reproducibility.}
 
-\item{target_column}{If provided, the function will run a supervised UMAP
-using the specified target column from the metadata. If not provided, the function will run an unsupervised UMAP.}
+\item{target_column}{The column in the metadata that contains the target variable for classification.}
 
-\item{target_metric}{The distance metric to use for the supervised UMAP.
-Default: "euclidean". Passed to UMAP2.}
+\item{target_metric}{The distance metric to use for calculating distances to the target variable.}
 
-\item{target_weight}{The weight to assign to the target column in the supervised UMAP.
-Default: 0.5. Passed to UMAP2.}
+\item{target_weight}{The weight to assign to the target variable in the UMAP embedding. Default is 0.5.}
 
-\item{calc_dispersion}{If TRUE, calculates the pairwise dispersion of the UMAP coordinates}
+\item{calc_dispersion}{If TRUE, calculates the dispersion of the UMAP embedding.}
+
+\item{algorithm}{The UMAP algorithm to use. Default is "tumap", which uses the TUMAP implementation.}
+
+\item{make_plot}{If TRUE, creates a plot of the UMAP embedding.}
 }
 \description{
 Run UMAP and attach result to metadata

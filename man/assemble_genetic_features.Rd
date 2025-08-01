@@ -17,6 +17,8 @@ assemble_genetic_features(
   coding_value = 2,
   include_ashm = TRUE,
   annotated_sv,
+  include_GAMBL_sv = TRUE,
+  review_hotspots = TRUE,
   verbose = FALSE
 )
 }
@@ -33,7 +35,7 @@ assemble_genetic_features(
 
 \item{hotspot_genes}{Vector of hotspot genes.}
 
-\item{genome_build}{Genome build to use, default: "grch37".}
+\item{genome_build}{Genome build version (default: "grch37").}
 
 \item{sv_value}{Value to assign for SV presence (default: 3).}
 
@@ -41,9 +43,13 @@ assemble_genetic_features(
 
 \item{coding_value}{Value to assign for coding mutations (default: 2).}
 
-\item{include_ashm}{Logical if TRUE, includes aSHM counts in the feature matrix.}
+\item{include_ashm}{Logical; if TRUE, includes aSHM counts in the output matrix (default: TRUE).}
 
-\item{annotated_sv}{Annotated SV data frame.}
+\item{annotated_sv}{Data frame with annotated structural variants.}
+
+\item{include_GAMBL_sv}{Logical; if TRUE, includes GAMBL structural variants in the output matrix (default: TRUE).}
+
+\item{review_hotspots}{Logical; if TRUE, reviews hotspot genes (default: TRUE).}
 
 \item{verbose}{Defaults to FALSE}
 }

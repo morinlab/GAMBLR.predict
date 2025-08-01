@@ -10,7 +10,8 @@ optimize_outgroup(
   other_score,
   all_classes = c("MCD", "EZB", "BN2", "N1", "ST2", "Other"),
   maximize = "balanced_accuracy",
-  exclude_other_for_accuracy = FALSE
+  exclude_other_for_accuracy = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ Default: "balanced_accuracy"}
 \item{exclude_other_for_accuracy}{Set to TRUE to exclude the
 "Other" class from the 'lymphgen' column when calculating accuracy metrics
 (passed to DLBCLone_optimize_params). Default: FALSE}
+
+\item{verbose}{Set to TRUE to print additional information during the optimization process.}
 }
 \value{
 a list of data frames with the predictions and the UMAP input

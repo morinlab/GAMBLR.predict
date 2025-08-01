@@ -2,7 +2,7 @@
 % Please edit documentation in R/umap.R
 \name{DLBCLone_save_optimized}
 \alias{DLBCLone_save_optimized}
-\title{modal storage for DLBCLone outputs}
+\title{model storage for DLBCLone outputs}
 \usage{
 DLBCLone_save_optimized(
   optimized_params = NULL,
@@ -21,7 +21,7 @@ DLBCLone_save_optimized(
 saves the files to the specified path
 }
 \description{
-modal storage for DLBCLone outputs
+model storage for DLBCLone outputs
 }
 \examples{
 DLBCLone_save_optimized(

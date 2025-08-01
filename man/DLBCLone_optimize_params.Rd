@@ -9,10 +9,11 @@ DLBCLone_optimize_params(
   metadata_df,
   umap_out,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
+  truth_column = "lymphgen",
   optimize_for_other = FALSE,
   eval_group = NULL,
   min_k = 3,
-  max_k = 33,
+  max_k = 23,
   verbose = FALSE,
   seed = 12345,
   maximize = "balanced_accuracy",
@@ -33,6 +34,9 @@ instead of re-running UMAP.}
 
 \item{truth_classes}{Vector of classes to use for training and testing.
 Default: c("EZB","MCD","ST2","N1","BN2","Other")}
+
+\item{truth_column}{The column in the metadata_df that contains the true class labels.
+Default: "lymphgen".}
 
 \item{optimize_for_other}{Set to TRUE to optimize the threshold for
 classifying samples as "Other" based on the relative proportion of

@@ -11,8 +11,6 @@ summarize_all_ssm_status(
   synon_genes,
   silent_maf_df,
   separate_by_class_genes = NULL,
-  hotspot_genes = NULL,
-  annotated_sv,
   count_hits = FALSE
 )
 }
@@ -39,10 +37,6 @@ the output of get_coding_ssm and get_ssm_by_region or get_ssm_by_gene}
 \item{separate_by_class_genes}{(Optional) A character vector of
 gene symbols for which mutations should be separated by class
 (e.g., "Nonsense_Mutation", "Missense_Mutation").}
-
-\item{hotspot_genes}{Vector of hotspot genes.}
-
-\item{annotated_sv}{SV from provided annotated SV data frame}
 
 \item{count_hits}{Logical; if \code{TRUE}, counts the number of mutations
 per gene per sample. If \code{FALSE} (default), only presence/absence is recorded.}
