@@ -1922,7 +1922,7 @@ predict_single_sample_DLBCLone <- function(
   test_df,
   train_df,
   train_metadata,
-  projection,
+  #projection,
   optimized_model = NULL,
   other_df,
   truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
@@ -1952,28 +1952,28 @@ predict_single_sample_DLBCLone <- function(
     
   combined_df <- bind_rows(train_df, test_df)
     
-  if(missing(projection)){
-    projection <- make_and_annotate_umap(
-      df = combined_df,
-      umap_out = optimized_model,
-      ret_model = FALSE,
-      seed = seed,
-      join_column = "sample_id",
-      na_vals = optimized_model$best_params$na_option
-    )
-  }else{
-    message("Using provided projection for prediction")
-  }
+#  if(missing(projection)){
+ #   projection <- make_and_annotate_umap(
+  #    df = combined_df,
+   #   umap_out = optimized_model,
+    #  ret_model = FALSE,
+#      seed = seed,
+ #     join_column = "sample_id",
+  #    na_vals = optimized_model$best_params$na_option
+   # )
+#  }else{
+ #   message("Using provided projection for prediction")
+#  }
     
   train_coords = dplyr::filter(
-    projection$df,
+    optimized_model$df,
     sample_id %in% train_id
   ) %>% 
     select(sample_id,V1,V2) %>%
     column_to_rownames("sample_id")
 
   train_df_proj = dplyr::filter(
-    projection$df,
+    optimized_model$df,
     sample_id %in% train_id
   ) %>% 
   select(sample_id,V1,V2) %>%
@@ -1989,18 +1989,18 @@ predict_single_sample_DLBCLone <- function(
   train_labels = train_df_proj %>%
     pull(lymphgen) 
 
-  #Obtain UMAP coordinates for the test sample(s)
-  print(paste("num rows:",nrow(test_df)))
-  test_projection <- make_and_annotate_umap(
-    df = test_df,
-    umap_out = optimized_model,
-    ret_model = FALSE,
-    seed = seed,
-    join_column = "sample_id",
-    na_vals = optimized_model$best_params$na_option
-  )
+#  #Obtain UMAP coordinates for the test sample(s)
+ # print(paste("num rows:",nrow(test_df)))
+#  test_projection <- make_and_annotate_umap(
+ #   df = test_df,
+  #  umap_out = optimized_model,
+   # ret_model = FALSE,
+#    seed = seed,
+ #   join_column = "sample_id",
+  #  na_vals = optimized_model$best_params$na_option
+#  )
   test_coords = dplyr::filter(
-    test_projection$df,
+    optimized_model$df,
     sample_id %in% test_id
   ) %>% 
     select(sample_id,V1,V2) %>%
@@ -2057,7 +2057,7 @@ predict_single_sample_DLBCLone <- function(
     ) 
   }
   
-  anno_umap = select(test_projection$df, sample_id, V1, V2) 
+  anno_umap = select(optimized_model$df, sample_id, V1, V2) %>% filter(sample_id %in% test_id) 
 
   anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
     mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
@@ -2069,14 +2069,14 @@ predict_single_sample_DLBCLone <- function(
       label = as.character(label)
   )
   if(predict_training){
-    predictions_train_df = left_join(train_pred, projection$df, by = "sample_id") 
+    predictions_train_df = left_join(train_pred, optimized_model$df, by = "sample_id") 
   }else{
-    predictions_train_df = filter(projection$df, sample_id %in% train_id) %>%
+    predictions_train_df = filter(optimized_model$df, sample_id %in% train_id) %>%
       select(sample_id, V1, V2) 
   }
   #This had assumed that projection$df contains the test samples!
   #predictions_test_df = left_join(test_pred, projection$df, by = "sample_id")
-  predictions_test_df = left_join(test_pred, test_projection$df, by = "sample_id") 
+  predictions_test_df = left_join(test_pred, optimized_model$df, by = "sample_id") 
 
   predictions_df = bind_rows(
     predictions_train_df %>% select(sample_id, V1, V2), 
@@ -2105,7 +2105,7 @@ predict_single_sample_DLBCLone <- function(
     }
     to_return = list(
       prediction = predictions_test_df, 
-      projection = projection$df,
+      projection = optimized_model$df,
       umap_input = optimized_model$features, 
       model=optimized_model$model,
       df = predictions_df,

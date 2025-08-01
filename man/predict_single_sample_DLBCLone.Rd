@@ -8,7 +8,6 @@ predict_single_sample_DLBCLone(
   test_df,
   train_df,
   train_metadata,
-  projection,
   optimized_model = NULL,
   other_df,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
@@ -29,8 +28,6 @@ predict_single_sample_DLBCLone(
 \item{train_df}{Data frame containing the mutation status of the training samples}
 
 \item{train_metadata}{Metadata for training samples with truth labels in lymphgen column}
-
-\item{projection}{UMAP projection of the training data. If not provided, the function will run UMAP on the combined data.}
 
 \item{optimized_model}{list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a
 previous, Data frame with the best parameters. useful for reproducibility.}
@@ -56,6 +53,8 @@ previous, Data frame with the best parameters. useful for reproducibility.}
 \item{seed}{Random seed for reproducibility}
 
 \item{max_neighbors}{Maximum number of neighbors to consider for each sample. Default 500.}
+
+\item{projection}{UMAP projection of the training data. If not provided, the function will run UMAP on the combined data.}
 }
 \value{
 a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
