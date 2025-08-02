@@ -305,11 +305,11 @@ report_accuracy = function(predictions,
                           per_group = FALSE,
                           metric = "accuracy",
                           verbose = FALSE){
-  if("BN2" %in% predictions[[pred]]){
-    truth = "lymphgen"
-  }
+  #if("BN2" %in% predictions[[pred]]){
+  #  truth = "lymphgen"
+  #}
   all_classes = unique(predictions[[truth]])
-  no_other_pred = filter(predictions,lymphgen != "Other")
+  no_other_pred = filter(predictions, !!sym(truth) != "Other")
   if(verbose){
     print(paste(nrow(no_other_pred),"non-Other samples were assigned a label"))
     print(paste(filter(no_other_pred,!!sym(pred) !="Other") %>% nrow(),"non-Other samples were assigned to a non-Other class"))
@@ -408,7 +408,9 @@ make_alluvial <- function(
     label_line_flip_colour=TRUE,
     label_box_flip_colour=TRUE,
     concordant_label_relative_pos = 0.5, #we only handle 0, 0.5 and 1
-    verbose = FALSE
+    verbose = FALSE,
+    custom_colours = NULL,
+    hide_legend = TRUE
 ) {
   predictions = optimized$predictions
   if(is.null(group_order)){
@@ -476,7 +478,9 @@ make_alluvial <- function(
     mutate(percent=100*concordant/total)
 
   pc_conc = filter(xy,match==TRUE) %>% pull(percent) %>% round(.,1)
-  title = paste0(title," Concordance (non-Other): ",pc_conc,"%")
+  if("Other" %in% group_order){
+    title = paste0(title," Concordance (non-Other): ",pc_conc,"%")
+  }
   bacc = round(accuracies$mean_balanced_accuracy,4)
   
   # One side sort
@@ -642,7 +646,20 @@ if(add_percent){
       mutate(!!sym(truth_name) := "Other",!!sym(pred_name) := "Other")
   }
 
-  
+  if(!is.null(custom_colours)){
+    custom_colours = custom_colours[unique(names(custom_colours))]
+    custom_colours = custom_colours[names(custom_colours) %in% group_order]
+    if(length(custom_colours) < length(group_order)){
+      missing = group_order[!group_order %in% names(custom_colours)]
+      print(paste("Missing colours for:",paste(missing,collapse=",")))
+      stop("No custom colour provided for some of groups in group_order")
+    }
+    group_colours = custom_colours
+    print(custom_colours)
+    print(group_colours)
+  }else{
+    group_colours = get_gambl_colours()
+  }
   pp = ggplot(xx, aes(
     axis1 = !!sym(truth_name),
     axis2 = !!sym(pred_name),
@@ -705,17 +722,20 @@ if(add_percent){
       
     ) +
     scale_x_discrete(limits = c(truth_name, pred_name), expand = c(.1, .05)) +
-    scale_fill_manual(values = get_gambl_colours()) +
-    scale_colour_manual(values = get_gambl_colours(),
+    scale_fill_manual(values = group_colours) +
+    scale_colour_manual(values = group_colours,
                         aesthetics = c("color", "segment.color")) +
     labs(
       y = "Number of Samples",
       x = NULL
     ) +
     theme_minimal() +
-    theme(legend.position = "none") + 
     ggtitle(title)
-  
+  if(hide_legend){
+    pp = pp +
+      theme(legend.position = "none") 
+   
+  }
   if(add_unclass_rate){
     pp = pp + 
       geom_label_repel(data=left_other,
