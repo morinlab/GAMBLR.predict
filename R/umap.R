@@ -1183,6 +1183,340 @@ optimize_purity <- function(optimized_model_object,
   return(optimized_model_object)
 }
 
+#' Run DLBCLone KNN Classification
+#' @export
+DLBCLone_KNN = function(df,
+                        metadata,
+                        core_features = NULL,
+                        core_feature_multiplier = 1.5,
+                        min_k=5,
+                        max_k=60,
+                        truth_column="lymphgen",
+                        truth_classes=c("EZB","BN2","ST2","MCD","N1","Other"),
+                        predict_unlabeled = FALSE,
+                        plot_samples = NULL,
+                        DLBCLone_KNN_out = NULL){
+  exclude_df = df[!row.names(df) %in% metadata$sample_id,]
+  df = df[rownames(df) %in% metadata$sample_id,]
+    
+  df = df[rowSums(df)>0,]
+  exclude_df = exclude_df[rowSums(exclude_df)>0,]
+  if(is.null(DLBCLone_KNN_out)){
+    
+    print(dim(df))
+    overall_best_acc_k = 0
+    overall_best_acc = 0
+    overall_best_thresh = 0
+    best_pred = NULL
+    metadata = metadata %>%
+        filter(sample_id %in% rownames(df)) %>%
+        select(sample_id,!!sym(truth_column))
+
+
+      
+    # Run UMAP to get nearest neighbors
+    message("Finding all nearest neighbors up to k=",max_k+1," using cosine distance")
+    nn_u = umap(df,n_neighbors = max_k + 1,ret_nn = T,metric = "cosine")
+
+    fkn_ids = nn_u$nn$cosine$idx
+    fkn_dists = nn_u$nn$cosine$dist
+
+
+    rownames(fkn_dists) = rownames(df)
+    rownames(fkn_ids) = rownames(df)
+    epsilon = 0.01
+    fkn_dists = as.data.frame(fkn_dists) %>% select(-1)
+    fkn_weighted = 1/(fkn_dists + epsilon)
+    
+    #drop self
+    
+    fkn_ids = as.data.frame(fkn_ids) %>% select(-1)
+    lg_index = metadata$lymphgen
+    
+    names(lg_index) = metadata$sample_id
+
+    fkn_ids_named = apply(fkn_ids,2,function(x){rownames(fkn_ids)[x]})
+    rownames(fkn_ids_named) = rownames(fkn_ids)
+    fkn_ids_lg = apply(fkn_ids_named,2,function(x){lg_index[x]})
+    rownames(fkn_ids_lg) = rownames(fkn_ids)
+    fkn_ids_lg = as.data.frame(fkn_ids_lg)
+    fkn_ids_long = rownames_to_column(fkn_ids_lg,"sample_id") %>%
+      pivot_longer(-sample_id,names_to="column",values_to="class")
+    #print(head(fkn_ids_long))
+    fkn_weighted_long = rownames_to_column(fkn_weighted,"sample_id") %>%
+      pivot_longer(-sample_id,names_to="column",values_to="vote")
+    #print(head(fkn_weighted_long))
+    fkn_votes = left_join(fkn_ids_long,fkn_weighted_long,by=c("sample_id","column"))
+    for(k in seq(max_k,min_k,by=-5)){
+      message(paste0("Running DLBCLone KNN with k=",k))
+      
+
+      fkn_counted <- fkn_ids_long %>%
+        group_by(sample_id) %>%
+        slice_head(n = k) %>%
+        summarize(
+          NN_EZB   = sum(class == "EZB"),
+          NN_BN2   = sum(class == "BN2"),
+          NN_ST2   = sum(class == "ST2"),
+          NN_MCD   = sum(class == "MCD"),
+          NN_N1    = sum(class == "N1"),
+          NN_Other = sum(class == "Other"),
+          .groups = "drop"
+        ) %>%
+        mutate(class_total = NN_EZB + NN_BN2 + NN_ST2 + NN_MCD + NN_N1) %>%
+        rowwise() %>%
+        mutate(
+          idx = which.max(c_across(NN_EZB:NN_N1)),
+          top_class = c("EZB","BN2","ST2","MCD","N1")[idx],
+          top_class_count = c_across(NN_EZB:NN_N1)[idx]
+        ) %>%
+        select(-idx) %>%
+        ungroup()
+      
+      fkn_weighted = fkn_votes %>%
+        group_by(sample_id) %>% 
+        slice_head(n = k) %>%
+        ungroup() %>%
+        group_by(sample_id,class) %>%
+        summarize(
+          weighted_vote = sum(vote)
+        ) %>%
+        pivot_wider(id_cols="sample_id",names_from="class",values_from="weighted_vote",values_fill = 0) %>%
+        select(sample_id,EZB,BN2,ST2,MCD,N1,Other) %>%
+        rowwise() %>%
+        mutate(
+          idx = which.max(c_across(EZB:N1)),
+          top_class = c("EZB","BN2","ST2","MCD","N1")[idx],
+          top_class_count = c_across(EZB:N1)[idx]
+        ) %>%
+        select(-idx) %>%
+        ungroup() %>%
+        rename(Other_score=Other,
+              by_score = top_class,
+              top_group_score = top_class_count) %>%
+        mutate(score_ratio = top_group_score/Other_score)
+
+
+
+      fkn_counted = left_join(fkn_counted,select(metadata,sample_id,!!sym(truth_column)),by="sample_id")
+      fkn_weighted = left_join(fkn_weighted,select(metadata,sample_id,!!sym(truth_column)),by="sample_id")
+      #print(tail(fkn_weighted))
+      score_thresh = 1.5 * k
+
+
+        # basic optimization to pick best purity threshold
+        other_vote_multiplier = 2
+        score_purity_requirement = 1
+        best = 0
+        best_thresh = 0
+        for(purity_threshold in seq(3, 0, -0.05)){
+          updated_votes <- fkn_weighted %>%
+            mutate(by_score_opt = ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
+          updated_votes_no = filter(updated_votes,lymphgen!="Other")
+          acc = report_accuracy(updated_votes,pred = "by_score_opt")
+          if(acc$mean_balanced_accuracy>best){
+            best = acc$mean_balanced_accuracy
+            best_thresh = purity_threshold
+          }
+        }
+        if(best > overall_best_acc){
+          overall_best_acc = best
+          overall_best_thresh = best_thresh
+          overall_best_acc_k = k
+          #message(paste0("K",k," Best purity threshold: ", best_thresh, " with accuracy: ", best))
+          updated_votes <- fkn_weighted %>%
+            mutate(DLBCLone_k = by_score) %>%
+            mutate(DLBCLone_ko = ifelse(score_ratio >= best_thresh | top_group_score > score_thresh, by_score, "Other"))
+          best_pred = updated_votes
+          message(paste0("New best accuracy: ", round(best, 3), " at k=", k, " with purity threshold: ", round(best_thresh, 2)))
+        }else{
+          print(paste("best accuracy did not improve at k=",k," with purity threshold: ", round(best_thresh, 2), " accuracy: ", round(best, 3)))
+        }
+      }  #end for loop
+    }else{
+      message("Using DLBCLone_KNN_out provided, skipping KNN run")
+      best_pred = DLBCLone_KNN_out$predictions
+      optimized_layout = DLBCLone_KNN_out$optimized_layout
+      overall_best_acc_k = DLBCLone_KNN_out$DLBCLone_k_best_k
+      overall_best_acc = DLBCLone_KNN_out$DLBCLone_k_accuracy
+      overall_best_thresh = DLBCLone_KNN_out$DLBCLone_k_purity_threshold
+    }
+  unlabeled_predictions = data.frame()
+  if(predict_unlabeled){
+
+    # Predict labels for samples that weren't in the metadata/training data
+    #for(sample in rownames(exclude_df)){
+    message("Finding all nearest neighbors up to k=",overall_best_acc_k+1, " using cosine distance")
+    #df_merge = bind_rows(df,exclude_df[sample,])
+    df_merge = bind_rows(df,exclude_df)
+    nn_u = umap(df_merge,n_neighbors = overall_best_acc_k + 1,ret_nn = T,metric = "cosine")
+
+    fkn_ids = nn_u$nn$cosine$idx
+    fkn_dists = nn_u$nn$cosine$dist
+
+
+    rownames(fkn_dists) = rownames(df_merge)
+    rownames(fkn_ids) = rownames(df_merge)
+
+    epsilon = 0.01
+    fkn_dists = as.data.frame(fkn_dists) %>% select(-1)
+    fkn_weighted = 1/(fkn_dists + epsilon)
+    
+    #drop self
+
+    fkn_ids = as.data.frame(fkn_ids) %>% select(-1)
+    lg_index = metadata$lymphgen
+    
+    names(lg_index) = metadata$sample_id
+
+    fkn_ids_named = apply(fkn_ids,2,function(x){rownames(fkn_ids)[x]})
+    rownames(fkn_ids_named) = rownames(fkn_ids)
+    fkn_ids_lg = apply(fkn_ids_named,2,function(x){lg_index[x]})
+    rownames(fkn_ids_lg) = rownames(fkn_ids)
+    fkn_ids_lg = as.data.frame(fkn_ids_lg)
+    
+
+    fkn_ids_long = rownames_to_column(fkn_ids_lg,"sample_id") %>%
+      pivot_longer(-sample_id,names_to="column",values_to="class")
+    #print(head(fkn_ids_long))
+    fkn_weighted_long = rownames_to_column(fkn_weighted,"sample_id") %>%
+      pivot_longer(-sample_id,names_to="column",values_to="vote")
+    #print(head(fkn_weighted_long))
+    fkn_votes = left_join(fkn_ids_long,fkn_weighted_long,by=c("sample_id","column"))
+
+    fkn_weighted = fkn_votes %>%
+    group_by(sample_id) %>% 
+    #filter(sample_id == sample) %>%
+    slice_head(n = k) %>%
+    ungroup() %>%
+    group_by(sample_id,class) %>%
+    summarize(
+      weighted_vote = sum(vote)
+    ) %>%
+    pivot_wider(id_cols="sample_id",names_from="class",values_from="weighted_vote",values_fill = 0) %>%
+    select(sample_id,EZB,BN2,ST2,MCD,N1,Other) %>%
+    rowwise() %>%
+    mutate(
+      idx = which.max(c_across(EZB:N1)),
+      top_class = c("EZB","BN2","ST2","MCD","N1")[idx],
+      top_class_count = c_across(EZB:N1)[idx]
+    ) %>%
+    select(-idx) %>%
+    ungroup() %>%
+    rename(Other_score=Other,
+          by_score = top_class,
+          top_group_score = top_class_count) %>%
+    mutate(score_ratio = top_group_score/Other_score) %>%
+      filter(sample_id %in% rownames(exclude_df))
+
+
+
+  fkn_counted = left_join(fkn_counted,select(metadata,sample_id,!!sym(truth_column)),by="sample_id")
+  fkn_weighted = left_join(fkn_weighted,select(metadata,sample_id,!!sym(truth_column)),by="sample_id")
+  #print(tail(fkn_weighted))
+  score_thresh = 1.5 * k
+  #print(head(fkn_weighted))
+  unlabeled_predictions <- fkn_weighted %>%
+        #mutate(sample_id = sample) %>%
+        mutate(DLBCLone_k = by_score) %>%
+        mutate(DLBCLone_ko = ifelse(score_ratio >= overall_best_thresh | top_group_score > score_thresh, by_score, "Other"))
+      #unlabeled_predictions = bind_rows(unlabeled_predictions,unlabeled_votes)
+      
+    #}
+  }
+  to_return = list(predictions=best_pred,
+                DLBCLone_k_best_k=overall_best_acc_k,
+                DLBCLone_k_purity_threshold=best_thresh,
+                DLBCLone_k_accuracy=best,
+                truth_classes= truth_classes,
+                truth_column=truth_column)
+  if(predict_unlabeled){
+    if(is.null(DLBCLone_KNN_out)){
+      message("Optimizing graph layout for visualization and KNN classification")
+      df_show = bind_rows(df,exclude_df)
+      sim_graph <- similarity_graph(df_show, n_neighbors = 100, metric="cosine")  
+      optimized = optimize_graph_layout(sim_graph, X=df_show)
+      rownames(optimized) = rownames(df_show)
+      optimized = as.data.frame(optimized) %>%
+        rownames_to_column("sample_id") 
+
+      optimized = optimized  %>%
+        left_join(metadata,by="sample_id") %>%
+        left_join(bind_rows(select(best_pred,-lymphgen),select(unlabeled_predictions,-lymphgen)),by="sample_id") %>%
+        mutate(lymphgen = ifelse(is.na(lymphgen),DLBCLone_ko,lymphgen)) 
+      #print(head(optimized))
+      #optimized = optimized %>%
+      #  left_join(select(unlabeled_predictions,-lymphgen),by="sample_id") %>%
+        
+    }else{
+      message("Using DLBCLone_KNN_out provided, skipping graph layout optimization")
+      optimized = DLBCLone_KNN_out$optimized_layout
+    }
+    to_return$unlabeled_predictions = unlabeled_predictions
+  }else{
+    if(is.null(DLBCLone_KNN_out)){
+      message("Optimizing graph layout for visualization and KNN classification")
+      sim_graph <- similarity_graph(df, n_neighbors = 100, metric="cosine")  
+      optimized = optimize_graph_layout(sim_graph, X=df)
+
+      rownames(optimized) = rownames(df)
+      
+      optimized = as.data.frame(optimized) %>%
+        rownames_to_column("sample_id") 
+
+      optimized = optimized  %>%
+        left_join(metadata,by="sample_id") %>%
+        left_join(select(best_pred,-lymphgen),by="sample_id") %>%
+        mutate(lymphgen = ifelse(is.na(lymphgen),DLBCLone_ko,lymphgen)) 
+    } else{
+      message("Using DLBCLone_KNN_out provided, skipping graph layout optimization")
+      optimized = DLBCLone_KNN_out$optimized_layout
+    }
+  }
+  #print(head(optimized))
+  optimized_label = mutate(optimized,label = paste(sample_id, "\nLymphgen:\n",lymphgen,"DLBCLone_ko:\n", DLBCLone_ko))
+
+    background_points = optimized[, c("V1", "V2")]
+label_points = filter(optimized_label, sample_id %in% plot_samples)
+
+# Combine for repel logic
+repel_df = bind_rows(
+  mutate(background_points, label = NA_character_),  # no labels, just repulsion targets
+  label_points                                         # actual labeled points
+)
+label_points = filter(optimized_label, sample_id %in% plot_samples) %>%
+  mutate(
+    label_x = V1 + 0.75,
+    label_y = V2 - 0.75
+  )
+
+
+p = ggplot(optimized, aes(x = V1, y = V2, color = lymphgen)) +
+  geom_point(data = filter(optimized, lymphgen == "Other")) +
+  geom_point(data = filter(optimized, lymphgen != "Other")) + 
+  scale_color_manual(values = get_gambl_colours()) 
+p = p + 
+  geom_segment(data = label_points,
+               aes(x = V1, y = V2, xend = label_x, yend = label_y),
+               arrow = arrow(length = unit(0.02, "npc")),
+               color = "black") +
+
+  geom_label(data = label_points,
+             aes(x = label_x, y = label_y, label = label),
+             size = 3,
+             fill = "white",
+             label.size = 0.25)
+  labs(title = "DLBCLone KNN Classification with Unlabeled Predictions") +
+  theme_minimal() +
+  
+  guides(color = guide_legend(title = "Predicted Class"))
+    to_return$plot = p
+  
+  to_return$optimized_layout = optimized
+      print(p)
+
+  return(to_return)
+}
 
 #' Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 #'
@@ -1669,7 +2003,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
                                            track_neighbors = TRUE,
                                            separate_other = TRUE,
                                            max_neighbors = 500) { #big change here. Other is considered separately for optimization
-  #ignore_self = TRUE
+  #ignore_self = TRUE #this should just always be enabled
   if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
     print("train_coords:")
     print(nrow(train_coords))
@@ -1697,13 +2031,15 @@ weighted_knn_predict_with_conf <- function(train_coords,
     if(ignore_self){
       nns = length(neighbors) 
       neighbor_ids = rownames(train_coords)[neighbors]
+      
       neighbors <- neighbors[neighbor_ids != self]
       distances <- distances[neighbor_ids != self]
-      if(length(neighbors) == nns){
-        print(paste("self was not dropped",paste(neighbor_ids,collapse=","),"i:",i,"self:",self))
-        print(paste(neighbor_ids,collapse=","))
-        stop()
-      }
+  print(paste(self,nns,length(neighbors)))
+      #if(length(neighbors) == nns){
+      #  print(paste("self was not dropped",paste(neighbor_ids,collapse=","),"i:",i,"self:",self))
+      #  print(paste(neighbor_ids,collapse=","))
+      #  stop()
+      #}
     }
     
     
@@ -1953,11 +2289,11 @@ predict_single_sample_DLBCLone <- function(
         # Drop overlaps to prevent rowname collisions
         dupes <- intersect(train_df$sample_id, test_df$sample_id)
         if(length(dupes) > 0){
-            warning(paste("Removing", length(dupes),
-                          "overlapping samples from train_df to avoid duplicated rownames.\n",
-                          "Consider setting ignore_self = TRUE to avoid inaccurate high confidence, and to keep all training samples."))
-            train_df <- train_df %>% filter(!sample_id %in% dupes)
-            train_metadata <- train_metadata %>% filter(!sample_id %in% dupes)
+            #warning(paste("Removing", length(dupes),
+            #              "overlapping samples from train_df to avoid duplicated rownames.\n",
+            #              "Consider setting ignore_self = TRUE to avoid inaccurate high confidence, and to keep all training samples."))
+            #train_df <- train_df %>% filter(!sample_id %in% dupes)
+            #train_metadata <- train_metadata %>% filter(!sample_id %in% dupes)
         }
     }
 
@@ -1997,7 +2333,8 @@ predict_single_sample_DLBCLone <- function(
     ) %>% 
         select(sample_id,V1,V2) %>%
         column_to_rownames("sample_id")
-
+    print("TRAIN:")
+    print(dim(train_coords))
     train_df_proj = dplyr::filter(
         projection$df,
         sample_id %in% train_id

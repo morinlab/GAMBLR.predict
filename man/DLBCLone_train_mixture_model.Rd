@@ -9,7 +9,8 @@ DLBCLone_train_mixture_model(
   probability_threshold = 0.5,
   density_max_threshold = 0.05,
   truth_column = "lymphgen",
-  cohort = NULL
+  cohort = NULL,
+  truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other")
 )
 }
 \arguments{

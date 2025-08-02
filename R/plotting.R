@@ -226,6 +226,9 @@ make_umap_scatterplot = function(df,
   xmax = max(df$V1,na.rm=TRUE)
   ymin = min(df$V2,na.rm=TRUE)
   ymax = max(df$V2,na.rm=TRUE)
+  if("cohort" %in% colnames(df)){
+    df$cohort = "Unknown"
+  }
   if(!missing(custom_colours)){
     cols = custom_colours
   }else{
