@@ -2,7 +2,7 @@
 % Please edit documentation in R/plotting.R
 \name{report_accuracy}
 \alias{report_accuracy}
-\title{Report Classification Accuracy and Per-Class Metrics}
+\title{Calculate Classification Accuracy and Per-Class Metrics based on Predictions}
 \usage{
 report_accuracy(
   predictions,
@@ -27,7 +27,7 @@ report_accuracy(
 \value{
 A list with:
 \item{no_other}{Accuracy excluding samples assigned to "Other"}
-\item{per_class}{Balanced accuracy per class}
+\item{per_class}{Average of balanced accuracy values for each class}
 \item{per_class_sensitivity}{Sensitivity per class}
 \item{overall}{Overall accuracy including all samples}
 }

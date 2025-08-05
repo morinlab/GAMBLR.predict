@@ -27,17 +27,22 @@ make_alluvial(
   label_line_flip_colour = TRUE,
   label_box_flip_colour = TRUE,
   concordant_label_relative_pos = 0.5,
-  verbose = FALSE
+  verbose = FALSE,
+  custom_colours = NULL,
+  hide_legend = TRUE
 )
 }
 \arguments{
-\item{optimized}{List containing prediction results and metadata, typically output from a DLBCLone optimization function.}
+\item{optimized}{List containing prediction results and metadata,
+typically output from a DLBCLone optimization function.}
 
-\item{count_excluded_as_other}{Logical; if TRUE, samples excluded due to missing features are counted as "Other" in the plot.}
+\item{count_excluded_as_other}{Logical; if TRUE, samples excluded due
+to missing features are counted as "Other" in the plot.}
 
 \item{title}{Plot title (default: empty string).}
 
-\item{group_order}{Character vector specifying the order of groups/classes for axes and coloring.}
+\item{group_order}{Character vector specifying the order of groups/classes
+for axes and coloring.}
 
 \item{add_accuracy_to_title}{Logical; if TRUE, adds accuracy/concordance rate to the plot title.}
 
@@ -67,7 +72,8 @@ make_alluvial(
 
 \item{concordant_label_relative_pos}{Position for concordant labels: 0 (left), 0.5 (middle), or 1 (right).}
 
-\item{pred}{Name of the column in predictions to use for the predicted class (default: "predicted_label_optimized").}
+\item{pred}{Name of the column in predictions to use for the predicted
+class (default: "predicted_label_optimized").}
 
 \item{original_name}{Name for the original class column (default: "Lymphgen").}
 
@@ -77,8 +83,11 @@ make_alluvial(
 A ggplot2 object representing the alluvial plot.
 }
 \description{
-This function generates a detailed alluvial plot to visualize the concordance and discordance between original (e.g., Lymphgen) and predicted (e.g., DLBCLone) class assignments for samples.
-It supports annotation of concordance rates, per-group accuracy, unclassified rates, and flexible labeling and coloring options.
+This function generates a detailed alluvial plot to visualize the concordance
+and discordance between original (e.g., Lymphgen) and predicted
+(e.g., DLBCLone) class assignments for samples.
+It supports annotation of concordance rates, per-group accuracy,
+unclassified rates, and flexible labeling and coloring options.
 }
 \details{
 \itemize{

@@ -1,3 +1,82 @@
+#' Basic UMAP Scatterplot
+#'
+#' Generates a simple UMAP scatterplot for visualizing sample clustering or separation in two dimensions.
+#'
+#' @param df Data frame containing at least columns \code{V1} and \code{V2} (UMAP coordinates) and optionally a grouping variable.
+#' @param colour_by Character. Name of the column in \code{df} to use for point color (default: \code{"lymphgen"}).
+#' @param title Optional plot title.
+#' @param alpha Numeric. Point transparency (default: 0.8).
+#' @param size Numeric. Point size (default: 1).
+#' @param custom_colours Optional named vector of colors to use for groups.
+#'
+#' @return A \code{ggplot2} object representing the UMAP scatterplot.
+#'
+#' @details
+#' - Plots UMAP coordinates (\code{V1}, \code{V2}) colored by the specified grouping variable.
+#' - Useful for quick visualization of sample groupings or batch effects.
+#' - If \code{custom_colours} is provided, it overrides the default color palette.
+#'
+#' @examples
+#' basic_umap_scatterplot(df, colour_by = "lymphgen",plot_samples = "DLBCL1001")
+#' @import plotly
+#' @export
+basic_umap_scatterplot <- function(optimized,
+                                  plot_samples,
+                                  use_plotly = TRUE,
+                                  colour_by = "lymphgen",
+                                  title = "UMAP based on selected features") {
+  optimized_label <- mutate(optimized, label = paste(sample_id, "\nLymphgen:\n", lymphgen, "DLBCLone_ko:\n", DLBCLone_ko))
+
+  background_points <- optimized[, c("V1", "V2")]
+  label_points <- filter(optimized_label, sample_id %in% plot_samples)
+  
+  # Combine for repel logic
+  repel_df <- bind_rows(
+    mutate(background_points, label = NA_character_), # no labels, just repulsion targets
+    label_points # actual labeled points
+  )
+  label_points <- filter(optimized_label, sample_id %in% plot_samples) %>%
+    mutate(
+      label_x = V1 + 0.75,
+      label_y = V2 - 0.75
+    )
+  #print(colnames(optimized))
+  
+  if(colour_by=="lymphgen"){
+    p <- ggplot(optimized, aes(x = V1, y = V2, sample_id = sample_id, color = lymphgen, DLBCLone_ko = DLBCLone_ko)) +
+      geom_point(data = filter(optimized, lymphgen == "Other")) +
+      geom_point(data = filter(optimized, lymphgen != "Other")) 
+  }else{
+    p <- ggplot(optimized, aes(x = V1, y = V2, sample_id = sample_id, color = DLBCLone_ko, lymphgen = lymphgen)) +
+      geom_point(data = filter(optimized, lymphgen == "Other")) +
+      geom_point(data = filter(optimized, lymphgen != "Other")) 
+  }
+
+  p <- p + scale_color_manual(values = get_gambl_colours()) +
+    guides(color = guide_legend(title = "Original Class"))
+  if (!missing(plot_samples) & !use_plotly) {
+    p <- p +
+    geom_segment(
+      data = label_points,
+      aes(x = V1, y = V2, xend = label_x, yend = label_y),
+      arrow = arrow(length = unit(0.02, "npc")),
+      color = "black"
+    ) +
+
+    geom_label(
+      data = label_points,
+      aes(x = label_x, y = label_y, label = label),
+      size = 3,
+      fill = "white",
+      label.size = 0.25
+    ) 
+   
+  }
+  p =  p +
+    labs(title = title) +
+    theme_minimal() +
+  return(p)
+}
 
 #' Summarize and Export DLBCLone Model Results
 #'
@@ -226,7 +305,7 @@ make_umap_scatterplot = function(df,
   xmax = max(df$V1,na.rm=TRUE)
   ymin = min(df$V2,na.rm=TRUE)
   ymax = max(df$V2,na.rm=TRUE)
-  if("cohort" %in% colnames(df)){
+  if(!"cohort" %in% colnames(df)){
     df$cohort = "Unknown"
   }
   if(!missing(custom_colours)){
@@ -254,8 +333,12 @@ make_umap_scatterplot = function(df,
 
   }
   p = ggplot(df,
-             aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + geom_point(alpha=0.8) + 
-    scale_colour_manual(values=cols) + theme_Morons() + 
+             aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + 
+             geom_point(alpha=0) + 
+             geom_point(data=df %>% filter(!!sym(colour_by) =="Other"),alpha=0.8) + 
+             geom_point(data=df %>% filter(!!sym(colour_by) !="Other"),alpha=0.8) + 
+    scale_colour_manual(values=cols) + 
+    theme_Morons() + 
     guides(colour = guide_legend(nrow = 1)) + 
     xlim(xmin,xmax) + 
     ylim(ymin,ymax) 
@@ -271,7 +354,7 @@ make_umap_scatterplot = function(df,
 
 
 
-#' Report Classification Accuracy and Per-Class Metrics
+#' Calculate Classification Accuracy and Per-Class Metrics based on Predictions
 #'
 #' Computes overall accuracy, balanced accuracy, and sensitivity for predicted vs. true class labels.
 #' Optionally excludes samples assigned to the "Other" class from accuracy calculations.
@@ -284,7 +367,7 @@ make_umap_scatterplot = function(df,
 #'
 #' @return A list with:
 #'   \item{no_other}{Accuracy excluding samples assigned to "Other"}
-#'   \item{per_class}{Balanced accuracy per class}
+#'   \item{per_class}{Average of balanced accuracy values for each class}
 #'   \item{per_class_sensitivity}{Sensitivity per class}
 #'   \item{overall}{Overall accuracy including all samples}
 #'
@@ -299,63 +382,75 @@ make_umap_scatterplot = function(df,
 #' result$per_class
 #'
 #' @export
-report_accuracy = function(predictions,
-                          truth="lymphgen",
-                          pred="DLBCLone_io",
-                          per_group = FALSE,
-                          metric = "accuracy",
-                          verbose = FALSE){
-  #if("BN2" %in% predictions[[pred]]){
-  #  truth = "lymphgen"
-  #}
-  all_classes = unique(predictions[[truth]])
-  no_other_pred = filter(predictions, !!sym(truth) != "Other")
-  if(verbose){
-    print(paste(nrow(no_other_pred),"non-Other samples were assigned a label"))
-    print(paste(filter(no_other_pred,!!sym(pred) !="Other") %>% nrow(),"non-Other samples were assigned to a non-Other class"))
+report_accuracy <- function(predictions,
+                            truth = "lymphgen",
+                            pred = "DLBCLone_io",
+                            per_group = FALSE,
+                            metric = "accuracy",
+                            verbose = FALSE) {
+  all_classes <- unique(predictions[[truth]])
+  no_other_pred <- filter(predictions, !!sym(truth) != "Other")
+  if (verbose) {
+    print(paste(nrow(no_other_pred), "non-Other samples were assigned a label"))
+    print(paste(
+      filter(no_other_pred, !!sym(pred) != "Other") %>% nrow(),
+      "non-Other samples were assigned to a non-Other class"))
   }
-  
-  conf_matrix_no <- confusionMatrix(factor(no_other_pred[[pred]],levels=all_classes), 
-    factor(no_other_pred[[truth]],levels=all_classes))
-  #print(conf_matrix)
-  overall = conf_matrix_no$overall[["Accuracy"]]
 
-    if(metric == "accuracy"){
-      #bal_acc_no <- conf_matrix$byClass[, "Balanced Accuracy"]
-      acc_no = overall
-    }else{
-      stop("unsupported metric")
-    }
-  
-  conf_matrix <- confusionMatrix(factor(predictions[[pred]],levels=unique(predictions[[truth]])), factor(predictions[[truth]],levels=unique(predictions[[truth]])))
-    if(metric == "accuracy"){
-      bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
-      sensitivity = conf_matrix$byClass[, "Sensitivity"]
-    }else{
-      stop("unsupported metric")
-    }
-  overall = conf_matrix$overall[["Accuracy"]]
+  conf_matrix_no <- confusionMatrix(
+    factor(no_other_pred[[pred]], levels = all_classes),
+    factor(no_other_pred[[truth]], levels = all_classes)
+  )
 
-  return(list(no_other=acc_no,
-              per_class=bal_acc,
-              mean_balanced_accuracy = mean(bal_acc,na.rm=TRUE),
-              per_class_sensitivity = sensitivity,
-              overall=overall,
-              confusion_matrix_no_other=conf_matrix_no,
-              confusion_matrix=conf_matrix))
+  overall <- conf_matrix_no$overall[["Accuracy"]]
+
+  if (metric == "accuracy") {
+    acc_no <- overall
+  } else {
+    stop("unsupported metric")
+  }
+
+  conf_matrix <- confusionMatrix(
+    factor(predictions[[pred]], levels = unique(predictions[[truth]])),
+    factor(predictions[[truth]], levels = unique(predictions[[truth]]))
+  )
+  if (metric == "accuracy") {
+    bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
+    sensitivity <- conf_matrix$byClass[, "Sensitivity"]
+  } else {
+    stop("unsupported metric")
+  }
+  overall <- conf_matrix$overall[["Accuracy"]]
+
+  return(list(
+    no_other = acc_no,
+    per_class = bal_acc,
+    mean_balanced_accuracy = mean(bal_acc, na.rm = TRUE),
+    per_class_sensitivity = sensitivity,
+    overall = overall,
+    confusion_matrix_no_other = conf_matrix_no,
+    confusion_matrix = conf_matrix
+  ))
 }
 
 
 #' Create an Alluvial Plot Comparing Original and Predicted Classifications
 #'
-#' This function generates a detailed alluvial plot to visualize the concordance and discordance between original (e.g., Lymphgen) and predicted (e.g., DLBCLone) class assignments for samples.
-#' It supports annotation of concordance rates, per-group accuracy, unclassified rates, and flexible labeling and coloring options.
+#' This function generates a detailed alluvial plot to visualize the concordance
+#' and discordance between original (e.g., Lymphgen) and predicted
+#' (e.g., DLBCLone) class assignments for samples.
+#' It supports annotation of concordance rates, per-group accuracy, 
+#' unclassified rates, and flexible labeling and coloring options.
 #'
-#' @param optimized List containing prediction results and metadata, typically output from a DLBCLone optimization function.
-#' @param pred Name of the column in predictions to use for the predicted class (default: "predicted_label_optimized").
-#' @param count_excluded_as_other Logical; if TRUE, samples excluded due to missing features are counted as "Other" in the plot.
+#' @param optimized List containing prediction results and metadata,
+#' typically output from a DLBCLone optimization function.
+#' @param pred Name of the column in predictions to use for the predicted
+#' class (default: "predicted_label_optimized").
+#' @param count_excluded_as_other Logical; if TRUE, samples excluded due
+#' to missing features are counted as "Other" in the plot.
 #' @param title Plot title (default: empty string).
-#' @param group_order Character vector specifying the order of groups/classes for axes and coloring.
+#' @param group_order Character vector specifying the order of groups/classes
+#' for axes and coloring.
 #' @param add_accuracy_to_title Logical; if TRUE, adds accuracy/concordance rate to the plot title.
 #' @param accuracy_per_group Logical; if TRUE, computes and displays per-group accuracy.
 #' @param accuracy_type Type of accuracy to report (default: "sensitivity").
@@ -415,21 +510,22 @@ make_alluvial <- function(
   predictions = optimized$predictions
   if(is.null(group_order)){
     group_order = optimized$truth_classes
-    print("setting group order:")
+    #print("setting group order:")
   }
   
-  #print(group_order)
 
   if(is.null(truth_column) && !is.null(optimized$truth_column)){
     truth_column = optimized$truth_column
   }
+  
+
+
   if (accuracy_per_group) {
     accuracies <- report_accuracy(predictions, 
         truth = truth_column,
         pred = pred_column,
         per_group = accuracy_per_group)
   }
-  #print("Done accuracyies")
   if(count_excluded_as_other){
     excluded_meta = optimized$sample_metadata_no_features %>%
       mutate(!!pred_column := "Other")
@@ -442,14 +538,10 @@ make_alluvial <- function(
   }
 
   xx <- predictions %>%
-    #group_by(lymphgen, predicted_label_optimized) %>%
-    #summarize(num = n(), .groups = "drop") %>%
     rename(
       !!truth_name := !!sym(truth_column),
-      #!!new_name := predicted_label_optimized
       !!pred_name := !!sym(pred_column)
     ) 
-  #print("Done renaming")
   xx <- xx %>%
     group_by(!!sym(truth_name), !!sym(pred_name)) %>%
     summarize(num = n(), .groups = "drop")
@@ -459,12 +551,11 @@ make_alluvial <- function(
     !!sym(truth_name) := group_order,
     !!sym(pred_name) := group_order
   )
-  #print(colnames(grid))
-  #print(colnames(xx))
+
   xx <- grid %>%
     left_join(xx, by = c(truth_name, pred_name)) %>%
     mutate(num = replace_na(num, 0))
-    #print("Done joining")
+
   xx[[truth_name]] <- factor(xx[[truth_name]], levels = group_order)
   xx[[pred_name]] <- factor(xx[[pred_name]], levels = group_order)
 
@@ -558,12 +649,12 @@ make_alluvial <- function(
     ungroup()
 
 
-  #print("HERE")
+
   lodes_mean_left = group_by(left_lodes,right_group,left_group) %>%
     mutate(y=mean(flow_y)) %>% ungroup() %>%
     arrange(right_group,left_group) %>%
     mutate(nudge_dir = -nudge)
-    #print("HERE")
+
   lodes_mean_right = group_by(right_lodes,left_group,right_group) %>%
     mutate(y=mean(flow_y)) %>% ungroup() %>%
     arrange(left_group,right_group) %>%
@@ -591,7 +682,7 @@ make_alluvial <- function(
   }else{
     stop("unhandled value for concordant_label_relative_pos. Provide 0 (left), 0.5 (middle) or 1 (right)")
   }
-   #print("HERE")
+
 lodes_right  = filter(lodes_mean_right,axis==2,left_group!=right_group) %>% 
   arrange(flow_id2) %>%
   mutate(nudge_dir = -nudge) %>%
@@ -615,19 +706,19 @@ lodes_right = lodes_right %>%
 
 lodes_match = filter(lodes_mean,left_group==right_group) %>% 
   mutate(nudge_dir=0)
-#print(lodes_match)
-  #print("HERE!")
+
 xx_denom <- predictions %>%
   group_by(!!sym(truth_column)) %>%
   summarize(denom = n(), .groups = "drop") %>%
   rename(
     stratum = !!sym(truth_column)
   )
-  #print("HERE!!") 
 if(add_percent){
     lodes_match = left_join(lodes_match,xx_denom,by="stratum") %>%
       mutate(percent = round(100*num/denom,1)) %>%
-      mutate(flow_label = paste0(flow_label," (",percent,"%",")"))
+      filter(!is.na(denom)) %>% 
+      mutate(flow_label = paste0(left_group, " concordant: ", num," (",percent,"%",")"))
+    
   }
   if(add_unclass_rate){
     right_other = filter(lodes_mean_right,right_group=="Other",axis==2) %>%
@@ -635,7 +726,6 @@ if(add_percent){
       mutate(unclass= round(100 * total / full_denominator,1)) %>%
       mutate(label=paste0(total,"\n (",unclass,"%)")) %>%
                mutate(!!sym(truth_name) := "Other",!!sym(pred_name) := "Other")
-    #print(right_other)
     unclass = pull(right_other,unclass)
     title = paste0(title,", Classification rate: ",100-unclass,"%")
     title = paste0(title," Bal Acc: ",bacc)
@@ -651,12 +741,11 @@ if(add_percent){
     custom_colours = custom_colours[names(custom_colours) %in% group_order]
     if(length(custom_colours) < length(group_order)){
       missing = group_order[!group_order %in% names(custom_colours)]
-      print(paste("Missing colours for:",paste(missing,collapse=",")))
+      message(paste("Missing colours for:",paste(missing,collapse=",")))
       stop("No custom colour provided for some of groups in group_order")
     }
     group_colours = custom_colours
-    print(custom_colours)
-    print(group_colours)
+
   }else{
     group_colours = get_gambl_colours()
   }
