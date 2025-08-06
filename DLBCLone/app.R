@@ -8,17 +8,19 @@
 #
 
 library(shiny)
+library(shinyjs)
 library(DT)
 library(shinybusy)
 library(GAMBLR)
 library(ggalluvial)
+library(plotly)
 library(caret)
 library(GAMBLR.predict)
 lyseq_genes = read.table(paste0(here::here(),"/schmitz_lstgene_list.tsv")) %>% pull(V1)
 lyseq_status = read_tsv(file=paste0(here::here(),"/lyseq_status.tsv")) %>% column_to_rownames("sample_id")
 full_status = read_tsv(file=paste0(here::here(),"/all_full_status.tsv")) %>% column_to_rownames("sample_id")
 dlbcl_meta_clean = read_tsv(file=paste0(here::here(),"/dlbcl_meta_clean.tsv"))
-dlbcl_meta_clean$cohort = "GAMBL"
+
 # This code needs to be fixed to work anywhere
 lacy_df = readxl::read_excel("~/git/Lyntegrate/data/bloodbld2019003535-suppl2.xlsx",sheet=1) %>%
   mutate(Gene= gsub("_.+","",Gene))
@@ -53,7 +55,7 @@ prototypes["Other_2",c("RRAGC","P2RY8","CDKN2A","MS4A1","B2M")]=1
 
 full_status = bind_rows(full_status,prototypes)
 
-
+default_panel = "everything"
 default_umap  <- make_and_annotate_umap(df = full_status,
                                         metadata = dlbcl_meta_clean)
 k_low = 5
@@ -105,10 +107,32 @@ panels = list(everything=sort(colnames(full_status)),
 
 demo_samples = rownames(prototypes)
 
+pred_dir <- file.path(tempdir(), "predictions")
+dir.create(pred_dir, showWarnings = FALSE, recursive = TRUE)
+addResourcePath("predictions", pred_dir)
+
+
+
 ui <- fluidPage(
-  add_busy_spinner(spin = "fading-circle", color = "#003366",position = "full-page"),
+  useShinyjs(),
+add_busy_spinner(spin = "fading-circle", color = "#003366",position = "full-page"),
+#tags$div(style = "display:none;", downloadButton("download_predictions", "Download CSV")),
+
+
   tags$div(id = "loading-text", style = "color:#003366; font-weight:bold; display:none;",
            "Running model... please wait."),
+
+tags$script(HTML("
+  $(document).on('click', '.download_btn', function() {
+    Shiny.setInputValue('download_run_id', this.id, {priority: 'event'});
+  });
+
+  Shiny.addCustomMessageHandler('triggerDownload', function(message) {
+    Shiny.setInputValue('download_run_id_internal', message.run_id, {priority: 'event'});
+    Shiny.setInputValue('go_now', Math.random());  // force a re-trigger
+  });
+")),
+
   # Application title
   titlePanel("DLBCLone"),
 
@@ -139,7 +163,8 @@ ui <- fluidPage(
         tabPanel("UMAP (Lymphgen)", plotlyOutput("DLBCLone_KNN_plot_truth")),
         tabPanel("UMAP (DLBCLone)", plotlyOutput("DLBCLone_KNN_plot_prediction")),
         tabPanel("Results overview", plotOutput("alluvial",height = "800px", width="700px")),
-        tabPanel("All DLBCLone assignments",downloadButton("downloadData", "Download"), DTOutput("predictions"))
+        tabPanel("All DLBCLone assignments",downloadButton("downloadData", "Download"), DTOutput("predictions")),
+        tabPanel("Run Log", DTOutput("run_log_table"))
       )
     )
   )
@@ -147,9 +172,103 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
 
+
   dlbclone_result <- reactiveVal(isolate(default_knn))
   umap_result <- reactiveVal(isolate(default_umap))
+  run_log <- reactiveVal()
+  prediction_store <- reactiveVal(list())
 
+  observe({
+  session$registerDataObj("download_predictions", list(run_id = NULL), function(data, req) {
+    # Extract run_id from query string
+    run_id <- req$QUERY_STRING %>%
+      strsplit("=", fixed = TRUE) %>%
+      unlist() %>%
+      .[2]
+
+    # ⚠️ isolate() avoids requiring a reactive context
+    stored_predictions <- isolate(prediction_store())
+    preds <- stored_predictions[[run_id]]
+
+    if (!is.null(preds)) {
+      tmp <- tempfile(fileext = ".tsv")
+      write_tsv(preds, file=tmp)
+      return(function(res) {
+        res$setHeader("Content-Type", "text/tsv")
+        res$setHeader("Content-Disposition", paste0("attachment; filename=DLBCLone_predictions_", run_id, ".tsv"))
+        res$sendFile(tmp)
+      })
+    } else {
+      return(function(res) {
+        res$setHeader("Content-Type", "text/plain")
+        res$write(paste("Error: No prediction data found for run_id:", run_id))
+        res$finish()
+      })
+    }
+  })
+})
+
+  observe({
+  # Only run once
+  if (is.null(run_log())) {
+    feature_str <- paste(colnames(full_status), collapse = ",")
+    default_link <- paste0(
+      "?panel=", default_panel,
+      "&k_min=", k_low,
+      "&k_max=", k_high,
+      "&features=", URLencode(feature_str)
+    )
+    run_id <- paste0(ncol(full_status), "_features_run_", as.integer(Sys.time()))
+
+    current_store <- prediction_store()
+    current_store[[run_id]] <- default_knn$predictions
+    prediction_store(current_store)
+
+
+    # Save predictions to disk
+    #csv_path <- file.path(pred_dir, paste0("DLBCLone_predictions_", run_id, ".csv"))
+    tsv_path <- file.path(pred_dir, paste0("DLBCLone_predictions_", run_id, ".tsv"))
+    write_tsv(default_knn$predictions, file = tsv_path)
+
+    run_log(data.frame(
+      timestamp = format(Sys.time(), "%b %d, %Y %I:%M %p"),
+      run_id = run_id,
+      panel = default_panel,
+      Unclass = filter(default_knn$predictions, DLBCLone_ko == "Other") %>% nrow(),
+      k_range = paste(k_low, k_high, sep = " - "),
+      k_used = default_knn$DLBCLone_k_best_k,
+      accuracy = round(default_knn$DLBCLone_k_accuracy, 3),
+      purity_threshold = round(default_knn$DLBCLone_k_purity_threshold,3),
+      n_features = ncol(full_status),
+      download = paste0("<a class='btn btn-sm btn-primary' href='predictions/DLBCLone_predictions_", run_id,
+                ".tsv' download>Download</a>"),
+      Revisit = paste0("<a href='", default_link, "' target='_blank'>Link</a>"),
+      stringsAsFactors = FALSE
+    ))
+  }
+})
+
+
+  observe({
+    query <- parseQueryString(session$clientData$url_search)
+
+    if (!is.null(query$panel)) {
+      updateSelectInput(session, "panel", selected = query$panel)
+    }
+
+    if (!is.null(query$sample)) {
+      updateSelectInput(session, "sample", selected = query$sample)
+    }
+
+    if (!is.null(query$k_min) && !is.null(query$k_max)) {
+      updateSliderInput(session, "k_range", value = c(as.numeric(query$k_min), as.numeric(query$k_max)))
+    }
+
+    if (!is.null(query$features)) {
+      feature_list <- strsplit(query$features, ",")[[1]]
+      updateCheckboxGroupInput(session, "features", selected = feature_list)
+    }
+  })
   observeEvent(input$panel, {
     updateCheckboxGroupInput(
       session,
@@ -160,9 +279,7 @@ server <- function(input, output, session) {
     #umap_result()$df
   })
 
-
-  # Run again when user clicks "Re-run"
-
+  # re-generate and evaluate the classifier
   observeEvent(input$regenerate, {
     status = full_status %>% select(all_of(input$features))
     #core = c("MYD88HOTSPOT","NOTCH1","SGK1","EZH2","NOTCH2","BCL6_SV","TET2")
@@ -173,7 +290,45 @@ server <- function(input, output, session) {
                                    #core_features = core_features,
                                    predict_unlabeled = T)
     dlbclone_result(updated_result)
+
+    feature_str <- paste(input$features, collapse = ",")
+    link <- paste0(
+      #session$clientData$url_hostname, session$clientData$url_pathname,
+      "?panel=", input$panel,
+      "&sample=", input$sample,
+      "&k_min=", input$k_range[1],
+      "&k_max=", input$k_range[2],
+      "&features=", URLencode(feature_str)
+    )
+    run_id <- paste0("run_", as.integer(Sys.time()))
+
+    tsv_path <- file.path(pred_dir, paste0("DLBCLone_predictions_", run_id, ".tsv"))
+    write_tsv(updated_result$predictions, file = tsv_path)
+
+    log_df <- run_log()
+    log_df <- rbind(
+      log_df,
+      data.frame(
+        timestamp = format(Sys.time(), "%b %d, %Y %I:%M %p"),
+        run_id = run_id,
+        panel = input$panel,
+        Unclass = filter(updated_result$predictions, DLBCLone_ko == "Other") %>% nrow(),
+        k_range = paste(input$k_range[1], input$k_range[2], sep = " - "),
+        k_used = updated_result$DLBCLone_k_best_k,
+        accuracy = round(updated_result$DLBCLone_k_accuracy, 3),
+        purity_threshold = round(updated_result$DLBCLone_k_purity_threshold, 3),
+        n_features = length(input$features),
+        download = paste0("<a class='btn btn-sm btn-primary' href='predictions/DLBCLone_predictions_", run_id,
+                  ".tsv' download>Download</a>"),
+        Revisit = paste0("<a href='", link, "' target='_blank'>Link</a>"),
+        stringsAsFactors = FALSE
+      )
+    )
+    run_log(log_df)
+
   })
+
+
 
   observeEvent(input$visualize, {
     status = full_status %>% select(all_of(input$features))
@@ -185,7 +340,9 @@ server <- function(input, output, session) {
 
     umap_result(updated_result)
   })
-
+  output$run_log_table <- renderDT({
+    datatable(run_log(), escape=FALSE, options = list(pageLength = 10))
+  })
   output$DLBCLone_KNN_plot_truth <- renderPlotly({
     result = dlbclone_result()
     if(is.null(result)){
@@ -240,21 +397,8 @@ server <- function(input, output, session) {
                   label_size=4,
                   title=paste0("Optimal K=",result$DLBCLone_k_best_k, ","))
   })
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      today = Sys.Date()
-      this_host_info = Sys.info()
-      if(!is.null(this_host_info["nodename"])){
-        paste("DLBCLone_predictions_",today, "_", this_host_info["nodename"], "_", length(input$features), "_features.csv", sep = "")
-      }else{
-        paste("DLBCLone_predictions_",today, "_", length(input$features), "_features.csv", sep = "")
-      }
 
-    },
-    content = function(file) {
-      write.csv(dlbclone_result()$predictions, file, row.names = FALSE)
-    }
-  )
+
 }
 
 # Run the application
