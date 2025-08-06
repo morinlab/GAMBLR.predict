@@ -218,7 +218,7 @@ server <- function(input, output, session) {
       "&k_max=", k_high,
       "&features=", URLencode(feature_str)
     )
-    run_id <- paste0(ncol(full_status), "_features_run_", as.integer(Sys.time()))
+    run_id <- paste0(ncol(full_status), "_features_", as.integer(Sys.time()))
 
     current_store <- prediction_store()
     current_store[[run_id]] <- default_knn$predictions
@@ -300,7 +300,7 @@ server <- function(input, output, session) {
       "&k_max=", input$k_range[2],
       "&features=", URLencode(feature_str)
     )
-    run_id <- paste0("run_", as.integer(Sys.time()))
+    run_id <- paste0(length(input$features),"_features_", as.integer(Sys.time()))
 
     tsv_path <- file.path(pred_dir, paste0("DLBCLone_predictions_", run_id, ".tsv"))
     write_tsv(updated_result$predictions, file = tsv_path)
