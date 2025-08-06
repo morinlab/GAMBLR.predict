@@ -97,7 +97,8 @@ basic_umap_scatterplot <- function(optimized,
 #'
 #' @examples
 #' DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
-#'
+#' @import ggalluvial
+#' 
 #' @export
 DLBCLone_summarize_model = function(base_name,optimized_model){
   base_dir = here::here()
@@ -290,6 +291,8 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
 #' @param add_labels 
 #'
 #' @returns
+#' 
+#' @import ggExtra
 #' @export
 #'
 #' @examples

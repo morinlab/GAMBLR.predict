@@ -242,7 +242,14 @@ server <- function(input, output, session) {
   })
   output$downloadData <- downloadHandler(
     filename = function() {
-      paste("DLBCLone_predictions_",length(input$features), "_features.csv", sep = "")
+      today = Sys.Date()
+      this_host_info = Sys.info()
+      if(!is.null(this_host_info["nodename"])){
+        paste("DLBCLone_predictions_",today, "_", this_host_info["nodename"], "_", length(input$features), "_features.csv", sep = "")
+      }else{
+        paste("DLBCLone_predictions_",today, "_", length(input$features), "_features.csv", sep = "")
+      }
+
     },
     content = function(file) {
       write.csv(dlbclone_result()$predictions, file, row.names = FALSE)

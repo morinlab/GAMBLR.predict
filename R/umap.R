@@ -1310,12 +1310,14 @@ DLBCLone_KNN <- function(df,
         select(-idx) %>%
         ungroup() %>%
         mutate(top_class = ifelse(top_class_count == 0, "Other", top_class)) %>%
+        mutate(Other=round(Other, 4),
+               top_class_count=round(top_class_count, 4)) %>%
         rename(
           Other_score = Other,
           by_score = top_class,
           top_group_score = top_class_count
         ) %>%
-        mutate(score_ratio = top_group_score / Other_score)
+        mutate(score_ratio = round(top_group_score / Other_score, 4))
 
 
 
@@ -1476,22 +1478,15 @@ DLBCLone_KNN <- function(df,
 
   if (predict_unlabeled) {
     if (is.null(DLBCLone_KNN_out)) {
-      message("Line 1452: Optimizing graph layout for visualization and KNN classification")
+      message("Optimizing graph layout for visualization")
       df_show <- bind_rows(df, exclude_df)
-      #sim_graph <- similarity_graph(df_show, n_neighbors = 100, metric = "cosine")
-      #optimized <- optimize_graph_layout(sim_graph, X = df_show)
-      #rownames(optimized) <- rownames(df_show)
-      
-      #optimized <- as.data.frame(optimized) %>%
-      #  rownames_to_column("sample_id")
+
       optimized = make_and_annotate_umap(df_show, metadata = metadata)$df
       optimized <- optimized %>%
         #left_join(metadata, by = "sample_id") %>%
         left_join(bind_rows(select(best_pred, -lymphgen), select(unlabeled_predictions, -lymphgen)), by = "sample_id") %>%
         mutate(lymphgen = ifelse(is.na(lymphgen), DLBCLone_ko, lymphgen))
-      # print(head(optimized))
-      # optimized = optimized %>%
-      #  left_join(select(unlabeled_predictions,-lymphgen),by="sample_id") %>%
+
     } else {
       message("Using DLBCLone_KNN_out provided, skipping graph layout optimization")
       optimized <- DLBCLone_KNN_out$optimized_layout
@@ -1499,17 +1494,8 @@ DLBCLone_KNN <- function(df,
     to_return$unlabeled_predictions <- unlabeled_predictions
   } else {
     if (is.null(DLBCLone_KNN_out)) {
-      message("Optimizing graph layout for visualization and KNN classification")
-      #sim_graph <- similarity_graph(df, n_neighbors = 100, metric = "cosine")
-      #optimized <- optimize_graph_layout(sim_graph, X = df)
-       
-      #rownames(optimized) <- rownames(df)
+      message("Optimizing graph layout for visualization")
 
-      #optimized <- as.data.frame(optimized) %>%
-      #  rownames_to_column("sample_id")
-      #print(colnames(best_pred))
-      #print("here")
-      #print(colnames(metadata))
       optimized = make_and_annotate_umap(df, metadata = metadata)$df
       optimized <- optimized %>%
         #left_join(metadata, by = "sample_id") %>%
