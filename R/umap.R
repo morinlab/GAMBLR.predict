@@ -1240,7 +1240,7 @@ DLBCLone_KNN <- function(df,
     rownames(fkn_ids) <- rownames(df)
     epsilon <- 0.01
     fkn_dists <- as.data.frame(fkn_dists) %>% select(-1)
-    fkn_weighted <- 1 / (fkn_dists + epsilon)
+    fkn_weighted <- round(1 / (fkn_dists + epsilon), 4)
 
     # drop self
 
