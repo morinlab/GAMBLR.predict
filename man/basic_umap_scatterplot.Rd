@@ -7,16 +7,17 @@
 basic_umap_scatterplot(
   optimized,
   plot_samples,
-  use_plotly = FALSE,
+  use_plotly = TRUE,
+  colour_by = "lymphgen",
   title = "UMAP based on selected features"
 )
 }
 \arguments{
+\item{colour_by}{Character. Name of the column in \code{df} to use for point color (default: \code{"lymphgen"}).}
+
 \item{title}{Optional plot title.}
 
 \item{df}{Data frame containing at least columns \code{V1} and \code{V2} (UMAP coordinates) and optionally a grouping variable.}
-
-\item{colour_by}{Character. Name of the column in \code{df} to use for point color (default: \code{"lymphgen"}).}
 
 \item{alpha}{Numeric. Point transparency (default: 0.8).}
 

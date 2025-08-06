@@ -29,5 +29,4 @@ Results are saved as PDF files in a directory named after the provided base name
 }
 \examples{
 DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
-
 }

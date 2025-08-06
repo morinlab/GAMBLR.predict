@@ -15,7 +15,8 @@ DLBCLone_KNN(
   truth_classes = c("EZB", "BN2", "ST2", "MCD", "N1", "Other"),
   predict_unlabeled = FALSE,
   plot_samples = NULL,
-  DLBCLone_KNN_out = NULL
+  DLBCLone_KNN_out = NULL,
+  seed = 12345
 )
 }
 \description{
