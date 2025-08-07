@@ -1990,18 +1990,19 @@ predict_single_sample_DLBCLone <- function(
   train_labels = train_df_proj %>%
     pull(lymphgen) 
 
-#  #Obtain UMAP coordinates for the test sample(s)
- # print(paste("num rows:",nrow(test_df)))
-#  test_projection <- make_and_annotate_umap(
- #   df = test_df,
-  #  umap_out = optimized_model,
-   # ret_model = FALSE,
-#    seed = seed,
- #   join_column = "sample_id",
-  #  na_vals = optimized_model$best_params$na_option
-#  )
+  #Obtain UMAP coordinates for the test sample(s)
+  print(paste("num rows:",nrow(test_df)))
+  test_projection <- make_and_annotate_umap(
+    df = test_df,
+    umap_out = optimized_model,
+    ret_model = FALSE,
+    seed = seed,
+    join_column = "sample_id",
+    na_vals = optimized_model$best_params$na_option
+  )
+
   test_coords = dplyr::filter(
-    optimized_model$df,
+    test_projection$df,
     sample_id %in% test_id
   ) %>% 
     select(sample_id,V1,V2) %>%
@@ -2043,7 +2044,7 @@ predict_single_sample_DLBCLone <- function(
     ) 
   }
   
-  anno_umap = select(optimized_model$df, sample_id, V1, V2) %>% filter(sample_id %in% test_id) 
+  anno_umap = select(test_projection$df, sample_id, V1, V2)
 
   anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
     mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
@@ -2058,7 +2059,7 @@ predict_single_sample_DLBCLone <- function(
   predictions_train_df = filter(optimized_model$df, sample_id %in% train_id) %>%
     select(sample_id, V1, V2) 
 
-  predictions_test_df = left_join(test_pred, optimized_model$df, by = "sample_id") 
+  predictions_test_df = left_join(test_pred, test_projection$df, by = "sample_id") 
 
   predictions_df = bind_rows(
     predictions_train_df %>% select(sample_id, V1, V2), 
