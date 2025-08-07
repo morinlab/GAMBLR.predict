@@ -1889,9 +1889,7 @@ weighted_knn_predict_with_conf <- function(
 #' Predict class for a single sample without using umap_transform and plot result of classification
 #'
 #' @param test_df Data frame containing the mutation status of the test sample
-#' @param train_df Data frame containing the mutation status of the training samples
 #' @param train_metadata Metadata for training samples with truth labels in lymphgen column
-#' @param projection UMAP projection of the training data. If not provided, the function will run UMAP on the combined data.
 #' @param optimized_model  list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a 
 #' previous, Data frame with the best parameters. useful for reproducibility.
 #' @param other_df Data frame containing the predictions for samples in the "Other" class
@@ -1923,9 +1921,7 @@ weighted_knn_predict_with_conf <- function(
 #'
 predict_single_sample_DLBCLone <- function(
   test_df,
-  #train_df,
   train_metadata,
-  #projection,
   optimized_model = NULL,
   other_df,
   truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
@@ -1939,32 +1935,14 @@ predict_single_sample_DLBCLone <- function(
   seed = 12345,
   max_neighbors = 500
 ){
+  
   if(is.null(optimized_model)){
     stop("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
   }
 
-#  train_id <- train_df %>% 
- #   rownames_to_column("sample_id") %>% 
-  #  pull(sample_id)
-
   test_id <- test_df %>% 
     rownames_to_column("sample_id") %>% 
     pull(sample_id)
-    
-#  combined_df <- bind_rows(train_df, test_df)
-    
-#  if(missing(projection)){
- #   projection <- make_and_annotate_umap(
-  #    df = combined_df,
-   #   umap_out = optimized_model,
-    #  ret_model = FALSE,
-#      seed = seed,
- #     join_column = "sample_id",
-  #    na_vals = optimized_model$best_params$na_option
-   # )
-#  }else{
- #   message("Using provided projection for prediction")
-#  }
     
   train_coords = dplyr::filter(
     optimized_model$df,
@@ -2020,7 +1998,7 @@ predict_single_sample_DLBCLone <- function(
   )
 
   test_pred = rownames_to_column(test_pred, var = "sample_id")
-  #test_pred = bind_cols(test_pred, test_coords)
+
   if(!is.null(optimized_model)){
     test_pred = mutate(
       test_pred, 

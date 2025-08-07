@@ -50,10 +50,6 @@ previous, Data frame with the best parameters. useful for reproducibility.}
 \item{seed}{Random seed for reproducibility}
 
 \item{max_neighbors}{Maximum number of neighbors to consider for each sample. Default 500.}
-
-\item{train_df}{Data frame containing the mutation status of the training samples}
-
-\item{projection}{UMAP projection of the training data. If not provided, the function will run UMAP on the combined data.}
 }
 \value{
 a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
