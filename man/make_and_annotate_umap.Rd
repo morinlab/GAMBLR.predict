@@ -95,5 +95,4 @@ umap_outs = make_and_annotate_umap(df=gambl_train_lymphgen,
                            ret_model=T,
                            metric="cosine")
 
-
 }

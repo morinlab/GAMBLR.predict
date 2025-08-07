@@ -57,6 +57,7 @@
 #'
 #' @import dplyr tidyr tibble
 #' @export
+#' 
 summarize_all_ssm_status <- function(
   maf_df,
   these_samples_metadata,
@@ -174,6 +175,7 @@ summarize_all_ssm_status <- function(
 #'
 #' @return Matrix of assembled features for each sample.
 #' @export
+#' 
 assemble_genetic_features <- function(
   these_samples_metadata,
   metadata_columns = c("bcl2_ba","bcl6_ba","myc_ba"),
@@ -669,7 +671,6 @@ DLBCLone_train_test_plot = function(test_df,
 #'                            ret_model=T,
 #'                            metric="cosine")
 #'
-#'
 make_and_annotate_umap = function(
   df,
   metadata,
@@ -926,6 +927,7 @@ make_and_annotate_umap = function(
 #' # result <- process_votes(knn_output_df, k = 7)
 #'
 #' @export
+#' 
 process_votes <- function(
   df,
   raw_col = "label",
@@ -1071,6 +1073,7 @@ process_votes <- function(
 #' # result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
 #'
 #' @export
+#' 
 optimize_purity <- function(
   optimized_model_object,
   vote_df, 
@@ -1502,7 +1505,7 @@ DLBCLone_optimize_params = function(
           }else{  
             this_accuracy = overall_accuracy
           }
-          #print(paste("accuracy:",this_accuracy, "out_opt_acc",out_opt_acc))
+          
           if(out_opt_acc > this_accuracy){
             this_accuracy = out_opt_acc
           }
@@ -1940,17 +1943,15 @@ predict_single_sample_DLBCLone <- function(
     warning("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
   }
 
-  train_df = train_df %>%
-    column_to_rownames("sample_id") %>%
-    rownames_to_column("sample_id")
-  train_id <- train_df$sample_id
+  train_id <- train_df %>% 
+    rownames_to_column("sample_id") %>% 
+    pull(sample_id)
 
-  test_df = test_df %>%
-    column_to_rownames("sample_id") %>%
-    rownames_to_column("sample_id")
-  test_id <- test_df$sample_id
+  test_id <- test_df %>% 
+    rownames_to_column("sample_id") %>% 
+    pull(sample_id)
     
-  combined_df <- bind_rows(train_df, test_df)
+#  combined_df <- bind_rows(train_df, test_df)
     
 #  if(missing(projection)){
  #   projection <- make_and_annotate_umap(
@@ -2005,21 +2006,6 @@ predict_single_sample_DLBCLone <- function(
   ) %>% 
     select(sample_id,V1,V2) %>%
     column_to_rownames("sample_id")
-
-  predict_training = FALSE
-  if(predict_training){
-    train_pred = weighted_knn_predict_with_conf(
-      train_coords = train_coords,
-      train_labels = train_labels,
-      test_coords = train_coords, # <- predicitng training on self
-      k = optimized_model$best_params$k,
-      conf_threshold = optimized_model$best_params$threshold,
-      na_label = "Other",
-      use_weights = optimized_model$best_params$use_weights
-    )
-
-    train_pred = rownames_to_column(train_pred, var = "sample_id")
-  }
  
   test_pred = weighted_knn_predict_with_conf(
     train_coords = train_coords,
@@ -2068,14 +2054,10 @@ predict_single_sample_DLBCLone <- function(
       V2 = as.numeric(V2),
       label = as.character(label)
   )
-  if(predict_training){
-    predictions_train_df = left_join(train_pred, optimized_model$df, by = "sample_id") 
-  }else{
-    predictions_train_df = filter(optimized_model$df, sample_id %in% train_id) %>%
-      select(sample_id, V1, V2) 
-  }
-  #This had assumed that projection$df contains the test samples!
-  #predictions_test_df = left_join(test_pred, projection$df, by = "sample_id")
+
+  predictions_train_df = filter(optimized_model$df, sample_id %in% train_id) %>%
+    select(sample_id, V1, V2) 
+
   predictions_test_df = left_join(test_pred, optimized_model$df, by = "sample_id") 
 
   predictions_df = bind_rows(
@@ -2323,7 +2305,7 @@ DLBCLone_train_mixture_model = function(
     probability_threshold = probability_threshold
   )
 
-return(to_return)
+  return(to_return)
 }
 
 #' Predict DLBCLone Class Membership Using a Trained Gaussian Mixture Model
@@ -2357,6 +2339,7 @@ return(to_return)
 #'
 #' @import mclust
 #' @export
+#' 
 DLBCLone_predict_mixture_model = function(
   model,
   umap_out,
