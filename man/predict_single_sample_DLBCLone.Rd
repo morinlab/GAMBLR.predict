@@ -6,7 +6,6 @@
 \usage{
 predict_single_sample_DLBCLone(
   test_df,
-  train_df,
   train_metadata,
   optimized_model = NULL,
   other_df,
@@ -24,8 +23,6 @@ predict_single_sample_DLBCLone(
 }
 \arguments{
 \item{test_df}{Data frame containing the mutation status of the test sample}
-
-\item{train_df}{Data frame containing the mutation status of the training samples}
 
 \item{train_metadata}{Metadata for training samples with truth labels in lymphgen column}
 
@@ -53,6 +50,8 @@ previous, Data frame with the best parameters. useful for reproducibility.}
 \item{seed}{Random seed for reproducibility}
 
 \item{max_neighbors}{Maximum number of neighbors to consider for each sample. Default 500.}
+
+\item{train_df}{Data frame containing the mutation status of the training samples}
 
 \item{projection}{UMAP projection of the training data. If not provided, the function will run UMAP on the combined data.}
 }

@@ -1923,7 +1923,7 @@ weighted_knn_predict_with_conf <- function(
 #'
 predict_single_sample_DLBCLone <- function(
   test_df,
-  train_df,
+  #train_df,
   train_metadata,
   #projection,
   optimized_model = NULL,
@@ -1940,12 +1940,12 @@ predict_single_sample_DLBCLone <- function(
   max_neighbors = 500
 ){
   if(is.null(optimized_model)){
-    warning("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
+    stop("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
   }
 
-  train_id <- train_df %>% 
-    rownames_to_column("sample_id") %>% 
-    pull(sample_id)
+#  train_id <- train_df %>% 
+ #   rownames_to_column("sample_id") %>% 
+  #  pull(sample_id)
 
   test_id <- test_df %>% 
     rownames_to_column("sample_id") %>% 
@@ -1968,14 +1968,14 @@ predict_single_sample_DLBCLone <- function(
     
   train_coords = dplyr::filter(
     optimized_model$df,
-    sample_id %in% train_id
+    !(sample_id %in% test_id)
   ) %>% 
     select(sample_id,V1,V2) %>%
     column_to_rownames("sample_id")
 
   train_df_proj = dplyr::filter(
     optimized_model$df,
-    sample_id %in% train_id
+    !(sample_id %in% test_id)
   ) %>% 
   select(sample_id,V1,V2) %>%
   left_join( #Join to the incoming metadata rather than trusting the metadata in the projection
@@ -2056,7 +2056,10 @@ predict_single_sample_DLBCLone <- function(
       label = as.character(label)
   )
 
-  predictions_train_df = filter(optimized_model$df, sample_id %in% train_id) %>%
+  predictions_train_df = dplyr::filter(
+    optimized_model$df, 
+    !(sample_id %in% test_id)
+  ) %>%
     select(sample_id, V1, V2) 
 
   predictions_test_df = left_join(test_pred, test_projection$df, by = "sample_id") 
