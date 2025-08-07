@@ -8,15 +8,7 @@ predict_single_sample_DLBCLone(
   test_df,
   train_metadata,
   optimized_model = NULL,
-  other_df,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
-  drop_unlabeled_from_training = TRUE,
-  make_plot = TRUE,
-  annotate_accuracy = FALSE,
-  label_offset = 2,
-  title1 = "GAMBL",
-  title2 = "predicted_class_for_HighConf",
-  title3 = "predicted_class_for_Other",
   seed = 12345,
   max_neighbors = 500
 )
@@ -29,23 +21,7 @@ predict_single_sample_DLBCLone(
 \item{optimized_model}{list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a
 previous, Data frame with the best parameters. useful for reproducibility.}
 
-\item{other_df}{Data frame containing the predictions for samples in the "Other" class}
-
 \item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")}
-
-\item{drop_unlabeled_from_training}{Set to TRUE to drop unlabeled samples from the training data}
-
-\item{make_plot}{Set to TRUE to plot the UMAP projection and predictions}
-
-\item{annotate_accuracy}{Set to true to add labels with accuracy values}
-
-\item{label_offset}{Length of the label offset for the accuracy labels}
-
-\item{title1}{additional argument}
-
-\item{title2}{additional argument}
-
-\item{title3}{additional argument}
 
 \item{seed}{Random seed for reproducibility}
 
@@ -59,14 +35,10 @@ Predict class for a single sample without using umap_transform and plot result o
 }
 \examples{
 predict_single_sample_DLBCLone(
-   seed = 1234,
    test_df = test_df,
-   train_df = train_df,
-   train_metadata = train_metadata,
-   umap_out = umap_out,
-   best_params = best_params
-   predictions_df = predictions_df,
-   annotate_accuracy = TRUE
+   train_metadata = dlbcl_meta_clean, 
+   optimized_model = weighted_lyseq_opt,
+   seed = 1234
 )
 
 }

@@ -1892,15 +1892,7 @@ weighted_knn_predict_with_conf <- function(
 #' @param train_metadata Metadata for training samples with truth labels in lymphgen column
 #' @param optimized_model  list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a 
 #' previous, Data frame with the best parameters. useful for reproducibility.
-#' @param other_df Data frame containing the predictions for samples in the "Other" class
 #' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")
-#' @param drop_unlabeled_from_training Set to TRUE to drop unlabeled samples from the training data
-#' @param make_plot Set to TRUE to plot the UMAP projection and predictions
-#' @param annotate_accuracy Set to true to add labels with accuracy values
-#' @param label_offset Length of the label offset for the accuracy labels
-#' @param title1 additional argument
-#' @param title2 additional argument
-#' @param title3 additional argument
 #' @param seed Random seed for reproducibility
 #' @param max_neighbors Maximum number of neighbors to consider for each sample. Default 500.
 #'
@@ -1909,33 +1901,21 @@ weighted_knn_predict_with_conf <- function(
 #'
 #' @examples
 #' predict_single_sample_DLBCLone(
-#'    seed = 1234,
 #'    test_df = test_df,
-#'    train_df = train_df,
-#'    train_metadata = train_metadata,
-#'    umap_out = umap_out,
-#'    best_params = best_params
-#'    predictions_df = predictions_df,
-#'    annotate_accuracy = TRUE
+#'    train_metadata = dlbcl_meta_clean, 
+#'    optimized_model = weighted_lyseq_opt,
+#'    seed = 1234
 #' )
 #'
 predict_single_sample_DLBCLone <- function(
   test_df,
   train_metadata,
   optimized_model = NULL,
-  other_df,
   truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
-  drop_unlabeled_from_training=TRUE,
-  make_plot = TRUE,
-  annotate_accuracy = FALSE,
-  label_offset = 2,
-  title1="GAMBL",
-  title2="predicted_class_for_HighConf",
-  title3 ="predicted_class_for_Other",
   seed = 12345,
   max_neighbors = 500
 ){
-  
+
   if(is.null(optimized_model)){
     stop("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
   }
