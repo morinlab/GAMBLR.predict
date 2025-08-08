@@ -5,10 +5,11 @@
 \title{Run DLBCLone KNN Classification}
 \usage{
 DLBCLone_KNN(
-  df,
+  features_df,
   metadata,
   core_features = NULL,
   core_feature_multiplier = 1.5,
+  hidden_features = NULL,
   min_k = 5,
   max_k = 60,
   truth_column = "lymphgen",
@@ -16,7 +17,10 @@ DLBCLone_KNN(
   predict_unlabeled = FALSE,
   plot_samples = NULL,
   DLBCLone_KNN_out = NULL,
-  seed = 12345
+  seed = 12345,
+  epsilon = 0.001,
+  weighted_votes = TRUE,
+  skip_umap = FALSE
 )
 }
 \description{

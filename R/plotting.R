@@ -1,3 +1,96 @@
+#' Heatmap visualization of mutations in nearest neighbors for a sample
+#'
+#' Generates a heatmap of feature values for the nearest neighbors of a specified sample,
+#' based on a DLBCLone model object. This visualization helps to inspect the feature profiles
+#' of samples most similar to the query sample.
+#'
+#' @param this_sample_id Character. The sample ID for which to plot the nearest neighbor heatmap.
+#' @param DLBCLone_model List. A DLBCLone model object, either from \code{DLBCLone_optimize_params}
+#'   or \code{DLBCLone_KNN} (with \code{predict_unlabeled = TRUE}).
+#'
+#' @return A ComplexHeatmap object showing the feature matrix for the nearest neighbors of the sample.
+#'
+#' @details
+#' - For models of type \code{DLBCLone_optimize_params}, uses the \code{neighbors} and \code{lyseq_status} fields.
+#' - For models of type \code{DLBCLone_KNN}, uses the \code{unlabeled_neighbors} field.
+#' - The function extracts the feature matrix rows corresponding to the nearest neighbors of the specified sample,
+#'   and plots a heatmap of features with nonzero values.
+#'
+#' @importFrom dplyr filter
+#' @importFrom ComplexHeatmap Heatmap
+#' @importFrom grid gpar
+#' @importFrom circlize colorRamp2
+#'
+#' @examples
+#' # Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
+#' nearest_neighbor_heatmap(sample_id, model)
+#'
+nearest_neighbor_heatmap <- function(this_sample_id,
+                                     DLBCLone_model,
+                                     clustering_distance = "binary"){
+  pred_name = NULL
+  if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model)){
+    if(DLBCLone_model$type == "DLBCLone_optimize_params"){
+      neighbor_df = DLBCLone_model$neighbors
+      lyseq_status = DLBCLone_model$lyseq_status
+    }else if(DLBCLone_model$type == "DLBCLone_KNN"){
+      if(!"unlabeled_neighbors" %in% names(DLBCLone_model)){
+        stop("DLBCLone_model must be the output of DLBCLone_KNN with predict_unlabeled = TRUE")
+      }
+      neighbor_df = DLBCLone_model$unlabeled_neighbors
+      neighbor_transpose = filter(neighbor_df,sample_id==this_sample_id) %>% t()
+      pred_name = "DLBCLone_ko"
+    }
+
+  }else{
+    stop("DLBCLone_model must be the output of DLBCLone_optimize_params or DLBCLone_KNN")
+  }
+  
+  xx=DLBCLone_model$features_df[neighbor_transpose,]
+  if(any(is.na(rownames(xx)))){
+    print(neighbor_transpose)
+    stop("something went wrong. Some samples are missing from features_df")
+  }
+  top = max(xx)
+  mid = top/2
+  col_fun = circlize::colorRamp2(c(0, mid, top), c("white", "#FFB3B3", "red"))
+  #print(xx)
+  #make row annotation
+  #row_df = select(bind_rows(DLBCLone_model$predictions, DLBCLone_model$unlabeled_predictions), sample_id, lymphgen) %>% 
+  row_df = select(DLBCLone_model$predictions, sample_id, lymphgen, !!sym(pred_name)) %>% 
+    filter(sample_id %in% rownames(xx)) 
+  if(!this_sample_id %in% row_df$sample_id){
+    if("unlabeled_predictions" %in% names(DLBCLone_model)){
+      row_df = bind_rows(row_df,
+                        select(DLBCLone_model$unlabeled_predictions, sample_id, lymphgen, !!sym(pred_name)) %>% 
+                            filter(sample_id %in% rownames(xx))    
+            ) 
+    }else{
+      row_df = bind_rows(row_df,
+                       tibble(sample_id = this_sample_id, lymphgen = NA)) 
+    }
+  }
+  row_df = row_df %>% 
+    column_to_rownames("sample_id") 
+  anno_colours = get_gambl_colours()
+  anno_list = list(lymphgen = anno_colours)
+  if (!is.null(pred_name)) {
+    anno_list[[pred_name]] = anno_colours
+  }
+  row_anno = rowAnnotation(
+    df = row_df[rownames(xx),,drop=FALSE],
+    col = anno_list,
+    #annotation_name_side = "left",
+    annotation_name_gp = gpar(fontsize = 6),
+    show_legend = FALSE
+  )
+  Heatmap(xx[,colSums(xx)>0], 
+          col = col_fun,
+          #column_names_gp = gpar(fontsize=6),
+          right_annotation = row_anno,
+          clustering_distance_rows = clustering_distance)
+}
+
 #' Basic UMAP Scatterplot
 #'
 #' Generates a simple UMAP scatterplot for visualizing sample clustering or separation in two dimensions.

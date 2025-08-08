@@ -35,19 +35,16 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
   # Transpose data if 'MYD88' is in row names
   if ("MYD88" %in% rownames(mutation_data)) {
     mutation_data <- t(mutation_data) %>% as.data.frame() 
-    #rownames(mutation_data) <- NULL
-    #print(head(mutation_data))
-    #mutation_data = mutation_data %>% column_to_rownames("sample_id")
+
   }
   mutation_data = mutation_data %>% dplyr::select(-any_of(c("PLOIDY","PURITY","COO")),-ends_with("CCF"))
-  #print(colnames(mutation_data))
+
   # Read the q-value data
   qval_df <- read.csv(fisher_test_result_file, sep = "\t", stringsAsFactors = FALSE, row.names = 1)
   
   # Drop genes not in qval_df
   genes_to_drop <- setdiff(colnames(mutation_data), rownames(qval_df))
-  #mutation_data = dplyr::select(mutation_data, -any_of(genes_to_drop))
-  
+
   # Add missing features if required
   if (add_missing_features) {
     missing_features <- rownames(qval_df)[!(rownames(qval_df) %in% colnames(mutation_data)) & qval_df$q <= 0.10]
@@ -72,7 +69,6 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
   #drop non-mutation columns
   
   full_data = full_data %>% dplyr::select(-ends_with("CCF"))
-  #mutation_data <- mutation_data[, !colnames(mutation_data) %in% genes_to_drop]
 
   # Aggregate specific features into vectors
   
@@ -131,11 +127,15 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
                                                    starts_with("KMT2D"),
                                                    starts_with("EP300")), na.rm = TRUE)
   PTEN_genes = c("PTEN")
-  C1_genes = c("UBE2A", "TMEM30A", "ZEB2", "GNAI2", "X5P.AMP", "POU2F2", "IKZF3",
-               "EBF1", "LYN", "BCL7A", "CXCR4", "CCDC27", "TUBGCP5", "SMG7", "RHOA", "BTG2")
+  C1_genes = c("UBE2A", "TMEM30A", "ZEB2", "GNAI2",
+                "X5P.AMP", "POU2F2", "IKZF3",
+               "EBF1", "LYN", "BCL7A", "CXCR4",
+               "CCDC27", "TUBGCP5", "SMG7", "RHOA", "BTG2")
   TP53_genes = c("TP53")
-  GNA13_genes = c("GNA13", "TNFRSF14", "MAP2K1", "MEF2B", "IRF8", "HVCN1", 
-                  "GNAI2", "MEF2C", "SOCS1", "EEF1A1", "RAC2",  
+  GNA13_genes = c("GNA13", "TNFRSF14", "MAP2K1", 
+                  "MEF2B", "IRF8", "HVCN1", 
+                  "GNAI2", "MEF2C", "SOCS1",
+                  "EEF1A1", "RAC2", 
                   "POU2AF1")
   genes = c(genes,PTEN_genes,C1_genes,TP53_genes,GNA13_genes)
   if(include_cn){
@@ -175,9 +175,7 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
       TP53_biallelic <- rowSums(mutation_data[, c("TP53"),drop=FALSE], na.rm = TRUE)
 
       PTEN <- rowSums(select(mutation_data,any_of(PTEN_genes)))
-      #GNA13_vec <- rowSums(mutation_data[, c("GNA13", "TNFRSF14", "MAP2K1", "MEF2B", "IRF8", "HVCN1", 
-      #                          "GNAI2", "MEF2C", "SOCS1", "EEF1A1", "RAC2", 
-      #                          "POU2AF1")], na.rm = TRUE)
+
       GNA13_vec <- rowSums(select(mutation_data, any_of(c("GNA13", "TNFRSF14","TNFRSF14HOTSPOT",
                                 "MAP2K1", "MEF2B","MEF2BHOTSPOT", "IRF8","IRF8HOTSPOT", "HVCN1", "HVCN1HOTSPOT",
                                 "GNAI2","GNAI2HOTSPOT",
@@ -261,11 +259,16 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
   cnv = gsub("P","p",cnv)
   cnv = gsub("Q","q",cnv)
   
-  genes = genes[genes %in% colnames(full_data)]
+  genes_mutated = genes[genes %in% colnames(full_data)]
+  genes = unique(unname(unlist(sapply(genes, function(x){gsub("HOTSPOT","",x)}))))
+  genes = unique(unname(unlist(sapply(genes, function(x){gsub(".OTHER","",x)}))))
+  genes = unique(unname(unlist(sapply(genes, function(x){gsub("\\.","-",x)}))))
+ genes = genes[!grepl("AMP",genes)]
   return(list(reduced=reduced_data,
               full=full_data,
               no_cn=data_no_cn,
-              ssm_genes = genes,
+              ssm_genes = genes_mutated,
+              all_ssm_genes = genes,
               feature_names=list(ssm_features=ssm,
                                  hotspot_features=hotspot,
                                  cnv_features=cnv,
