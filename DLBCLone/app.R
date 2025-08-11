@@ -148,9 +148,9 @@ lymphgen_genes <- c(
 lyseq_genes <- sort(lyseq_genes[lyseq_genes %in% colnames(full_status)])
 
 panels <- list(
-  Coyle_Tier1_DLBCL = sort(colnames(full_status)),
+  Coyle = sort(colnames(full_status)),
   Lacy = lacy_genes,
-  Lymphgen_not_CNV = lymphgen_genes[lymphgen_genes %in% colnames(full_status)],
+  Lymphgen = lymphgen_genes[lymphgen_genes %in% colnames(full_status)],
   Lymphplex = c(
     "BCL2", "BCL6", "ARID1A", "B2M", "BTG1", "BTG2", "CCND3",
     "CD70", "CD79B", "CIITA", "CREBBP", "DDX3X", "DTX1",
@@ -160,8 +160,8 @@ panels <- list(
     "STAT3", "STAT6", "TBL1XR1", "TET2", "TNFAIP3", "TNFRSF14", "ZFP36L1"
   ),
   Lyseq = lyseq_genes,
-  Lyseq_no_TP53 = lyseq_genes[lyseq_genes != "TP53"],
-  MSK_impact = impact_genes[impact_genes %in% colnames(full_status)]
+  `Lyseq (no TP53)` = lyseq_genes[lyseq_genes != "TP53"],
+  `MSK Impact` = impact_genes[impact_genes %in% colnames(full_status)]
 )
 
 demo_samples <- rownames(prototypes)
@@ -199,7 +199,7 @@ ui <- fluidPage(
     sidebarPanel(
       actionButton("visualize", "Update UMAP", icon("refresh")),
       actionButton("regenerate", "Update Classifier", icon("refresh")),
-
+      radioButtons("mode","Classification Mode",choices=c("Stringent","Lenient"),selected="Lenient",inline=TRUE),
       helpText("Visualize selected features or create a custom classifier using them"),
       selectInput("panel",
         label = "Pre-defined gene panel",
@@ -253,6 +253,20 @@ ui <- fluidPage(
         choices = sort(colnames(full_status)),
         selected = sort(colnames(full_status))
       ),
+      checkboxInput("use_core", "Specify a set of core features (higher importance)", value = FALSE),
+
+conditionalPanel(
+  condition = "input.use_core",
+  helpText("Core features will be more heavily weighted in the analysis."),
+  selectizeInput(
+    "core_features",
+    label = "Core features",
+    choices = sort(colnames(full_status)),
+    selected = NULL,
+    multiple = TRUE,
+    options = list(placeholder = 'Type to search features…', create=FALSE)
+  )
+),
       sliderInput("k_range", label = "Range of K values to try", min = 5, max = 50, step = 5, value = c(k_low, k_high))
     ),
     mainPanel(
@@ -279,6 +293,17 @@ server <- function(input, output, session) {
   sample_log <- reactiveVal()
   # Track the most recently predicted sample ID (demo or custom)
   current_predict_id <- reactiveVal(NULL)
+
+  # Compute the effective feature set used for training/UMAP
+  core_features <- reactive({
+    base <- req(input$features)
+    core = NULL
+    if (isTRUE(input$use_core) && length(input$core_features)) {
+      core <- input$core_features
+    }
+    core
+  })
+
   # Build a one-row test df for a custom sample, aligned to the current model's feature set
   make_custom_test_df <- function(sample_id, selected_features, present_value, train_cols) {
     # start with zeros for all columns in the model
@@ -386,7 +411,7 @@ server <- function(input, output, session) {
     if(is.null(sample_log())){
       sample_log(data.frame(
         sample_id = character(),
-        DLBCLone_ko = character(),
+        prediction = character(),
         stringsAsFactors = FALSE
       ))
     }
@@ -422,34 +447,6 @@ server <- function(input, output, session) {
       selected = panels[[input$panel]], inline = T
     )
   })
-#  observeEvent(input$predict, {
-#    sample_features = prototypes[input$predict_sample,]
-#    print(input$predict_sample)
-#    print(sample_features)
-#    current_DLBCLone_KNN = dlbclone_result()
-#    train_df = full_status %>%
-#      select(all_of(colnames(current_DLBCLone_KNN$features_df)))
-#    test_df = sample_features %>%
-#      select(all_of(colnames(current_DLBCLone_KNN$features_df)))
-#    print(colnames(train_df))
-#    print(colnames(test_df))
-#    predicted_DLBCLone_KNN = DLBCLone_KNN_predict(train_df = train_df,
-#                                                  test_df = test_df,
-#                                                  metadata = dlbcl_meta_clean,
-#                                                  DLBCLone_KNN_out = current_DLBCLone_KNN)
-#    print("updating dlbclone_pred_result")
-#    dlbclone_pred_result(predicted_DLBCLone_KNN)
-#    sample_class = filter(predicted_DLBCLone_KNN$unlabeled_predictions, sample_id == input$predict_sample)  %>%
-#      select(sample_id, DLBCLone_ko,EZB:Other_score,top_group_score,score_ratio,neighbor_id)
-
-
-#    current_log = sample_log()
-#    current_log = bind_rows(
-#      current_log,
-#      sample_class
-#    )
-#    sample_log(current_log)
-#  })
 
   observeEvent(input$predict, {
     current_DLBCLone_KNN <- dlbclone_result()
@@ -457,26 +454,30 @@ server <- function(input, output, session) {
     # Columns the model expects (training columns)
     train_df <- full_status %>%
       select(all_of(colnames(current_DLBCLone_KNN$features_df)))
-
+    #core_feats = core_features()
     if (identical(input$predict_source, "Demo sample")) {
       # -------- DEMO path (unchanged logic) --------
       req(input$predict_sample)
       sample_features <- prototypes[input$predict_sample, , drop = FALSE] %>%
         select(all_of(colnames(current_DLBCLone_KNN$features_df)))
-
+      #print("FEATS:")
+      #print(colnames(sample_features))
       predicted <- DLBCLone_KNN_predict(
         train_df = train_df,
         test_df = sample_features,
         metadata = dlbcl_meta_clean,
+        #core_features = core_feats,
         DLBCLone_KNN_out = current_DLBCLone_KNN
       )
-
+      
       dlbclone_pred_result(predicted)
       current_predict_id(input$predict_sample)
-
+      #print(names(predicted))
+      #print(predicted$unlabeled_predictions)
       sample_class <- predicted$unlabeled_predictions %>%
         filter(sample_id == input$predict_sample) %>%
-        select(sample_id, DLBCLone_ko, EZB:Other_score, top_group_score, score_ratio, neighbor_id)
+        #select(sample_id, DLBCLone_ko, EZB:Other_score, top_group_score, score_ratio, neighbor_id)
+        select(sample_id, DLBCLone_ko, EZB:Other_score, score_ratio)
 
     } else {
       # -------- CUSTOM path --------
@@ -491,12 +492,14 @@ server <- function(input, output, session) {
         present_value = input$custom_present_value,
         train_cols = colnames(current_DLBCLone_KNN$features_df)
       )
-      print(test_df)
+      #core_feats = core_features()
+      #print(test_df)
       # Predict
       predicted <- DLBCLone_KNN_predict(
         train_df = train_df,
         test_df = test_df,
         metadata = dlbcl_meta_clean,
+        #core_features = core_feats,
         DLBCLone_KNN_out = current_DLBCLone_KNN
       )
 
@@ -505,11 +508,29 @@ server <- function(input, output, session) {
 
       sample_class <- predicted$unlabeled_predictions %>%
         filter(sample_id == input$custom_sample_id) %>%
-        select(sample_id, DLBCLone_ko, EZB:Other_score, top_group_score, score_ratio, neighbor_id)
+        #select(sample_id, DLBCLone_ko, EZB:Other_score, top_group_score, score_ratio, neighbor_id)
+        select(sample_id, DLBCLone_ko, EZB:Other_score, score_ratio)
+
+
+      
     }
-    print(sample_class)
+    # Round all numeric columns to 3 decimal places
+    sample_class <- sample_class %>%
+      mutate(across(where(is.numeric), ~ round(.x, 3)))
+    #add more details
+    sample_class$panel = input$panel
+    sample_class$Mode = input$mode
+    sample_class$n_feats = length(input$features)
+    sample_class$core = paste0(input$core_features, collapse = ",")
+    
     # Append to sample log
+    sample_class =
+      sample_class %>% 
+      rename(prediction=DLBCLone_ko) %>%
+      relocate(panel:core, .after = prediction)
     cur_log <- sample_log()
+    
+    
     cur_log <- bind_rows(cur_log, sample_class)
     sample_log(cur_log)
   })
@@ -518,11 +539,16 @@ server <- function(input, output, session) {
   # re-generate and evaluate the classifier
   observeEvent(input$regenerate, {
     status <- full_status %>% select(all_of(input$features))
+    optimize_for_other = if_else(input$mode == "Stringent", TRUE, FALSE)
+    core_feats = core_features()
     # core = c("MYD88HOTSPOT","NOTCH1","SGK1","EZH2","NOTCH2","BCL6_SV","TET2")
     # core_features = core[core %in% input$features]
-    updated_result <- DLBCLone_KNN(status, dlbcl_meta_clean,
+    updated_result <- DLBCLone_KNN(status,
+      dlbcl_meta_clean,
+      core_features = core_feats,
       min_k = input$k_range[1],
-      max_k = input$k_range[2]
+      max_k = input$k_range[2],
+      optimize_for_other = optimize_for_other
     )
     dlbclone_result(updated_result)
 
@@ -564,15 +590,31 @@ server <- function(input, output, session) {
     run_log(log_df)
   })
 
+  observeEvent(input$features, {
+    # Allowed set = currently checked Features
+    allowed <- sort(if (is.null(input$features)) character() else input$features)
 
+    # Drop any core items no longer allowed
+    new_core <- intersect(isolate(input$core_features), allowed)
+
+    # Update the core picker: limit choices to allowed; keep only valid selections
+    updateSelectizeInput(
+      session, "core_features",
+      choices  = allowed,
+      selected = new_core,
+      server   = TRUE
+    )
+  })
 
   observeEvent(input$visualize, {
     status <- full_status %>% select(all_of(input$features))
     # core = c("MYD88HOTSPOT","NOTCH1","SGK1","EZH2","NOTCH2","BCL6_SV","TET2")
     # core_features = core[core %in% input$features]
+    fc = core_features()
     updated_result <- make_and_annotate_umap(
       df = status,
-      metadata = dlbcl_meta_clean
+      metadata = dlbcl_meta_clean,  
+      core_features = fc
     )
 
 
@@ -584,17 +626,7 @@ server <- function(input, output, session) {
   output$sample_log_table <- renderDT({
     datatable(sample_log(), escape = FALSE, options = list(pageLength = 10))
   })
-  #output$heatmap <- renderPlot({
-  #  DLBCLone_KNN_out = dlbclone_pred_result()
-  #  if (is.null(DLBCLone_KNN_out) ||
-  #    is.null(DLBCLone_KNN_out$predictions) ||
-  #    !(input$predict_sample %in% DLBCLone_KNN_out$unlabeled_predictions$sample_id)) {
-  #    plot.new()
-  #    text(0.5, 0.5, "Select a sample and run the classifier to view its neighbors.", cex = 1.5)
-  ##    return()
-  #  }
-  # nearest_neighbor_heatmap(input$predict_sample,DLBCLone_KNN_out)
-  #})
+
   output$heatmap <- renderPlot({
     DLBCLone_KNN_out <- dlbclone_pred_result()
     sid <- current_predict_id()
@@ -607,7 +639,11 @@ server <- function(input, output, session) {
       text(0.5, 0.5, "Run the classifier (Demo or Custom) to view neighbors.", cex = 1.5)
       return()
     }
-
+    if(is.null(DLBCLone_KNN_out$unlabeled_neighbors)) {
+      plot.new()
+      text(0.5, 0.5, "No neighbors found.", cex = 1.5)
+      return()
+    }
     nearest_neighbor_heatmap(sid, DLBCLone_KNN_out)
   })
   output$DLBCLone_KNN_plot_truth <- renderPlotly({

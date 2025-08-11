@@ -35,10 +35,21 @@ nearest_neighbor_heatmap <- function(this_sample_id,
       lyseq_status = DLBCLone_model$lyseq_status
     }else if(DLBCLone_model$type == "DLBCLone_KNN"){
       if(!"unlabeled_neighbors" %in% names(DLBCLone_model)){
+        print(names(DLBCLone_model))
         stop("DLBCLone_model must be the output of DLBCLone_KNN with predict_unlabeled = TRUE")
+      }else if(is.null(DLBCLone_model$unlabeled_neighbors)){
+        #no neighbors found for any of the incoming samples
+        message("No neighbors found for any sample. Returning NULL.")
+        return(NULL)
       }
       neighbor_df = DLBCLone_model$unlabeled_neighbors
-      neighbor_transpose = filter(neighbor_df,sample_id==this_sample_id) %>% t()
+      neighbor_transpose = filter(neighbor_df,sample_id==this_sample_id) 
+      if(nrow(neighbor_transpose) == 0){
+        message("No neighbors found for sample ", this_sample_id, ". Returning NULL.")
+        return(NULL)
+      }
+      neighbor_transpose = neighbor_transpose %>% t()
+
       pred_name = "DLBCLone_ko"
     }
 
@@ -57,15 +68,20 @@ nearest_neighbor_heatmap <- function(this_sample_id,
   #print(xx)
   #make row annotation
   #row_df = select(bind_rows(DLBCLone_model$predictions, DLBCLone_model$unlabeled_predictions), sample_id, lymphgen) %>% 
+ 
   row_df = select(DLBCLone_model$predictions, sample_id, lymphgen, !!sym(pred_name)) %>% 
     filter(sample_id %in% rownames(xx)) 
   if(!this_sample_id %in% row_df$sample_id){
     if("unlabeled_predictions" %in% names(DLBCLone_model)){
       row_df = bind_rows(row_df,
                         select(DLBCLone_model$unlabeled_predictions, sample_id, lymphgen, !!sym(pred_name)) %>% 
-                            filter(sample_id %in% rownames(xx))    
-            ) 
+                            filter(sample_id %in% rownames(xx))
+                        )
+       sample_class = filter(DLBCLone_model$unlabeled_predictions, sample_id == this_sample_id) %>%
+        pull(!!sym(pred_name))
+             
     }else{
+      sample_class = NULL
       row_df = bind_rows(row_df,
                        tibble(sample_id = this_sample_id, lymphgen = NA)) 
     }
@@ -81,14 +97,19 @@ nearest_neighbor_heatmap <- function(this_sample_id,
     df = row_df[rownames(xx),,drop=FALSE],
     col = anno_list,
     #annotation_name_side = "left",
-    annotation_name_gp = gpar(fontsize = 6),
+    annotation_name_gp = gpar(fontsize = 12),
     show_legend = FALSE
   )
-  Heatmap(xx[,colSums(xx)>0], 
+
+  title_text = paste("Sample", this_sample_id, "classified as", sample_class)
+  Heatmap(xx[,colSums(xx)>0],
           col = col_fun,
-          #column_names_gp = gpar(fontsize=6),
+          column_names_gp = gpar(fontsize=12),
+
           right_annotation = row_anno,
-          clustering_distance_rows = clustering_distance)
+          clustering_distance_rows = clustering_distance,
+          show_heatmap_legend = FALSE,
+          column_title = title_text)
 }
 
 #' Basic UMAP Scatterplot
