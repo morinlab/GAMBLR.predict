@@ -876,6 +876,13 @@ make_and_annotate_umap = function(
   if(!missing(metadata)){
     umap_df = left_join(umap_df,metadata,by=join_column)
   }
+
+  umap_df = umap_df %>% 
+    mutate(
+      V1 = round(V1, 9),
+      V2 = round(V2, 9)
+    )
+
   results = list()
   results[["df"]]=umap_df
   results[["features"]] = df
@@ -1033,12 +1040,13 @@ process_votes <- function(
       mutate(by_vote = top_group_count) %>%
       mutate(by_vote_opt = ifelse(top_group_count * other_vote_multiplier > Other_count, top_group, "Other"))
   }
-  
+
   df_out = mutate(
     df_out,
     by_score = top_score_group,
     score_ratio = top_group_score / Other_score,
-    by_score_opt=ifelse(score_ratio > score_purity_requirement | top_group_score > score_thresh,top_score_group,
+    by_score_opt=ifelse(score_ratio > score_purity_requirement | top_group_score > score_thresh,
+    top_score_group,
     "Other"
     )
   )
@@ -2086,8 +2094,8 @@ DLBCLone_save_optimized = function(
   # all files will be in path and start with name_prefix
   prefix = paste0(path,"/",name_prefix)
   
-  out_mut = paste0(prefix,"_mutation_status_df.tsv")
-  write_tsv(optimized_params$features,file=out_mut)
+  out_mut = paste0(prefix,"_mutation_status_df.rds")
+  saveRDS(optimized_params$features,file=out_mut)
 
   out_meta = paste0(prefix,"_metadata.tsv")
   write_tsv(optimized_params$df,file=out_meta)
@@ -2103,6 +2111,15 @@ DLBCLone_save_optimized = function(
 
   out_classes = paste0(prefix,"_classes.rds")
   saveRDS(optimized_params$truth_classes,file=out_classes)
+
+  out_k_w = paste0(prefix,"_optimized_k_w.rds")
+  saveRDS(optimized_params$k_DLBCLone_w,file=out_k_w)
+
+  purity_w = paste0(prefix,"_purity_w.rds")
+  saveRDS(optimized_params$purity_DLBCLone_w,file=purity_w)
+
+  score_thresh_w = paste0(prefix,"_score_thresh_w.rds")
+  saveRDS(optimized_params$score_thresh_DLBCLone_w,file=score_thresh_w) 
 }
 
 #' load previously saved DLBCLone model and parameters
@@ -2124,21 +2141,24 @@ DLBCLone_save_optimized = function(
 #'   name_prefix="test_A"
 #' )
 #'
-DLBCLone_load_optimized <- function( # set sample_id to rownames
+DLBCLone_load_optimized <- function(
   path="models/",
   name_prefix="test"
 ){
   #all files will be in path and start with name_prefix
   prefix = paste0(path,"/",name_prefix)
   
-  load_mut = paste0(prefix,"_mutation_status_df.tsv")
+  load_mut = paste0(prefix,"_mutation_status_df.rds")
   load_meta = paste0(prefix,"_metadata.tsv")
   load_classes = paste0(prefix,"_classes.rds")
   load_param = paste0(prefix,"_optimized_best_params.rds")
   load_model = paste0(prefix,"_optimized_uwot.rds")
   load_pred = paste0(prefix,"_optimized_pred.tsv")
+  load_k_w = paste0(prefix,"_optimized_k_w.rds")
+  load_purity_w = paste0(prefix,"_purity_w.rds")
+  load_score_thresh_w = paste0(prefix,"_score_thresh_w.rds")
 
-  required_files <- c(load_mut, load_meta, load_classes, load_param, load_model, load_pred)
+  required_files <- c(load_mut, load_meta, load_classes, load_param, load_model, load_pred, load_k_w, load_purity_w, load_score_thresh_w)
 
   # Check existence
   missing_files <- required_files[!file.exists(required_files)]
@@ -2146,13 +2166,16 @@ DLBCLone_load_optimized <- function( # set sample_id to rownames
     stop("The following required files are missing:\n", paste(missing_files, collapse = "\n"))
   }
 
-  mut_df <- read_tsv(load_mut)
+  mut_df <- readRDS(load_mut)
   metadata <- read_tsv(load_meta) %>%
     mutate(lymphgen = as.factor(lymphgen))
   classes <- readRDS(load_classes)
   best_params <- readRDS(load_param)
   uwot_model <- load_uwot(load_model)
   predictions <- read_tsv(load_pred)
+  k_DLBCLone_w <- readRDS(load_k_w)
+  best_w_purity <- readRDS(load_purity_w)
+  best_w_score_thresh <- readRDS(load_score_thresh_w)
 
   return(list(
     features = mut_df,
@@ -2160,7 +2183,10 @@ DLBCLone_load_optimized <- function( # set sample_id to rownames
     truth_classes = classes,
     best_params = best_params,
     model = uwot_model,
-    predictions = predictions
+    predictions = predictions,
+    k_DLBCLone_w = k_DLBCLone_w,
+    purity_DLBCLone_w = best_w_purity,
+    score_thresh_DLBCLone_w = best_w_score_thresh
   ))
 }
 
