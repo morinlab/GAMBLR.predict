@@ -1915,7 +1915,6 @@ predict_single_sample_DLBCLone <- function(
   seed = 12345,
   max_neighbors = 500
 ){
-
   if(is.null(optimized_model)){
     stop("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
   }
@@ -1978,7 +1977,6 @@ predict_single_sample_DLBCLone <- function(
   )
 
   test_pred = rownames_to_column(test_pred, var = "sample_id")
-
   if(!is.null(optimized_model)){
     test_pred = mutate(
       test_pred, 
@@ -2014,7 +2012,7 @@ predict_single_sample_DLBCLone <- function(
       label = as.character(label)
   )
 
-  predictions_train_df = dplyr::filter(
+  predictions_train_df = filter(
     optimized_model$df, 
     !(sample_id %in% test_id)
   ) %>%
@@ -2103,8 +2101,8 @@ DLBCLone_save_optimized = function(
   out_pred = paste0(prefix,"_optimized_pred.tsv")
   write_tsv(optimized_params$predictions,file=out_pred)
 
-  out_classes = paste0(prefix,"_classes.txt")
-  write.table(optimized_params$truth_classes,file=out_classes,quote=F,row.names=F)
+  out_classes = paste0(prefix,"_classes.rds")
+  saveRDS(optimized_params$truth_classes,file=out_classes)
 }
 
 #' load previously saved DLBCLone model and parameters
@@ -2135,7 +2133,7 @@ DLBCLone_load_optimized <- function( # set sample_id to rownames
   
   load_mut = paste0(prefix,"_mutation_status_df.tsv")
   load_meta = paste0(prefix,"_metadata.tsv")
-  load_classes = paste0(prefix,"_classes.txt")
+  load_classes = paste0(prefix,"_classes.rds")
   load_param = paste0(prefix,"_optimized_best_params.rds")
   load_model = paste0(prefix,"_optimized_uwot.rds")
   load_pred = paste0(prefix,"_optimized_pred.tsv")
@@ -2151,14 +2149,14 @@ DLBCLone_load_optimized <- function( # set sample_id to rownames
   mut_df <- read_tsv(load_mut)
   metadata <- read_tsv(load_meta) %>%
     mutate(lymphgen = as.factor(lymphgen))
-  classes <- read.table(load_classes)
+  classes <- readRDS(load_classes)
   best_params <- readRDS(load_param)
   uwot_model <- load_uwot(load_model)
   predictions <- read_tsv(load_pred)
 
   return(list(
-    df = mut_df,
-    metadata = metadata,
+    features = mut_df,
+    df = metadata,
     truth_classes = classes,
     best_params = best_params,
     model = uwot_model,
