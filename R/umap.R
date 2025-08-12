@@ -1927,6 +1927,10 @@ predict_single_sample_DLBCLone <- function(
     stop("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
   }
 
+  bad_samps <- rowSums(test_df) == 0 
+  bad_test_df <- test_df[bad_samps, ] 
+  test_df <- test_df[!bad_samps, ]
+
   test_id <- test_df %>% 
     rownames_to_column("sample_id") %>% 
     pull(sample_id)
@@ -2053,6 +2057,17 @@ predict_single_sample_DLBCLone <- function(
         )
       )
     }
+
+    predictions_test_df = predictions_test_df %>%
+      bind_rows(
+        bad_test_df %>%
+        rownames_to_column("sample_id") %>%
+        mutate(
+          predicted_label = "Other",
+          confidence = 1
+        ) 
+      )
+
     to_return = list(
       prediction = predictions_test_df, 
       projection = optimized_model$df,
