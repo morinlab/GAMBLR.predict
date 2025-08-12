@@ -1936,15 +1936,13 @@ predict_single_sample_DLBCLone <- function(
     pull(sample_id)
     
   train_coords = dplyr::filter(
-    optimized_model$df,
-    !(sample_id %in% test_id)
+    optimized_model$df
   ) %>% 
     select(sample_id,V1,V2) %>%
     column_to_rownames("sample_id")
 
   train_df_proj = dplyr::filter(
-    optimized_model$df,
-    !(sample_id %in% test_id)
+    optimized_model$df
   ) %>% 
   select(sample_id,V1,V2) %>%
   left_join( #Join to the incoming metadata rather than trusting the metadata in the projection
@@ -2025,8 +2023,7 @@ predict_single_sample_DLBCLone <- function(
   )
 
   predictions_train_df = filter(
-    optimized_model$df, 
-    !(sample_id %in% test_id)
+    optimized_model$df
   ) %>%
     select(sample_id, V1, V2) 
 
