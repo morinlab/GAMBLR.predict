@@ -1246,19 +1246,33 @@ DLBCLone_KNN_predict <- function(train_df,
     #run DLBCLone KNN on each sample individually
     predictions_list = list()
     neighbors_list = list()
-    for(i in rownames(test_df)){
-      predictions_list[[i]] = DLBCLone_KNN(df = combined_df[i, , drop = FALSE], metadata = metadata, core_features = DLBCLone_KNN_out$best_params$core_features, core_feature_multiplier = DLBCLone_KNN_out$best_params$core_feature_multiplier, min_k = DLBCLone_KNN_out$best_params$k, max_k = DLBCLone_KNN_out$best_params$k, truth_column = "lymphgen", truth_classes = c("EZB", "BN2", "ST2", "MCD", "N1", "Other"), predict_unlabeled = TRUE, plot_samples = NULL, seed = 12345)
+    
+    for(i in c(1:nrow(test_df))){
+      message("iteration:", i, "of", nrow(test_df))
+      combined_df = bind_rows(train_df,test_df[i,])
+      model_out = DLBCLone_KNN( 
+        features_df = combined_df,
+        metadata = metadata,
+        DLBCLone_KNN_out = DLBCLone_KNN_out,
+        predict_unlabeled = TRUE)
+      print(model_out$unlabeled_predictions)
+      predictions_list[[i]] = model_out$unlabeled_predictions
+      
     }
+    all_predictions = do.call("bind_rows",predictions_list)
+    print(all_predictions)
+    return(all_predictions)
   }else{
     model_out = DLBCLone_KNN(features_df = combined_df,
                              metadata = metadata,
                     
                              DLBCLone_KNN_out = DLBCLone_KNN_out,
                              predict_unlabeled = TRUE)
+    return(model_out)
                              
             
   }
-  return(model_out)
+  
 }
 
 #' Run DLBCLone KNN Classification
@@ -1449,7 +1463,9 @@ DLBCLone_KNN <- function(features_df,
         for (purity_threshold in seq(3, 0, -0.05)) {
           updated_votes <- fkn_weighted %>%
             mutate(min_score = score_thresh) %>%
-            mutate(by_score_opt = ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
+            mutate(by_score_opt = ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other")) 
+            #%>%
+            #mutate(composite = )
           updated_votes_no <- filter(updated_votes, lymphgen != "Other")
           acc <- report_accuracy(updated_votes, pred = "by_score_opt")
           if (acc$mean_balanced_accuracy > best) {
@@ -1463,7 +1479,8 @@ DLBCLone_KNN <- function(features_df,
         best <- acc$mean_balanced_accuracy
         best_thresh = 0
       }
-      
+      classes <- intersect(c("EZB","BN2","ST2","MCD","N1"), names(fkn_weighted))
+
       if (best > overall_best_acc) {
         overall_best_acc <- best
         overall_best_thresh <- best_thresh
@@ -1472,7 +1489,17 @@ DLBCLone_KNN <- function(features_df,
         updated_votes <- fkn_weighted %>%
           mutate(min_score = score_thresh) %>%
           mutate(DLBCLone_k = by_score) %>%
-          mutate(DLBCLone_ko = ifelse(score_ratio >= best_thresh | top_group_score > score_thresh, by_score, "Other"))
+          mutate(DLBCLone_ko = ifelse(score_ratio >= best_thresh | top_group_score > score_thresh, by_score, "Other")) %>%
+          rowwise() %>% 
+          mutate(
+            valid_classes = {
+              scores   <- c_across(all_of(.env$classes))              # <- note .env$
+              keep_idx <- which(replace(scores > score_thresh, is.na(scores), FALSE))
+              if (length(keep_idx) == 0) "Other" else paste(.env$classes[keep_idx], collapse = "/")
+            }
+          ) %>%
+          ungroup()
+
         best_pred <- updated_votes
         message(paste0("New best accuracy: ", round(best, 3), " at k=", k, " with purity threshold: ", round(best_thresh, 2)))
       } else {
@@ -1504,7 +1531,7 @@ DLBCLone_KNN <- function(features_df,
     # Predict labels for samples that weren't in the metadata/training data
     # Need to update the metadata with empty rows for all samples that aren't in the metadata
     
-    print(length(samples_no_metadata))
+
 
     placeholder_metadata <- data.frame(sample_id = samples_no_metadata, lymphgen = NA)
     metadata_merge = bind_rows(metadata, placeholder_metadata)
@@ -1570,7 +1597,7 @@ DLBCLone_KNN <- function(features_df,
       fkn_weighted_long <- rownames_to_column(fkn_weighted, "sample_id") %>%
         pivot_longer(-sample_id, names_to = "column", values_to = "vote")
 
-
+      
       fkn_votes <- left_join(fkn_ids_long, fkn_weighted_long, by = c("sample_id", "column")) %>% 
         left_join(fk_neighbors_long, by = c("sample_id", "column")) %>%
         filter(!is.na(class))
@@ -1583,6 +1610,7 @@ DLBCLone_KNN <- function(features_df,
         slice_head(n = k) %>%
         mutate(neighbor_id = paste(neighbor, collapse=",")) %>%
         ungroup()
+      
       fkn_weighted_neighbors <- fkn_weighted %>%
         select(sample_id, neighbor_id) %>%
         distinct() %>%
@@ -1593,7 +1621,7 @@ DLBCLone_KNN <- function(features_df,
         summarize(
           weighted_vote = sum(vote)
         )
-
+        
         if(optimize_for_other){
           fkn_weighted <- fkn_weighted %>%
             pivot_wider(id_cols = "sample_id", names_from = "class", values_from = "weighted_vote", values_fill = 0) %>%
@@ -1634,6 +1662,8 @@ DLBCLone_KNN <- function(features_df,
             top_group_score = top_class_count
           ) %>%
           mutate(score_ratio = 10)
+          
+
         } 
         fkn_weighted <- fkn_weighted %>%
           filter(sample_id %in% rownames(exclude_df))
@@ -1654,10 +1684,22 @@ DLBCLone_KNN <- function(features_df,
           mutate(DLBCLone_ko = ifelse(score_ratio >= overall_best_thresh | top_group_score > score_thresh, by_score, "Other")) %>%
           left_join(.,fkn_weighted_neighbors, by = "sample_id") 
       }else{
+        classes <- intersect(c("EZB","BN2","ST2","MCD","N1"), names(fkn_weighted))
+        #print(classes)
+        #print(names(fkn_weighted))
         unlabeled_predictions <- fkn_weighted %>%
           # mutate(sample_id = sample) %>%
           mutate(DLBCLone_k = by_score) %>%
           mutate(DLBCLone_ko = by_score) %>%
+          rowwise() %>% 
+          mutate(
+            valid_classes = {
+              scores   <- c_across(all_of(.env$classes))              # <- note .env$
+              keep_idx <- which(replace(scores > Other_score, is.na(scores), FALSE))
+              if (length(keep_idx) == 0) "Other" else paste(.env$classes[keep_idx], collapse = "/")
+            }
+          ) %>% 
+          ungroup() %>%
           left_join(.,fkn_weighted_neighbors, by = "sample_id") 
       }
     }else{
