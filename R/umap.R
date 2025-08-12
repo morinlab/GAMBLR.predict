@@ -317,99 +317,6 @@ assemble_genetic_features <- function(these_samples_metadata,
 
 }
 
-old_assemble_genetic_features <- function(these_samples_metadata,
-                              metadata_columns = c("bcl2_ba","bcl6_ba","myc_ba"),
-                              genes,
-                              synon_genes,
-                              maf_with_synon,
-                              hotspot_genes,
-                              sv_value = 3,
-                              synon_value = 1,
-                              coding_value = 2){
-  #TODO: ensure this supports both genome builds correctly
-  some_regions = GAMBLR.utils::create_bed_data(
-                              GAMBLR.data::grch37_ashm_regions,
-                              fix_names = "concat",
-                              concat_cols = c("gene","region"),
-                              sep="-")
-  #make the aSHM count matrix and combine if necessary
-  if ("genome" %in% these_samples_metadata$seq_type){
-    ashm_matrix_genome <- get_ashm_count_matrix(
-     regions_bed = some_regions,
-     this_seq_type = "genome",
-     these_samples_metadata = these_samples_metadata
-    )
-
-    colnames(ashm_matrix_genome) = gsub("-.+","",colnames(ashm_matrix_genome))
-  }
-  if ("capture" %in% these_samples_metadata$seq_type){
-    ashm_matrix_cap <- get_ashm_count_matrix(
-     regions_bed = some_regions,
-     this_seq_type = "capture",
-     these_samples_metadata = these_samples_metadata
-    )
-    colnames(ashm_matrix_cap) = gsub("-.+","",colnames(ashm_matrix_cap))
-  }
-  if ("genome"  %in% these_samples_metadata$seq_type && "capture" %in% these_samples_metadata$seq_type){
-    ashm_matrix = bind_rows(ashm_matrix_genome, ashm_matrix_cap)
-  }else if("genome" %in% these_samples_metadata$seq_type){
-    ashm_matrix = ashm_matrix_genome
-  }else if("capture" %in% these_samples_metadata$seq_type){
-    ashm_matrix = ashm_matrix_cap
-  }else{
-    stop("no eligible seq_type provided in these_samples_metadata")
-  }
-  
-  status_with_silent = get_coding_ssm_status(
-    these_samples_metadata = these_samples_metadata,
-    maf_data = maf_with_synon,
-    include_hotspots = TRUE,
-    genes_of_interest = "MYD88",
-    include_silent_genes = synon_genes,
-    gene_symbols = genes
-  ) 
-  status_with_silent = status_with_silent %>% column_to_rownames("sample_id")
-
-  status_without_silent = get_coding_ssm_status(
-    these_samples_metadata = these_samples_metadata,
-    maf_data = maf_with_synon,
-    include_hotspots = TRUE,
-    genes_of_interest = "MYD88",
-    include_silent = FALSE,
-    gene_symbols = genes
-  ) 
-  status_without_silent = status_without_silent %>% column_to_rownames("sample_id")
-
-  status_combined = status_with_silent + status_without_silent
-  if(coding_value == 1){
-    status_combined[status_combined > 1] = 1
-  }
-
-  #fill in gaps from aSHM (other non-coding variants in the genes)
-
-  missing = status_with_silent[rownames(ashm_matrix),
-                               colnames(ashm_matrix)]==0 & 
-    ashm_matrix[rownames(ashm_matrix),
-                colnames(ashm_matrix)] == synon_value
-
-  status_with_silent[rownames(missing),
-                     colnames(missing)] = synon_value
-  
-  bcl2_id = these_samples_metadata[which(these_samples_metadata$bcl2_ba=="POS"),] %>% pull(sample_id)
-  bcl6_id = these_samples_metadata[which(these_samples_metadata$bcl6_ba=="POS"),] %>% pull(sample_id)
-  myc_id = these_samples_metadata[which(these_samples_metadata$myc_ba=="POS"),] %>% pull(sample_id)
-
-  status_combined[,"BCL2_SV"] = 0
-  status_combined[bcl2_id,"BCL2_SV"] = sv_value
-
-  status_combined[,"MYC_SV"] = 0
-  status_combined[myc_id,"MYC_SV"] = sv_value
-
-  status_combined[,"BCL6_SV"] = 0
-  status_combined[bcl6_id,"BCL6_SV"] = sv_value
-  return(status_combined)
-
-}
 
 #' Optimize the threshold for classifying samples as "Other"
 #'
@@ -449,7 +356,8 @@ optimize_outgroup <- function(predicted_labels,
                                             "Other"),
                             maximize ="balanced_accuracy",
                             exclude_other_for_accuracy = FALSE,
-                            verbose = FALSE){
+                            verbose = FALSE,
+                            other_class = "Other"){
   #print(paste("Exclude Other?",exclude_other_for_accuracy))
   rel_thresholds = seq(1,10,0.1)
   sens_df = data.frame()
@@ -461,7 +369,7 @@ optimize_outgroup <- function(predicted_labels,
       predictions_new = mutate(predictions,
                                predicted_label = ifelse(other_score < threshold,
                                                         predicted_label,
-                                                        "Other"))
+                                                        other_class))
 
       pred = factor(predictions_new[["predicted_label"]],levels=all_classes)
       truth = factor(predictions_new[["true_label"]],levels=all_classes)
@@ -648,7 +556,7 @@ DLBCLone_train_test_plot = function(test_df,
 make_and_annotate_umap = function(df,
                               metadata,
                               umap_out,
-                              
+                              truth_column = "lymphgen",
                               core_features = NULL,
                               core_feature_multiplier = 1.5,
                               hidden_features = NULL,
@@ -868,7 +776,8 @@ make_and_annotate_umap = function(df,
     results[["model"]]= umap_out
   }
   if(make_plot){
-    ms = make_umap_scatterplot(umap_df,
+    ms = make_umap_scatterplot(  umap_df,
+                                  colour_by = truth_column,
                                   title = "UMAP projection")
     print(ms)
     results[["plot"]] = ms
@@ -911,7 +820,8 @@ process_votes <- function(df,
                           k,
                           other_vote_multiplier = 2,
                           score_purity_requirement = 1,
-                          weighted_votes_col = "weighted_votes") {
+                          weighted_votes_col = "weighted_votes",
+                          other_class = "Other") {   # <--- NEW ARG
   if(missing(k)){
     stop("k value is required")
   }
@@ -942,7 +852,6 @@ process_votes <- function(df,
     mutate(.id = row_number()) %>%
     rowwise() %>%
     mutate(
-      # 1) counts
       counts = list(
         set_names(
           count_labels_in_string(.data[[raw_col]], group_labels),
@@ -953,8 +862,6 @@ process_votes <- function(df,
         cnts <- count_labels_in_string(.data[[raw_col]], group_labels)
         group_labels[which.max(cnts)]
       },
-
-      # 2) scores
       scores = list(
         if (!is.null(vote_labels_col) && !is.null(weighted_votes_col)) {
           extract_weighted_scores(
@@ -966,8 +873,6 @@ process_votes <- function(df,
           set_names(rep(0, length(group_labels)), paste0(group_labels, "_score"))
         }
       ),
-
-      # 3) top score group summary
       score_summary = list(
         if (!is.null(vote_labels_col) && !is.null(weighted_votes_col)) {
           get_top_score_group(
@@ -985,36 +890,43 @@ process_votes <- function(df,
     unnest_wider(scores) %>%
     unnest_wider(score_summary) %>%
     rowwise() %>%
-mutate(
-  top_group_count = get(paste0(top_group, "_NN_count"))
-) %>%
-ungroup()
+    mutate(
+      top_group_count = get(paste0(top_group, "_NN_count"))
+    ) %>%
+    ungroup()
 
   # Optional adjustments based on external columns (if present)
-  if ("neighbors_other" %in% colnames(df)) {
-    df_out <- df_out %>%
-      mutate(Other_count = neighbors_other)
+  if (!is.null(other_class) && other_class %in% group_labels) {   # <--- CONDITIONAL
+    if ("neighbors_other" %in% colnames(df)) {
+      df_out <- df_out %>%
+        mutate(!!sym(paste0(other_class, "_count")) := neighbors_other)
+    }
+    if ("other_weighted_votes" %in% colnames(df)) {
+      df_out <- df_out %>%
+        mutate(!!sym(paste0(other_class, "_score")) := other_weighted_votes)
+    }
+    if (all(c("top_group_count", paste0(other_class, "_count")) %in% colnames(df_out))) {
+      df_out <- df_out %>%
+        mutate(by_vote = top_group_count) %>%
+        mutate(by_vote_opt = ifelse(top_group_count * other_vote_multiplier > !!sym(paste0(other_class, "_count")), top_group, other_class))
+    }
+    df_out <- mutate(df_out,
+                     by_score = top_score_group,
+                     score_ratio = top_group_score / !!sym(paste0(other_class, "_score")),
+                     by_score_opt = ifelse(score_ratio > score_purity_requirement | top_group_score > score_thresh, top_score_group, other_class))
+  } else {
+    # Fallback: if no "other" class exists, keep by_score/by_vote as top_group
+    df_out <- mutate(df_out,
+                     by_score = top_score_group,
+                     score_ratio = NA_real_,
+                     by_score_opt = top_score_group,
+                     by_vote_opt = top_group)
   }
 
-  if ("other_weighted_votes" %in% colnames(df)) {
-    df_out <- df_out %>%
-      mutate(Other_score = other_weighted_votes)
-  }
-
-  # Optional override of top group if Other dominates by a fold
-  if (all(c("top_group_count", "Other_count") %in% colnames(df_out))) {
-    df_out <- df_out %>%
-      mutate(by_vote = top_group_count) %>%
-      mutate(by_vote_opt = ifelse(top_group_count * other_vote_multiplier > Other_count, top_group, "Other"))
-  }
-  
-  df_out = mutate(df_out,
-                  by_score = top_score_group,
-                  score_ratio = top_group_score / Other_score,
-                  by_score_opt=ifelse(score_ratio > score_purity_requirement | top_group_score > score_thresh,top_score_group,"Other"))
-  
   return(df_out)
 }
+
+
 
 #' Optimize Purity Threshold for Classification Assignment
 #'
@@ -1045,7 +957,8 @@ optimize_purity <- function(optimized_model_object,
                             truth_column, 
                             all_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
                             k,
-                            exclude_other_for_accuracy = FALSE) {
+                            exclude_other_for_accuracy = FALSE,
+                            other_class = "Other") {  # <--- NEW ARG
   if(mode == "DLBCLone_w"){
     in_column = "by_score"
     out_column = mode
@@ -1062,124 +975,112 @@ optimize_purity <- function(optimized_model_object,
     vote_df = optimized_model_object$predictions
   }
 
-  #all_classes = unique(vote_df[[truth_column]])
-  some_classes = all_classes[all_classes != "Other"]
+  some_classes <- if (!is.null(other_class) && other_class %in% all_classes) {
+    all_classes[all_classes != other_class]
+  } else {
+    all_classes
+  }
   score_thresh = 2 * k
 
-  processed_votes = process_votes(vote_df,
-                group_labels=all_classes,
-                k=k,
-                score_purity_requirement=0.5)
-  # Function to optimize purity based on processed votes and truth labels
+  processed_votes <- process_votes(vote_df,
+                                   group_labels = all_classes,
+                                   k = k,
+                                   score_purity_requirement = 0.5,
+                                   other_class = other_class)  # <--- pass it through
+  
   if(!truth_column %in% colnames(processed_votes)){
     stop("truth_column must be a column in processed_votes")
   }
   best_accuracy <- 0
   best_purity_threshold <- 0
 
-  processed_votes = mutate(processed_votes,!!sym(truth_column):= as.character(!!sym(truth_column))) 
+  processed_votes <- mutate(processed_votes, !!sym(truth_column) := as.character(!!sym(truth_column))) 
   
-  no_other_df = processed_votes %>%
-    filter(!!sym(truth_column) != "Other")
+  if (!is.null(other_class) && other_class %in% all_classes) {
+    no_other_df <- processed_votes %>%
+      filter(!!sym(truth_column) != other_class)
+  } else {
+    no_other_df <- processed_votes
+  }
+
   for(purity_threshold in seq(3, 0, -0.05)){
     updated_votes <- processed_votes %>%
-      mutate(!!sym(out_column) := ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
+      mutate(!!sym(out_column) := if (!is.null(other_class) && other_class %in% all_classes) {
+        ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, other_class)
+      } else {
+        by_score
+      })
+
     updated_no_other_df <- no_other_df %>%
-      mutate(!!sym(out_column) := ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
+      mutate(!!sym(out_column) := if (!is.null(other_class) && other_class %in% all_classes) {
+        ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, other_class)
+      } else {
+        by_score
+      })
 
-
-
-
-    if(!exclude_other_for_accuracy){
-      
-      xx = select(updated_votes, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
-        mutate(match=ifelse(!!sym(truth_column) == !!sym(out_column),TRUE,FALSE)) %>%
+    if(!exclude_other_for_accuracy || is.null(other_class) || !(other_class %in% all_classes)){
+      xx <- select(updated_votes, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
+        mutate(match = !!sym(truth_column) == !!sym(out_column)) %>%
         group_by(match) %>%
-        #summarise(concordant) %>%
-        summarise(concordant=sum(match==TRUE), discordant = sum(match==FALSE)) %>%
-        ungroup() %>%
-        summarise(all_conc = sum(concordant), dis = sum(discordant), total=all_conc+dis, percent=100*sum(concordant)/total)
-        pc_conc = xx$percent %>% round(.,1)
-        num_conc = xx$all_conc
-        num_dis = xx$dis
+        summarise(concordant = sum(match == TRUE), discordant = sum(match == FALSE), .groups = "drop") %>%
+        summarise(all_conc = sum(concordant), dis = sum(discordant), total = all_conc + dis, percent = 100 * sum(concordant) / total)
       
-      # calculate accuracy
-      updated_votes = mutate(updated_votes,!!sym(out_column) := factor(!!sym(out_column),levels=all_classes))
-      updated_votes = mutate(updated_votes,!!sym(truth_column) := factor(!!sym(truth_column),levels=all_classes))
-      confusion_matrix <- table(updated_votes[[truth_column]],updated_votes[[out_column]])
+      updated_votes <- mutate(updated_votes, !!sym(out_column) := factor(!!sym(out_column), levels = all_classes))
+      updated_votes <- mutate(updated_votes, !!sym(truth_column) := factor(!!sym(truth_column), levels = all_classes))
+      confusion_matrix <- table(updated_votes[[truth_column]], updated_votes[[out_column]])
       conf_matrix <- confusionMatrix(updated_votes[[out_column]], updated_votes[[truth_column]])
-
-
-    }else{
-      xx = select(updated_no_other_df, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
-        filter(!!sym(truth_column) != "Other") %>%
-        mutate(match=ifelse(!!sym(truth_column) == !!sym(out_column),TRUE,FALSE)) %>%
+    } else {
+      xx <- select(updated_no_other_df, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
+        filter(!!sym(truth_column) != other_class) %>%
+        mutate(match = !!sym(truth_column) == !!sym(out_column)) %>%
         group_by(match) %>%
-        #summarise(concordant) %>%
-        summarise(concordant=sum(match==TRUE), discordant = sum(match==FALSE)) %>%
-        ungroup() %>%
-        summarise(all_conc = sum(concordant), dis = sum(discordant), total=all_conc+dis, percent=100*sum(concordant)/total)
-      updated_no_other_df = mutate(updated_no_other_df,
-        !!sym(out_column) := factor(!!sym(out_column),levels=all_classes),
-        !!sym(truth_column) := factor(!!sym(truth_column),levels=all_classes))
-      confusion_matrix <- table(updated_no_other_df[[truth_column]],updated_no_other_df[[out_column]])
+        summarise(concordant = sum(match == TRUE), discordant = sum(match == FALSE), .groups = "drop") %>%
+        summarise(all_conc = sum(concordant), dis = sum(discordant), total = all_conc + dis, percent = 100 * sum(concordant) / total)
 
+      updated_no_other_df <- mutate(updated_no_other_df,
+        !!sym(out_column) := factor(!!sym(out_column), levels = all_classes),
+        !!sym(truth_column) := factor(!!sym(truth_column), levels = all_classes))
+      confusion_matrix <- table(updated_no_other_df[[truth_column]], updated_no_other_df[[out_column]])
       conf_matrix <- confusionMatrix(updated_no_other_df[[out_column]], updated_no_other_df[[truth_column]])
-
     }
-    accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
 
-    bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
-    oa = conf_matrix$overall[["Accuracy"]]
-    pc_conc = xx$percent %>% round(.,1)
-    bal_acc = mean(bal_acc,na.rm=T)
-    
-    if(optimize_by == "balanced_accuracy"){
-      accuracy = bal_acc
-    }else if(optimize_by == "overall_accuracy"){
-      accuracy = oa
-    }
-    num_conc = xx$all_conc
-    num_dis = xx$dis
-    
-    #if(accuracy > best_accuracy){
+    oa <- conf_matrix$overall[["Accuracy"]]
+    bal_acc <- mean(conf_matrix$byClass[, "Balanced Accuracy"], na.rm = TRUE)
+    accuracy <- if (optimize_by == "balanced_accuracy") bal_acc else oa
+
     if(accuracy > best_accuracy){
-      #print(confusion_matrix)
-      #print(bal_acc)
-      #print(paste("Percent: ",pc_conc,"Overall:",oa, "Balanced:",mean(bal_acc,na.rm=T)))
-      #print(conf_matrix)
-      #message(paste0("New best accuracy: ", round(accuracy, 3)))
-      #message(paste0("Matches:" ,num_conc, " %Concordance: ",pc_conc, " Mismatches: ",num_dis))
-      #message(paste0(" at purity threshold: ", round(purity_threshold, 2)))
       best_accuracy <- accuracy
       best_purity_threshold <- purity_threshold
-    }else{
-      #print(paste("No improvement", accuracy, "vs", best_accuracy, "at threshold", purity_threshold))
     }
-
-    #print(confusion_matrix_ignore_other)
   }
-  best_out = processed_votes %>%
-      mutate(!!sym(out_column) := ifelse(score_ratio >= best_purity_threshold | top_group_score > score_thresh, by_score, "Other")) 
 
-  
+  best_out <- processed_votes %>%
+    mutate(!!sym(out_column) := if (!is.null(other_class) && other_class %in% all_classes) {
+      ifelse(score_ratio >= best_purity_threshold | top_group_score > score_thresh, by_score, other_class)
+    } else {
+      by_score
+    })
+
   if(missing(optimized_model_object)){
-    optimized_model_object = list()
-    optimized_model_object$best_params = list(k=k,
-                                                purity_threshold=best_purity_threshold,
-                                                accuracy=best_accuracy,
-                                                num_classes=length(unique(best_out$predicted_label)),
-                                                num_features=ncol(best_out)-3, #minus V1,V2,sample_id
-                                                seed=12345)  
+    optimized_model_object <- list()
+    optimized_model_object$best_params <- list(
+      k = k,
+      purity_threshold = best_purity_threshold,
+      accuracy = best_accuracy,
+      num_classes = length(unique(best_out$predicted_label)),
+      num_features = ncol(best_out) - 3, 
+      seed = 12345
+    )  
   }
-  optimized_model_object$predictions = best_out
-  optimized_model_object$best_accuracy = best_accuracy  
-  optimized_model_object$best_purity_threshold = best_purity_threshold
-  optimized_model_object$maximize = optimize_by
-  optimized_model_object$score_thresh = score_thresh
-  optimized_model_object$exclude_other_for_accuracy = exclude_other_for_accuracy
+  optimized_model_object$predictions <- best_out
+  optimized_model_object$best_accuracy <- best_accuracy  
+  optimized_model_object$best_purity_threshold <- best_purity_threshold
+  optimized_model_object$maximize <- optimize_by
+  optimized_model_object$score_thresh <- score_thresh
+  optimized_model_object$exclude_other_for_accuracy <- exclude_other_for_accuracy
   return(optimized_model_object)
 }
+
 
 #' Predict DLBCLone Classes for New Samples Using a Trained KNN Model
 #'
@@ -1219,7 +1120,8 @@ DLBCLone_KNN_predict <- function(train_df,
                                  test_df,
                                  metadata,
                                  DLBCLone_KNN_out,
-                                 mode = "batch") {
+                                 mode = "batch",
+                                 other_class = "Other") {  # <--- NEW ARG
   if(missing(DLBCLone_KNN_out)){
     stop("DLBCLone_KNN_out must be provided, run DLBCLone_KNN first to get the optimal parameters")
   }
@@ -1228,8 +1130,8 @@ DLBCLone_KNN_predict <- function(train_df,
   if(nsamp > 1){
     if(mode != "iterative"){
       warning("Running DLBCLone KNN on multiple samples at once is not recommended as the result may be unstable",
-            " and may not reflect the true classification of each sample. ",
-            "Running in iterative mode is recommended for more stable results.")
+              " and may not reflect the true classification of each sample. ",
+              "Running in iterative mode is recommended for more stable results.")
     }
   }
 
@@ -1242,40 +1144,81 @@ DLBCLone_KNN_predict <- function(train_df,
     message("filling in missing features in test_df with zeros")
     combined_df[is.na(combined_df)] = 0
   }
-  if(mode=="iterative"){
-    #run DLBCLone KNN on each sample individually
+  if(mode == "iterative"){
     predictions_list = list()
-    neighbors_list = list()
-    
-    for(i in c(1:nrow(test_df))){
+    for(i in seq_len(nrow(test_df))){
       message("iteration:", i, "of", nrow(test_df))
-      combined_df = bind_rows(train_df,test_df[i,])
-      model_out = DLBCLone_KNN( 
+      combined_df = bind_rows(train_df, test_df[i,])
+      model_out = DLBCLone_KNN(
         features_df = combined_df,
         metadata = metadata,
         DLBCLone_KNN_out = DLBCLone_KNN_out,
-        predict_unlabeled = TRUE)
-      print(model_out$unlabeled_predictions)
+        predict_unlabeled = TRUE,
+        other_class = other_class   # <--- pass it in
+      )
       predictions_list[[i]] = model_out$unlabeled_predictions
-      
     }
-    all_predictions = do.call("bind_rows",predictions_list)
-    print(all_predictions)
+    all_predictions = do.call("bind_rows", predictions_list)
     return(all_predictions)
-  }else{
-    model_out = DLBCLone_KNN(features_df = combined_df,
-                             metadata = metadata,
-                    
-                             DLBCLone_KNN_out = DLBCLone_KNN_out,
-                             predict_unlabeled = TRUE)
+  } else {
+    model_out = DLBCLone_KNN(
+      features_df = combined_df,
+      metadata = metadata,
+      DLBCLone_KNN_out = DLBCLone_KNN_out,
+      predict_unlabeled = TRUE,
+      other_class = other_class   # <--- pass it in
+    )
     return(model_out)
-                             
-            
   }
-  
 }
 
+
 #' Run DLBCLone KNN Classification
+#'
+#' Weighted KNN on a feature (mutation) matrix with optional upweighting of
+#' user-specified "core" features, optional exclusion of "hidden" features,
+#' and optional optimization of an explicit outgroup (e.g. "Other").
+#'
+#' This version removes hard-coded LymphGen class names and instead derives the
+#' in-group classes and the outgroup column name from the arguments
+#' \code{truth_classes} and \code{other_class}. It keeps backward compatibility
+#' for the default LymphGen-like usage.
+#'
+#' @param features_df Numeric matrix/data.frame (rows = samples, cols = features).
+#'                    Row names must be sample IDs.
+#' @param metadata Data frame with at least \code{sample_id} and the ground-truth
+#'                 label column given in \code{truth_column}.
+#' @param core_features Character vector of feature names to upweight (optional).
+#' @param core_feature_multiplier Numeric multiplier for \code{core_features}.
+#' @param hidden_features Character vector of feature names to drop (optional).
+#' @param min_k,max_k Integer K range to explore when optimizing.
+#' @param truth_column Name of metadata column with ground-truth class labels.
+#' @param truth_classes Character vector of all classes to consider (including
+#'                      \code{other_class} if you intend to optimize for it).
+#' @param other_class Name of the explicit outgroup class (default: "Other").
+#' @param optimize_for_other Logical; if TRUE, computes a separate "other"
+#'        score (ratio) and searches a purity threshold; if FALSE, treats all
+#'        classes symmetrically.
+#' @param predict_unlabeled If TRUE, re-runs KNN to classify samples that were
+#'        present in \code{features_df} but not in \code{metadata}.
+#' @param plot_samples Optional vector of sample_ids to keep in example plots.
+#' @param DLBCLone_KNN_out Optional prior result; if supplied, its learned
+#'        parameters are reused (skip optimization).
+#' @param seed Random seed.
+#' @param epsilon Small value added to distances before weighting.
+#' @param weighted_votes If FALSE, neighbors are unweighted (equal votes).
+#' @param skip_umap If TRUE, skip layout optimization plots at the end.
+#'
+#' @return A list with fields including:
+#'   \item{predictions}{Per-sample vote/score summary and predicted labels}
+#'   \item{DLBCLone_k_best_k}{Best K found}
+#'   \item{DLBCLone_k_purity_threshold}{Best purity threshold (if applicable)}
+#'   \item{DLBCLone_k_accuracy}{Best accuracy metric achieved}
+#'   \item{truth_classes, truth_column}{Echoed arguments}
+#'   \item{unlabeled_predictions}{Predictions for unlabeled samples (if requested)}
+#'   \item{df}{Annotated layout for plotting (when built in this run)}
+#'   \item{plot_truth, plot_predicted}{ggplots when built in this run}
+#'
 #' @export
 DLBCLone_KNN <- function(features_df,
                          metadata,
@@ -1286,6 +1229,7 @@ DLBCLone_KNN <- function(features_df,
                          max_k = 60,
                          truth_column = "lymphgen",
                          truth_classes = c("EZB", "BN2", "ST2", "MCD", "N1", "Other"),
+                         other_class = "Other",
                          optimize_for_other = TRUE,
                          predict_unlabeled = FALSE,
                          plot_samples = NULL,
@@ -1294,551 +1238,583 @@ DLBCLone_KNN <- function(features_df,
                          epsilon = 0.001,
                          weighted_votes = TRUE,
                          skip_umap = FALSE) {
+
+  # In-group classes (exclude the explicit outgroup label if present)
+  class_levels <- setdiff(truth_classes, other_class)
+
   if(!missing(DLBCLone_KNN_out)){
-    core_features = DLBCLone_KNN_out$core_features
-    core_feature_multiplier = DLBCLone_KNN_out$core_feature_multiplier
-    hidden_features = DLBCLone_KNN_out$hidden_features
-    optimize_for_other = DLBCLone_KNN_out$optimize_for_other
+    core_features        <- DLBCLone_KNN_out$core_features
+    core_feature_multiplier <- DLBCLone_KNN_out$core_feature_multiplier
+    hidden_features      <- DLBCLone_KNN_out$hidden_features
+    optimize_for_other   <- DLBCLone_KNN_out$optimize_for_other
   }
+
+  # Upweight core features, drop hidden features
   if(!is.null(core_features)){
-    
     if(!is.numeric(core_feature_multiplier)){
       stop("core_feature_multiplier must be a numeric value")
     }
     if(!all(core_features %in% colnames(features_df))){
-      stop("core_features must be a vector of column names in df")
+      stop("core_features must be a vector of column names in features_df")
     }
-    #multiply the core features by the multiplier
-    ncore = length(core_features)
-    message(paste0("multiplying ",ncore," core features by ",core_feature_multiplier))
-    features_df[,core_features] = features_df[,core_features] * core_feature_multiplier
+    ncore <- length(core_features)
+    message(paste0("multiplying ", ncore, " core features by ", core_feature_multiplier))
+    features_df[, core_features] <- features_df[, core_features] * core_feature_multiplier
   }
   if(!is.null(hidden_features)){
     if(!all(hidden_features %in% colnames(features_df))){
       stop("hidden_features must be a vector of column names in features_df")
     }
-
-    message(paste0("dropping ",length(hidden_features)," hidden features"))
-    features_df = features_df %>% select(-any_of(hidden_features))
+    message(paste0("dropping ", length(hidden_features), " hidden features"))
+    features_df <- features_df %>% dplyr::select(-dplyr::any_of(hidden_features))
   }
-  exclude_df <- features_df[!row.names(features_df) %in% metadata$sample_id, ]
-  features_df <- features_df[rownames(features_df) %in% metadata$sample_id, ]
-  df_empty = features_df[rowSums(features_df) == 0, ]
-  sample_metadata_no_features = dplyr::filter(metadata, sample_id %in% rownames(df_empty))
+
+  # Partition rows by presence in metadata and by empty feature rows
+  exclude_df  <- features_df[!row.names(features_df) %in% metadata$sample_id, ]
+  features_df <- features_df[ rownames(features_df) %in% metadata$sample_id, ]
+
+  df_empty <- features_df[rowSums(features_df) == 0, ]
+  sample_metadata_no_features <- dplyr::filter(metadata, sample_id %in% rownames(df_empty))
   features_df <- features_df[rowSums(features_df) > 0, ]
-  exclude_empty = exclude_df[rowSums(exclude_df) == 0, ]
-  exclude_df <- exclude_df[rowSums(exclude_df) > 0, ]
-  
+
+  exclude_empty <- exclude_df[rowSums(exclude_df) == 0, ]
+  exclude_df    <- exclude_df[rowSums(exclude_df) > 0, ]
+
   if (is.null(DLBCLone_KNN_out)) {
-    #do optimization
-    
-    overall_best_acc_k <- 0
-    overall_best_acc <- 0
-    overall_best_thresh <- 0
-    best_pred <- NULL
+    # ------------------------
+    # Optimize over K (and purity threshold if requested)
+    # ------------------------
+    overall_best_acc_k   <- 0
+    overall_best_acc     <- 0
+    overall_best_thresh  <- 0
+    best_pred            <- NULL
 
-    metadata <- metadata %>%
-      filter(sample_id %in% rownames(features_df)) 
-    #Is this necessary?
-    metadata_simple <- metadata %>%
-      select(sample_id, !!sym(truth_column))
+    metadata <- metadata %>% dplyr::filter(sample_id %in% rownames(features_df))
+    metadata_simple <- metadata %>% dplyr::select(sample_id, !!rlang::sym(truth_column))
 
-
-    # Run UMAP to get nearest neighbors
     message("Finding all nearest neighbors up to k=", max_k + 1, " using cosine distance")
-    nn_u <- umap(features_df,
-                 n_neighbors = max_k + 1, 
-                 ret_nn = T, 
-                 metric = "cosine", 
-                 seed = seed,
-                 n_threads = 1,
-                 batch = TRUE, 
-                 n_sgd_threads = 1,
-                 rng_type = "deterministic" )
+    nn_u <- uwot::umap(features_df,
+                       n_neighbors = max_k + 1,
+                       ret_nn = TRUE,
+                       metric = "cosine",
+                       seed = seed,
+                       n_threads = 1,
+                       batch = TRUE,
+                       n_sgd_threads = 1,
+                       rng_type = "deterministic")
 
-    fkn_ids <- nn_u$nn$cosine$idx
+    fkn_ids   <- nn_u$nn$cosine$idx
     fkn_dists <- nn_u$nn$cosine$dist
-
-
     rownames(fkn_dists) <- rownames(features_df)
-    rownames(fkn_ids) <- rownames(features_df)
+    rownames(fkn_ids)   <- rownames(features_df)
 
-    fkn_dists <- as.data.frame(fkn_dists) %>% select(-1)
-    if(weighted_votes){
+    fkn_dists <- as.data.frame(fkn_dists) %>% dplyr::select(-1)
+    if (weighted_votes) {
       fkn_weighted <- round(1 / (fkn_dists + epsilon), 7)
-    }else{
-      fkn_weighted = fkn_dists
-      fkn_weighted[] = 1
+    } else {
+      fkn_weighted <- fkn_dists
+      fkn_weighted[] <- 1
     }
 
-    # drop self
-    
-    fkn_ids <- as.data.frame(fkn_ids) %>% select(-1)
-    lg_index <- metadata$lymphgen
+    fkn_ids <- as.data.frame(fkn_ids) %>% dplyr::select(-1)
+    truth_index <- metadata[[truth_column]]
+    names(truth_index) <- metadata$sample_id
 
-    names(lg_index) <- metadata$sample_id
-
-    fkn_ids_named <- apply(fkn_ids, 2, function(x) {
-      rownames(fkn_ids)[x]
-    })
+    fkn_ids_named <- apply(fkn_ids, 2, function(x) rownames(fkn_ids)[x])
     rownames(fkn_ids_named) <- rownames(fkn_ids)
-    fkn_ids_lg <- apply(fkn_ids_named, 2, function(x) {
-      lg_index[x]
-    })
-    rownames(fkn_ids_lg) <- rownames(fkn_ids)
-    fkn_ids_lg <- as.data.frame(fkn_ids_lg)
-    fkn_ids_long <- rownames_to_column(fkn_ids_lg, "sample_id") %>%
-      pivot_longer(-sample_id, names_to = "column", values_to = "class")
 
-    fkn_weighted_long <- rownames_to_column(fkn_weighted, "sample_id") %>%
-      pivot_longer(-sample_id, names_to = "column", values_to = "vote")
+    fkn_ids_truth <- apply(fkn_ids_named, 2, function(x) truth_index[x])
+    rownames(fkn_ids_truth) <- rownames(fkn_ids)
+    fkn_ids_truth <- as.data.frame(fkn_ids_truth)
 
-    fkn_votes <- left_join(fkn_ids_long, fkn_weighted_long, by = c("sample_id", "column"))
+    fkn_ids_long <- tibble::rownames_to_column(fkn_ids_truth, "sample_id") %>%
+      tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "class")
+    fkn_weighted_long <- tibble::rownames_to_column(fkn_weighted, "sample_id") %>%
+      tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "vote")
+
+    fkn_votes <- dplyr::left_join(fkn_ids_long, fkn_weighted_long,
+                                  by = c("sample_id", "column"))
+
     for (k in seq(max_k, min_k, by = -5)) {
       message(paste0("Running DLBCLone KNN with k=", k))
 
-
       fkn_weighted <- fkn_votes %>%
-        group_by(sample_id) %>%
-        slice_head(n = k) %>%
-        ungroup() %>%
-        group_by(sample_id, class) %>%
-        summarize(
-          weighted_vote = sum(vote)
-        )
-      if(optimize_for_other){
+        dplyr::group_by(sample_id) %>%
+        dplyr::slice_head(n = k) %>%
+        dplyr::ungroup() %>%
+        dplyr::group_by(sample_id, class) %>%
+        dplyr::summarize(weighted_vote = sum(vote), .groups = "drop")
+
+      if (optimize_for_other) {
+        # Treat outgroup separately; compute top group among in-groups only
         fkn_weighted <- fkn_weighted %>%
-          pivot_wider(id_cols = "sample_id", names_from = "class", values_from = "weighted_vote", values_fill = 0) %>%
-          select(sample_id, EZB, BN2, ST2, MCD, N1, Other) %>%
-          rowwise() %>%
-          mutate(
-            idx = which.max(c_across(EZB:N1)),
-            top_class = c("EZB", "BN2", "ST2", "MCD", "N1")[idx],
-            top_class_count = c_across(EZB:N1)[idx]
-          ) %>% 
-          select(-idx) %>%
-          ungroup() %>%
-          mutate(top_class = ifelse(top_class_count == 0, "Other", top_class)) %>%
-          mutate(Other=round(Other, 4),
-                top_class_count=round(top_class_count, 4)) %>%
-          rename(
-            Other_score = Other,
-            by_score = top_class,
-            top_group_score = top_class_count
+          tidyr::pivot_wider(
+            id_cols     = "sample_id",
+            names_from  = "class",
+            values_from = "weighted_vote",
+            values_fill = 0
           ) %>%
-          mutate(score_ratio = round(top_group_score / Other_score, 4))
-      }else{
+          dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            idx             = which.max(dplyr::c_across(dplyr::all_of(class_levels))),
+            top_class       = class_levels[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(class_levels))[idx]
+          ) %>%
+          dplyr::select(-idx) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            top_class       = ifelse(top_class_count == 0, other_class, top_class),
+            "{other_class}" := round(.data[[other_class]], 4),
+            top_class_count = round(top_class_count, 4)
+          ) %>%
+          dplyr::rename(
+            "{other_class}_score" := dplyr::all_of(other_class)
+          ) %>%
+          dplyr::mutate(
+            by_score        = top_class,
+            top_group_score = top_class_count,
+            score_ratio     = round(top_group_score / .data[[paste0(other_class, "_score")]], 4)
+          )
+
+      } else {
+        # All classes symmetric; still provide an {other_class}_score column
         fkn_weighted <- fkn_weighted %>%
-        pivot_wider(id_cols = "sample_id", names_from = "class", values_from = "weighted_vote", values_fill = 0) %>%
-        select(sample_id, EZB, BN2, ST2, MCD, N1, Other) %>%
-        rowwise() %>%
-        mutate(
-          idx = which.max(c_across(EZB:N1)),
-          top_class = c("EZB", "BN2", "ST2", "MCD", "N1", "Other")[idx],
-          top_class_count = c_across(EZB:Other)[idx]
-        ) %>% 
-        select(-idx) %>%
-        ungroup() %>%
-        mutate(top_class = ifelse(top_class_count == 0, "Other", top_class)) %>%
-        rename(
-          Other_score = Other,
-          by_score = top_class,
-          top_group_score = top_class_count
-        ) %>%
-        mutate(score_ratio = 10)
+          tidyr::pivot_wider(
+            id_cols     = "sample_id",
+            names_from  = "class",
+            values_from = "weighted_vote",
+            values_fill = 0
+          ) %>%
+          dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            idx             = which.max(dplyr::c_across(dplyr::all_of(union(class_levels, other_class)))),
+            top_class       = union(class_levels, other_class)[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(union(class_levels, other_class)))[idx]
+          ) %>%
+          dplyr::select(-idx) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            top_class = ifelse(top_class_count == 0, other_class, top_class),
+            "{other_class}_score" := dplyr::if_else(
+              !is.na(.data[[other_class]]), .data[[other_class]], 0
+            )
+          ) %>%
+          dplyr::mutate(
+            by_score        = top_class,
+            top_group_score = top_class_count,
+            score_ratio     = 10
+          )
       }
 
+      # Attach truth labels for reporting
+      fkn_weighted <- dplyr::left_join(
+        fkn_weighted,
+        dplyr::select(metadata, sample_id, !!rlang::sym(truth_column)),
+        by = "sample_id"
+      )
 
-      #fkn_counted <- left_join(fkn_counted, select(metadata, sample_id, !!sym(truth_column)), by = "sample_id")
-      fkn_weighted <- left_join(fkn_weighted, select(metadata, sample_id, !!sym(truth_column)), by = "sample_id")
-      # print(tail(fkn_weighted))
       score_thresh <- 1.5 * k
 
-      if(optimize_for_other){
-        # basic optimization to pick best purity threshold
-        other_vote_multiplier <- 2
-        score_purity_requirement <- 1
+      # Grid search purity threshold if outgroup optimization is on
+      if (optimize_for_other) {
         best <- 0
         best_thresh <- 0
         for (purity_threshold in seq(3, 0, -0.05)) {
           updated_votes <- fkn_weighted %>%
-            mutate(min_score = score_thresh) %>%
-            mutate(by_score_opt = ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other")) 
-            #%>%
-            #mutate(composite = )
-          updated_votes_no <- filter(updated_votes, lymphgen != "Other")
-          acc <- report_accuracy(updated_votes, pred = "by_score_opt")
+            dplyr::mutate(min_score = score_thresh) %>%
+            dplyr::mutate(
+              by_score_opt = ifelse(
+                score_ratio >= purity_threshold | top_group_score > score_thresh,
+                by_score, other_class
+              )
+            )
+
+          acc <- report_accuracy(updated_votes, pred = "by_score_opt", truth = truth_column)
           if (acc$mean_balanced_accuracy > best) {
             best <- acc$mean_balanced_accuracy
             best_thresh <- purity_threshold
           }
         }
-      }else{
-        updated_votes <- mutate(fkn_weighted,by_score_opt = by_score)
-        acc <- report_accuracy(updated_votes, pred = "by_score_opt")
-        best <- acc$mean_balanced_accuracy
-        best_thresh = 0
+      } else {
+        updated_votes <- dplyr::mutate(fkn_weighted, by_score_opt = by_score)
+        acc          <- report_accuracy(updated_votes, pred = "by_score_opt", truth = truth_column)
+        best         <- acc$mean_balanced_accuracy
+        best_thresh  <- 0
       }
-      classes <- intersect(c("EZB","BN2","ST2","MCD","N1"), names(fkn_weighted))
 
+      classes_for_span <- setdiff(intersect(class_levels, names(fkn_weighted)), other_class)
       if (best > overall_best_acc) {
-        overall_best_acc <- best
+        overall_best_acc    <- best
         overall_best_thresh <- best_thresh
-        overall_best_acc_k <- k
-        # message(paste0("K",k," Best purity threshold: ", best_thresh, " with accuracy: ", best))
+        overall_best_acc_k  <- k
+
         updated_votes <- fkn_weighted %>%
-          mutate(min_score = score_thresh) %>%
-          mutate(DLBCLone_k = by_score) %>%
-          mutate(DLBCLone_ko = ifelse(score_ratio >= best_thresh | top_group_score > score_thresh, by_score, "Other")) %>%
-          rowwise() %>% 
-          mutate(
+          dplyr::mutate(min_score = score_thresh) %>%
+          dplyr::mutate(DLBCLone_k  = by_score) %>%
+          dplyr::mutate(DLBCLone_ko = ifelse(
+            score_ratio >= best_thresh | top_group_score > score_thresh,
+            by_score, other_class
+          )) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
             valid_classes = {
-              scores   <- c_across(all_of(.env$classes))              # <- note .env$
+              scores <- dplyr::c_across(dplyr::all_of(classes_for_span))
               keep_idx <- which(replace(scores > score_thresh, is.na(scores), FALSE))
-              if (length(keep_idx) == 0) "Other" else paste(.env$classes[keep_idx], collapse = "/")
+              if (length(keep_idx) == 0) other_class else paste(classes_for_span[keep_idx], collapse = "/")
             }
           ) %>%
-          ungroup()
+          dplyr::ungroup()
 
         best_pred <- updated_votes
-        message(paste0("New best accuracy: ", round(best, 3), " at k=", k, " with purity threshold: ", round(best_thresh, 2)))
+        message(paste0(
+          "New best accuracy: ", round(best, 3),
+          " at k=", k, " with purity threshold: ", round(best_thresh, 2)
+        ))
       } else {
-        print(paste("best accuracy did not improve at k=", k, " with purity threshold: ", round(best_thresh, 2), " accuracy: ", round(best, 3)))
+        message(paste(
+          "best accuracy did not improve at k=", k,
+          " with purity threshold:", round(best_thresh, 2),
+          " accuracy:", round(best, 3)
+        ))
       }
-    } # end for loop
+    } # end for K
+
   } else {
     message("Using DLBCLone_KNN_out provided, skipping KNN run")
-    best_pred <- DLBCLone_KNN_out$predictions
-    optimized_layout <- DLBCLone_KNN_out$df
-    overall_best_acc_k <- DLBCLone_KNN_out$DLBCLone_k_best_k
-    overall_best_acc <- DLBCLone_KNN_out$DLBCLone_k_accuracy
-    overall_best_thresh <- DLBCLone_KNN_out$DLBCLone_k_purity_threshold
+    best_pred            <- DLBCLone_KNN_out$predictions
+    optimized_layout     <- DLBCLone_KNN_out$df
+    overall_best_acc_k   <- DLBCLone_KNN_out$DLBCLone_k_best_k
+    overall_best_acc     <- DLBCLone_KNN_out$DLBCLone_k_accuracy
+    overall_best_thresh  <- DLBCLone_KNN_out$DLBCLone_k_purity_threshold
   }
+
+  # ------------------------
+  # Predict for unlabeled samples (optional)
+  # ------------------------
   unlabeled_predictions <- data.frame()
-  samples_no_metadata = c(
+  samples_no_metadata <- c(
     rownames(exclude_df)[!rownames(exclude_df) %in% metadata$sample_id],
     rownames(exclude_empty)[!rownames(exclude_empty) %in% metadata$sample_id]
   )
-  if (predict_unlabeled && length(samples_no_metadata)>0) {
 
+  if (predict_unlabeled && length(samples_no_metadata) > 0) {
     message("Re-running KNN to include unlabeled samples. Will use K value and thresholds from optimized model, if provided")
     message("will use newly provided features rather than recycling!")
+
     if (!is.null(DLBCLone_KNN_out)) {
       k <- DLBCLone_KNN_out$DLBCLone_k_best_k
       overall_best_thresh <- DLBCLone_KNN_out$DLBCLone_k_purity_threshold
       best_thresh <- overall_best_thresh
     }
-    # Predict labels for samples that weren't in the metadata/training data
-    # Need to update the metadata with empty rows for all samples that aren't in the metadata
-    
 
+    # Build an augmented metadata where the unlabeled have NA in the truth column
+    placeholder_metadata <- data.frame(sample_id = samples_no_metadata, stringsAsFactors = FALSE)
+    placeholder_metadata[[truth_column]] <- NA
+    metadata_merge <- dplyr::bind_rows(metadata, placeholder_metadata)
 
-    placeholder_metadata <- data.frame(sample_id = samples_no_metadata, lymphgen = NA)
-    metadata_merge = bind_rows(metadata, placeholder_metadata)
-    # for(sample in rownames(exclude_df)){
-    k_buffer = min(length(samples_no_metadata), overall_best_acc_k)
-    generous_k = overall_best_acc_k + k_buffer
+    k_buffer   <- min(length(samples_no_metadata), overall_best_acc_k)
+    generous_k <- overall_best_acc_k + k_buffer
     message("Finding all nearest neighbors up to k=", generous_k + 1, " using cosine distance")
-    # df_merge = bind_rows(df,exclude_df[sample,])
-    if(nrow(exclude_df) > 0){
-      features_df_merge <- bind_rows(features_df, exclude_df)
 
-    
-      nn_u = umap(features_df_merge,
-                 n_neighbors = generous_k + 1, 
-                 ret_nn = T, 
-                 metric = "cosine", 
-                 seed = seed,
-                 n_threads = 1,
-                 batch = TRUE, 
-                 n_sgd_threads = 1,
-                 rng_type = "deterministic" )
-      fkn_ids <- nn_u$nn$cosine$idx
+    if (nrow(exclude_df) > 0) {
+      features_df_merge <- dplyr::bind_rows(features_df, exclude_df)
+
+      nn_u <- uwot::umap(features_df_merge,
+                         n_neighbors = generous_k + 1,
+                         ret_nn = TRUE,
+                         metric = "cosine",
+                         seed = seed,
+                         n_threads = 1,
+                         batch = TRUE,
+                         n_sgd_threads = 1,
+                         rng_type = "deterministic")
+      fkn_ids   <- nn_u$nn$cosine$idx
       fkn_dists <- nn_u$nn$cosine$dist
-
-
       rownames(fkn_dists) <- rownames(features_df_merge)
-      rownames(fkn_ids) <- rownames(features_df_merge)
+      rownames(fkn_ids)   <- rownames(features_df_merge)
 
-      #epsilon <- 0.01
-      fkn_dists <- as.data.frame(fkn_dists) %>% select(-1)
-      if(weighted_votes){
+      fkn_dists <- as.data.frame(fkn_dists) %>% dplyr::select(-1)
+      if (weighted_votes) {
         fkn_weighted <- round(1 / (fkn_dists + epsilon), 7)
-      }else{
-        fkn_weighted = fkn_dists
-        fkn_weighted[] = 1
+      } else {
+        fkn_weighted <- fkn_dists
+        fkn_weighted[] <- 1
       }
 
-      # drop self
+      fkn_ids <- as.data.frame(fkn_ids) %>% dplyr::select(-1)
 
-      fkn_ids <- as.data.frame(fkn_ids) %>% select(-1)
-      #lg_index <- metadata$lymphgen
-      lg_index <- metadata_merge$lymphgen
+      truth_index <- metadata_merge[[truth_column]]
+      names(truth_index) <- metadata_merge$sample_id
 
-      #names(lg_index) <- metadata$sample_id
-      names(lg_index) <- metadata_merge$sample_id
-      fkn_ids_named <- apply(fkn_ids, 2, function(x) {
-        rownames(fkn_ids)[x]
-      })
+      fkn_ids_named <- apply(fkn_ids, 2, function(x) rownames(fkn_ids)[x])
       rownames(fkn_ids_named) <- rownames(fkn_ids)
 
-      fkn_ids_lg <- apply(fkn_ids_named, 2, function(x) {
-        lg_index[x]
-      })
-      rownames(fkn_ids_lg) <- rownames(fkn_ids)
-      fkn_ids_lg <- as.data.frame(fkn_ids_lg)
-      fk_neighbors_long = as.data.frame(fkn_ids_named) %>% 
-        rownames_to_column("sample_id") %>%
-        pivot_longer(-sample_id, names_to = "column", values_to = "neighbor")
-      #print(head(fk_neighbors_long))
-      fkn_ids_long <- rownames_to_column(fkn_ids_lg, "sample_id") %>%
-        pivot_longer(-sample_id, names_to = "column", values_to = "class")
-      #print(head(fkn_ids_long))
-      fkn_weighted_long <- rownames_to_column(fkn_weighted, "sample_id") %>%
-        pivot_longer(-sample_id, names_to = "column", values_to = "vote")
+      fkn_ids_truth <- apply(fkn_ids_named, 2, function(x) truth_index[x])
+      rownames(fkn_ids_truth) <- rownames(fkn_ids)
+      fkn_ids_truth <- as.data.frame(fkn_ids_truth)
 
-      
-      fkn_votes <- left_join(fkn_ids_long, fkn_weighted_long, by = c("sample_id", "column")) %>% 
-        left_join(fk_neighbors_long, by = c("sample_id", "column")) %>%
-        filter(!is.na(class))
-      #filter(fkn_votes,sample_id=="ST2_1") %>% print()
-      # Need to ensure all samples with NA values (i.e those not in metadata) are not considered neighbors in the voting but are still used for tallying votes so they get assigned to a class
-      k = overall_best_acc_k
+      fk_neighbors_long <- as.data.frame(fkn_ids_named) %>%
+        tibble::rownames_to_column("sample_id") %>%
+        tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "neighbor")
+
+      fkn_ids_long <- tibble::rownames_to_column(fkn_ids_truth, "sample_id") %>%
+        tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "class")
+
+      fkn_weighted_long <- tibble::rownames_to_column(fkn_weighted, "sample_id") %>%
+        tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "vote")
+
+      fkn_votes <- dplyr::left_join(fkn_ids_long, fkn_weighted_long, by = c("sample_id", "column")) %>%
+        dplyr::left_join(fk_neighbors_long, by = c("sample_id", "column")) %>%
+        dplyr::filter(!is.na(class))
+
+      k <- overall_best_acc_k
+
       fkn_weighted <- fkn_votes %>%
-        group_by(sample_id) %>%
-        # filter(sample_id == sample) %>%
-        slice_head(n = k) %>%
-        mutate(neighbor_id = paste(neighbor, collapse=",")) %>%
-        ungroup()
-      
+        dplyr::group_by(sample_id) %>%
+        dplyr::slice_head(n = k) %>%
+        dplyr::mutate(neighbor_id = paste(neighbor, collapse = ",")) %>%
+        dplyr::ungroup()
+
       fkn_weighted_neighbors <- fkn_weighted %>%
-        select(sample_id, neighbor_id) %>%
-        distinct() %>%
-        filter(sample_id %in% rownames(exclude_df))
-      
-      fkn_weighted = fkn_weighted %>% 
-        group_by(sample_id, class) %>%
-        summarize(
-          weighted_vote = sum(vote)
-        )
-        
-        if(optimize_for_other){
-          fkn_weighted <- fkn_weighted %>%
-            pivot_wider(id_cols = "sample_id", names_from = "class", values_from = "weighted_vote", values_fill = 0) %>%
-            select(sample_id, EZB, BN2, ST2, MCD, N1, Other) %>%
-            rowwise() %>%
-            mutate(
-              idx = which.max(c_across(EZB:N1)),
-              top_class = c("EZB", "BN2", "ST2", "MCD", "N1")[idx],
-              top_class_count = c_across(EZB:N1)[idx]
-            ) %>% 
-            select(-idx) %>%
-            ungroup() %>%
-            mutate(top_class = ifelse(top_class_count == 0, "Other", top_class)) %>%
-            mutate(Other=round(Other, 4),
-                  top_class_count=round(top_class_count, 4)) %>%
-            rename(
-              Other_score = Other,
-              by_score = top_class,
-              top_group_score = top_class_count
-            ) %>%
-            mutate(score_ratio = round(top_group_score / Other_score, 4))
-        }else{
-          fkn_weighted <- fkn_weighted %>%
-          pivot_wider(id_cols = "sample_id", names_from = "class", values_from = "weighted_vote", values_fill = 0) %>%
-          select(sample_id, EZB, BN2, ST2, MCD, N1, Other) %>%
-          rowwise() %>%
-          mutate(
-            idx = which.max(c_across(EZB:N1)),
-            top_class = c("EZB", "BN2", "ST2", "MCD", "N1", "Other")[idx],
-            top_class_count = c_across(EZB:Other)[idx]
-          ) %>% 
-          select(-idx) %>%
-          ungroup() %>%
-          mutate(top_class = ifelse(top_class_count == 0, "Other", top_class)) %>%
-          rename(
-            Other_score = Other,
-            by_score = top_class,
-            top_group_score = top_class_count
-          ) %>%
-          mutate(score_ratio = 10)
-          
+        dplyr::select(sample_id, neighbor_id) %>%
+        dplyr::distinct() %>%
+        dplyr::filter(sample_id %in% rownames(exclude_df))
 
-        } 
+      fkn_weighted <- fkn_weighted %>%
+        dplyr::group_by(sample_id, class) %>%
+        dplyr::summarize(weighted_vote = sum(vote), .groups = "drop")
+
+      if (optimize_for_other) {
         fkn_weighted <- fkn_weighted %>%
-          filter(sample_id %in% rownames(exclude_df))
-
-
-      #fkn_counted <- left_join(fkn_counted, select(metadata_merge, sample_id, !!sym(truth_column)), by = "sample_id")
-      fkn_weighted <- left_join(fkn_weighted, select(metadata_merge, sample_id, !!sym(truth_column)), by = "sample_id")
-      #print("fkn_weighted")
-      #print(nrow(fkn_weighted))
-      #print("fkn_weighted_neighbors")
-      #print(dim(fkn_weighted_neighbors))
-      score_thresh <- 1.5 * k
-      # print(head(fkn_weighted))
-      if(optimize_for_other){
-        unlabeled_predictions <- fkn_weighted %>%
-          # mutate(sample_id = sample) %>%
-          mutate(DLBCLone_k = by_score) %>%
-          mutate(DLBCLone_ko = ifelse(score_ratio >= overall_best_thresh | top_group_score > score_thresh, by_score, "Other")) %>%
-          left_join(.,fkn_weighted_neighbors, by = "sample_id") 
-      }else{
-        classes <- intersect(c("EZB","BN2","ST2","MCD","N1"), names(fkn_weighted))
-        #print(classes)
-        #print(names(fkn_weighted))
-        unlabeled_predictions <- fkn_weighted %>%
-          # mutate(sample_id = sample) %>%
-          mutate(DLBCLone_k = by_score) %>%
-          mutate(DLBCLone_ko = by_score) %>%
-          rowwise() %>% 
-          mutate(
-            valid_classes = {
-              scores   <- c_across(all_of(.env$classes))              # <- note .env$
-              keep_idx <- which(replace(scores > Other_score, is.na(scores), FALSE))
-              if (length(keep_idx) == 0) "Other" else paste(.env$classes[keep_idx], collapse = "/")
-            }
-          ) %>% 
-          ungroup() %>%
-          left_join(.,fkn_weighted_neighbors, by = "sample_id") 
+          tidyr::pivot_wider(
+            id_cols     = "sample_id",
+            names_from  = "class",
+            values_from = "weighted_vote",
+            values_fill = 0
+          ) %>%
+          dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            idx             = which.max(dplyr::c_across(dplyr::all_of(class_levels))),
+            top_class       = class_levels[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(class_levels))[idx]
+          ) %>%
+          dplyr::select(-idx) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            top_class       = ifelse(top_class_count == 0, other_class, top_class),
+            "{other_class}" := round(.data[[other_class]], 4),
+            top_class_count = round(top_class_count, 4)
+          ) %>%
+          dplyr::rename(
+            "{other_class}_score" := dplyr::all_of(other_class)
+          ) %>%
+          dplyr::mutate(
+            by_score        = top_class,
+            top_group_score = top_class_count,
+            score_ratio     = round(top_group_score / .data[[paste0(other_class, "_score")]], 4)
+          )
+      } else {
+        fkn_weighted <- fkn_weighted %>%
+          tidyr::pivot_wider(
+            id_cols     = "sample_id",
+            names_from  = "class",
+            values_from = "weighted_vote",
+            values_fill = 0
+          ) %>%
+          dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            idx             = which.max(dplyr::c_across(dplyr::all_of(union(class_levels, other_class)))),
+            top_class       = union(class_levels, other_class)[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(union(class_levels, other_class)))[idx]
+          ) %>%
+          dplyr::select(-idx) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            top_class = ifelse(top_class_count == 0, other_class, top_class),
+            "{other_class}_score" := dplyr::if_else(
+              !is.na(.data[[other_class]]), .data[[other_class]], 0
+            )
+          ) %>%
+          dplyr::mutate(
+            by_score        = top_class,
+            top_group_score = top_class_count,
+            score_ratio     = 10
+          )
       }
-    }else{
 
-      unlabeled_predictions <- data.frame(sample_id = rownames(exclude_empty)) %>%
-        mutate(!!sym(truth_column) := NA) %>%
-        mutate(DLBCLone_k = "Other", DLBCLone_ko = "Other", by_score = NA, top_group_score = NA, score_ratio = NA, Other_score = NA, neighbor_id = NA)
-        # Ensure all truth_classes columns exist and are empty (NA)
+      fkn_weighted <- fkn_weighted %>%
+        dplyr::filter(sample_id %in% rownames(exclude_df))
+
+      fkn_weighted <- dplyr::left_join(
+        fkn_weighted,
+        dplyr::select(metadata_merge, sample_id, !!rlang::sym(truth_column)),
+        by = "sample_id"
+      )
+
+      score_thresh <- 1.5 * k
+
+      if (optimize_for_other) {
+        unlabeled_predictions <- fkn_weighted %>%
+          dplyr::mutate(DLBCLone_k = by_score) %>%
+          dplyr::mutate(DLBCLone_ko = ifelse(
+            score_ratio >= overall_best_thresh | top_group_score > score_thresh,
+            by_score, other_class
+          )) %>%
+          dplyr::left_join(., fkn_weighted_neighbors, by = "sample_id")
+      } else {
+        classes_for_span <- intersect(class_levels, names(fkn_weighted))
+        other_score_col  <- paste0(other_class, "_score")
+
+        unlabeled_predictions <- fkn_weighted %>%
+          dplyr::mutate(DLBCLone_k = by_score) %>%
+          dplyr::mutate(DLBCLone_ko = by_score) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            valid_classes = {
+              scores   <- c_across(all_of(classes_for_span))
+              keep_idx <- which(replace(scores > .data[[other_score_col]], is.na(scores), FALSE))
+              if (length(keep_idx) == 0) other_class else paste(classes_for_span[keep_idx], collapse = "/")
+            }
+          ) %>%
+          dplyr::ungroup() %>%
+          dplyr::left_join(., fkn_weighted_neighbors, by = "sample_id")
+      }
+    } else {
+      other_score_col <- paste0(other_class, "_score")
+      unlabeled_predictions <- data.frame(sample_id = rownames(exclude_empty), stringsAsFactors = FALSE)
+      unlabeled_predictions[[truth_column]] <- NA
+      unlabeled_predictions <- unlabeled_predictions %>%
+        dplyr::mutate(
+          DLBCLone_k   = other_class,
+          DLBCLone_ko  = other_class,
+          by_score     = NA,
+          top_group_score = NA,
+          score_ratio  = NA
+        )
+      # Ensure truth_classes columns exist as NA
       for (cls in truth_classes) {
         if (!cls %in% colnames(unlabeled_predictions)) {
           unlabeled_predictions[[cls]] <- NA
         }
       }
-      #to_return$unlabeled_neighbors = NULL
+      unlabeled_predictions[[other_score_col]] <- NA
+      # no neighbor_id information in this branch
     }
   }
 
+  # ------------------------
+  # Assemble return object
+  # ------------------------
   if (is.null(DLBCLone_KNN_out)) {
-    
-    if(nrow(sample_metadata_no_features) > 0){
-      sample_metadata_no_features =sample_metadata_no_features %>%
-        select(sample_id, !!sym(truth_column)) %>%
-        mutate(DLBCLone_k = NA, DLBCLone_ko = "Other", by_score = NA, top_group_score = NA, score_ratio = NA)
-      best_pred = bind_rows(best_pred, sample_metadata_no_features)
+
+    if (nrow(sample_metadata_no_features) > 0) {
+      sample_metadata_no_features <- sample_metadata_no_features %>%
+        dplyr::select(sample_id, !!rlang::sym(truth_column)) %>%
+        dplyr::mutate(
+          DLBCLone_k = NA,
+          DLBCLone_ko = other_class,
+          by_score = NA,
+          top_group_score = NA,
+          score_ratio = NA
+        )
+      best_pred <- dplyr::bind_rows(best_pred, sample_metadata_no_features)
     }
+
     format_for_output <- function(x) {
       x_rounded <- round(x, 4)
       ifelse(
-        x_rounded == 0,
-        "0",
-        sub("\\.?0+$", "", format(x_rounded, scientific = FALSE, trim = TRUE, nsmall = 0))
+        is.na(x_rounded),
+        NA_character_,
+        ifelse(
+          x_rounded == 0,
+          "0",
+          sub("\\.?0+$", "", format(x_rounded, scientific = FALSE, trim = TRUE, nsmall = 0))
+        )
       )
     }
 
     to_return <- list(
-      # convert to character to avoid tiny floating point differences in outputs
       predictions = best_pred %>%
-        mutate(across(where(is.numeric), ~ format_for_output(.))),
-      DLBCLone_k_best_k = overall_best_acc_k,
-      DLBCLone_k_purity_threshold = best_thresh,
-      DLBCLone_k_accuracy = best,
-      truth_classes = truth_classes,
-      truth_column = truth_column,
+        dplyr::mutate(dplyr::across(where(is.numeric), ~ format_for_output(.))),
+      DLBCLone_k_best_k        = overall_best_acc_k,
+      DLBCLone_k_purity_threshold = overall_best_thresh,
+      DLBCLone_k_accuracy      = overall_best_acc,
+      truth_classes            = truth_classes,
+      truth_column             = truth_column,
       sample_metadata_no_features = sample_metadata_no_features,
-      core_feature_multiplier = core_feature_multiplier,
-      core_features = core_features,
-      hidden_features = hidden_features,
-      seed = seed,
-      optimize_for_other = optimize_for_other,
-      unlabeled_predictions = NULL
+      core_feature_multiplier  = core_feature_multiplier,
+      core_features            = core_features,
+      hidden_features          = hidden_features,
+      seed                     = seed,
+      optimize_for_other       = optimize_for_other,
+      unlabeled_predictions    = NULL
     )
-    
   } else {
     to_return <- DLBCLone_KNN_out
   }
-  to_return$unlabeled_neighbors = NULL
-  if (predict_unlabeled && length(samples_no_metadata)>0) {
-    #print("----")
-    if(nrow(exclude_df)>0){
-      #print("XXX")
-      unlabeled_neighbors = fkn_weighted_neighbors %>% separate(neighbor_id, into=paste0("N",c(1:k)),sep=",")
-      
-      if (is.null(DLBCLone_KNN_out) & !skip_umap) {
-        message("Optimizing graph layout for visualization, predict_unlabeled = TRUE")
-        df_show <- bind_rows(features_df, exclude_df)
 
-        optimized = make_and_annotate_umap(df_show, metadata = metadata)$df
-        optimized <- optimized %>%
-          #left_join(metadata, by = "sample_id") %>%
-          left_join(bind_rows(select(best_pred, -lymphgen), select(unlabeled_predictions, -lymphgen)), by = "sample_id") %>%
-          mutate(lymphgen = ifelse(is.na(lymphgen), DLBCLone_ko, lymphgen))
-
-      } else {
-        if(!is.null(DLBCLone_KNN_out)){
-          message("Using DLBCLone_KNN_out provided, skipping graph layout optimization")
-          optimized <- DLBCLone_KNN_out$features_df
-        }else{
-          optimized <- NULL
-        }
-        
-      }
-    }else{
-      #print("down here")
-      optimized <- NULL
-      features_df_merge <- features_df
-      unlabeled_predictions <- data.frame(sample_id = rownames(exclude_empty)) %>%
-        mutate(!!sym(truth_column) := NA) %>%
-        mutate(DLBCLone_k = "Other", DLBCLone_ko = "Other", by_score = NA, top_group_score = NA, score_ratio = NA, Other_score = NA, neighbor_id = NA)
-      for (cls in truth_classes) {
-        if (!cls %in% colnames(unlabeled_predictions)) {
-          unlabeled_predictions[[cls]] <- NA
-        }
-      }
-      unlabeled_neighbors <- NULL
-      
+  # Fill in neighbors / predictions for unlabeled (if requested)
+  to_return$unlabeled_neighbors   <- NULL
+  if (predict_unlabeled && length(samples_no_metadata) > 0) {
+    if (exists("fkn_weighted_neighbors")) {
+      to_return$unlabeled_neighbors <- fkn_weighted_neighbors %>%
+        tidyr::separate(neighbor_id, into = paste0("N", c(1:k)), sep = ",")
     }
-    to_return$unlabeled_neighbors <- unlabeled_neighbors
     to_return$unlabeled_predictions <- unlabeled_predictions
-    #print(names(to_return))
-    #print("XXXXXXXXXX")
+
+    if (is.null(DLBCLone_KNN_out) & !skip_umap) {
+      message("Optimizing graph layout for visualization, predict_unlabeled = TRUE")
+      df_show <- dplyr::bind_rows(features_df, exclude_df)
+
+      optimized <- make_and_annotate_umap(df_show, metadata = metadata)$df
+      optimized <- optimized %>%
+        dplyr::left_join(
+          dplyr::bind_rows(
+            dplyr::select(best_pred, -!!rlang::sym(truth_column)),
+            dplyr::select(unlabeled_predictions, -!!rlang::sym(truth_column))
+          ),
+          by = "sample_id"
+        ) %>%
+        dplyr::mutate(!!rlang::sym(truth_column) := ifelse(is.na(.data[[truth_column]]), DLBCLone_ko, .data[[truth_column]]))
+    } else {
+      optimized <- if (!is.null(DLBCLone_KNN_out)) DLBCLone_KNN_out$features_df else NULL
+    }
   } else {
-    #print("actually here")
     if (is.null(DLBCLone_KNN_out)) {
       message("Optimizing graph layout for visualization")
-
-      optimized = make_and_annotate_umap(features_df, metadata = metadata)$df
+      optimized <- make_and_annotate_umap(features_df, metadata = metadata)$df
       optimized <- optimized %>%
-        #left_join(metadata, by = "sample_id") %>%
-        left_join(select(best_pred, -lymphgen), by = "sample_id") 
-      #print(colnames(optimized))
-      optimized <- optimized %>%
-        mutate(lymphgen = ifelse(is.na(lymphgen), DLBCLone_ko, lymphgen))
+        dplyr::left_join(dplyr::select(best_pred, -!!rlang::sym(truth_column)), by = "sample_id") %>%
+        dplyr::mutate(!!rlang::sym(truth_column) := ifelse(is.na(.data[[truth_column]]), DLBCLone_ko, .data[[truth_column]]))
     } else {
       message("Using DLBCLone_KNN_out provided, skipping graph layout optimization")
       optimized <- DLBCLone_KNN_out$features_df
     }
   }
-  
 
-  
   if(!is.null(optimized) & is.null(DLBCLone_KNN_out)){
-    to_return$plot_truth <- basic_umap_scatterplot(optimized, plot_samples, colour_by = "lymphgen")
+    to_return$plot_truth     <- basic_umap_scatterplot(optimized, plot_samples, colour_by = truth_column)
     to_return$plot_predicted <- basic_umap_scatterplot(optimized, plot_samples, colour_by = "DLBCLone_ko")
-    to_return$df <- optimized
+    to_return$df             <- optimized
   }
-  if(predict_unlabeled && length(samples_no_metadata)>0){
-    #print("HERE")
-    to_return$features_df <- features_df_merge 
-  }else{
-    to_return$features_df <- features_df 
+
+  # Ensure features_df is included in the return for downstream plotting
+  if (predict_unlabeled && length(samples_no_metadata) > 0) {
+    to_return$features_df <- if (exists("features_df_merge")) features_df_merge else features_df
+  } else {
+    to_return$features_df <- features_df
   }
-  #to_return$unlabeled_neighbors = unlabeled_neighbors
-  #if (!"unlabeled_neighbors" %in% names(to_return)) {
-  #  to_return$unlabeled_neighbors <- NULL
-  #}
-  to_return$type = "DLBCLone_KNN"
-  to_return$TEST = TRUE
+
+  to_return$type <- "DLBCLone_KNN"
+  to_return$pred_column <- "DLBCLone_ko"
   return(to_return)
 }
+
+
 
 #' Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 #'
@@ -2003,7 +1979,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           test_coords = test_coords,
           k=k,
           conf_threshold =threshold,
-          na_label="Other",
+          other_class="Other",
           use_weights = use_w,
           ignore_self = ignore_self,
           verbose = verbose)
@@ -2076,7 +2052,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 test_coords = test_coords,
                 k=k,
                 conf_threshold =threshold,
-                na_label="Other",
+                other_class="Other",
                 use_weights = use_w,
                 ignore_self = ignore_self,
                 verbose = verbose)
@@ -2289,44 +2265,65 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
 #' Weighted k-nearest neighbor with confidence estimate
 #'
-#' @param train_coords Data frame containing coordinates for samples with known
-#' labels (training samples). One row per sample, one column per feature. Usually
-#' this would be the two UMAP components
-#' @param train_labels Vector of labels for training cases
-#' @param test_coords Data frame containing coordinates for samples to be classified
-#' with the same format as train_coords
-#' @param k The number of neigbors to consider
-#' @param epsilon This value is added to the distances before applying weights
-#' when use_weights is TRUE. Default: 1e-5
-#' @param conf_threshold Minimum confidence for classifying a sample based on
-#' it's neighbors. Below this value the sample will be assigned na_label instead
-#' @param na_label Class to assign all samples that are not confidently assigned.
-#' Default: Other
-#' @param verbose Whether to print verbose outputs to console
-#' @param use_weights Set to FALSE for all neigbors to have equal weight when
-#' calculating the confidence
-#' @param ignore_self Set to TRUE to avoid considering a nearest neighbor with
-#' distance = 0. This is usually only relevant when re-classifying labeled
-#' samples to estimate overall accuracy
-#' @param track_neighbors Set to TRUE to include details for the nearest neighbors of each sample
+#' @param train_coords Data frame of coordinates for labeled (training) samples.
+#'        One row per sample, columns are features (typically UMAP V1, V2).
+#' @param train_labels Character/factor vector of labels for training samples.
+#' @param test_coords  Data frame of coordinates for samples to classify
+#'        (same columns/space as train_coords).
+#' @param k Integer; number of neighbors to consider.
+#' @param epsilon Numeric; small value added to distances before weighting
+#'        (when use_weights = TRUE). Default: 0.1.
+#' @param conf_threshold Optional numeric; minimum confidence for assigning a
+#'        class. If provided and confidence < threshold, sample is assigned
+#'        \code{other_class}.
+#' @param other_class Name of the outgroup class to treat specially when
+#'        \code{separate_other = TRUE}. Default: "Other".
+#' @param verbose Logical; print verbose info. Default: FALSE.
+#' @param use_weights Logical; inverse-distance weights (1 / (d + epsilon)).
+#'        If FALSE, neighbors contribute equally. Default: TRUE.
+#' @param ignore_self Logical; drop a zero-distance self-neighbor. Default: TRUE.
+#' @param track_neighbors Logical; append neighbor diagnostics to output.
+#'        Default: TRUE.
+#' @param separate_other Logical; when TRUE, exclude neighbors labeled
+#'        \code{other_class} from the main weighted vote and report their
+#'        influence separately (as \code{other_*} columns). Default: TRUE.
+#' @param max_neighbors Integer; maximum neighbors to retrieve from the
+#'        search index before trimming to k. Default: 500.
 #'
-#' @returns data frame with labels and confidence values for rows in test_coords
+#' @return Data frame with rows = test samples and columns:
+#'   \item{predicted_label}{the predicted class}
+#'   \item{confidence}{predicted class weight / total weight}
+#'   If \code{track_neighbors = TRUE}, additional columns:
+#'   \item{other_score}{relative weight of outgroup vs predicted class}
+#'   \item{neighbor_id}{comma-separated neighbor sample IDs}
+#'   \item{neighbor}{comma-separated neighbor indices (in train order)}
+#'   \item{distance}{comma-separated neighbor distances}
+#'   \item{label}{comma-separated neighbor labels (in-group only if separate_other=TRUE)}
+#'   \item{vote_labels}{comma-separated unique labels contributing to weights}
+#'   \item{weighted_votes}{comma-separated weights per \code{vote_labels}}
+#'   \item{neighbors_other}{count of outgroup neighbors closer than the farthest in-group neighbor}
+#'   \item{other_weighted_votes}{sum of outgroup weights closer than the farthest in-group neighbor}
+#'   \item{total_w}{sum of weights for in-group neighbors used}
+#'   \item{pred_w}{weight supporting the predicted class}
+#'
+#' @import FNN
 #' @export
-#'
+#' 
+#' 
 weighted_knn_predict_with_conf <- function(train_coords,
                                            train_labels,
                                            test_coords,
                                            k,
                                            epsilon = 0.1,
                                            conf_threshold = NULL,
-                                           na_label = "Other",
+                                           other_class = "Other",
                                            verbose = FALSE,
                                            use_weights = TRUE,
                                            ignore_self = TRUE,
                                            track_neighbors = TRUE,
                                            separate_other = TRUE,
-                                           max_neighbors = 500) { #big change here. Other is considered separately for optimization
-  #ignore_self = TRUE #this should just always be enabled
+                                           max_neighbors = 500) { 
+  
   if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
     print("train_coords:")
     print(nrow(train_coords))
@@ -2388,12 +2385,14 @@ weighted_knn_predict_with_conf <- function(train_coords,
       print(neighbor_labels)
     }
     # Remove NAs (just in case)
+    other_mask  <- (neighbor_labels == other_class)
+    other_dists <- distances[other_mask]
     valid <- !is.na(neighbor_labels)
+
     #num_other_neighbors = sum(neighbor_labels == "Other")
-    other_dists = distances[neighbor_labels == "Other"]
-    if(separate_other){
-      valid = valid & neighbor_labels != "Other"
-    }
+    #other_dists = distances[neighbor_labels == "Other"]
+    if (separate_other) valid <- valid & !other_mask
+
     neighbor_labels <- neighbor_labels[valid]
     weights <- weights[valid]
     distances <- distances[valid]
@@ -2455,7 +2454,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
     weighted_votes <- tapply(weights, neighbor_labels, sum)
     
     if (length(weighted_votes) == 0) {
-      preds[i] <- na_label
+      preds[i] <- other_class
       confs[i] <- NA
       total_weight  <- 0
       pred_weight <- 0
@@ -2533,6 +2532,243 @@ weighted_knn_predict_with_conf <- function(train_coords,
   return(to_return)
 }
 
+broken_weighted_knn_predict_with_conf <- function(train_coords,
+                                           train_labels,
+                                           test_coords,
+                                           k,
+                                           epsilon = 0.1,
+                                           conf_threshold = NULL,
+                                           na_label = "Other",
+                                           other_class = "Other",
+                                           verbose = FALSE,
+                                           use_weights = TRUE,
+                                           ignore_self = TRUE,
+                                           track_neighbors = TRUE,
+                                           separate_other = TRUE,
+                                           max_neighbors = 500) {
+
+  if (nrow(train_coords) == 0 || nrow(test_coords) == 0) {
+    stop("train_coords and test_coords must have at least one row each.")
+  }
+  if (missing(k) || !is.finite(k) || k < 1) {                 # NEW
+    stop("k must be a positive integer.")                      # NEW
+  }
+  str(train_coords)
+  str(test_coords)
+  vapply(train_coords, class, character(1))
+  # --- Ensure numeric matrices with aligned columns ---------------------------
+  train_df <- as.data.frame(train_coords)                      # NEW
+  test_df  <- as.data.frame(test_coords)                       # NEW
+
+  # If both have names, align by intersection; else just coerce as-is
+  if (!is.null(colnames(train_df)) && !is.null(colnames(test_df))) {   # NEW
+    common <- intersect(colnames(train_df), colnames(test_df))         # NEW
+    if (length(common) == 0) {                                         # NEW
+      stop("No shared columns between train_coords and test_coords.")   # NEW
+    }
+    if (length(common) < ncol(train_df) || length(common) < ncol(test_df)) { # NEW
+      if (verbose) message("Aligning coordinates on ", length(common), " shared column(s). Missing columns filled with 0.") # NEW
+    }
+    # Rebuild data frames with the common columns in same order               # NEW
+    train_df <- train_df[, common, drop = FALSE]                           # NEW
+    test_df  <- test_df[,  common, drop = FALSE]                           # NEW
+  }
+
+  # Coerce to numeric (protect against factors/characters sneaking in)     # NEW
+  train_mat <- as.matrix(lapply(train_df, function(x) as.numeric(x)))     # NEW
+  test_mat  <- as.matrix(lapply(test_df,  function(x) as.numeric(x)))     # NEW
+  #storage.mode(train_mat) <- "double"                                     # NEW
+  #storage.mode(test_mat)  <- "double"                                     # NEW
+
+  # Replace NAs with 0 (safer for distances than NA)                        # NEW
+  #train_mat[is.na(train_mat)] <- 0                                        # NEW
+  #test_mat[is.na(test_mat)]   <- 0                                        # NEW
+
+  # Row names (IDs) -----------------------------------------------------------
+  tr_ids <- rownames(train_coords)                                        # NEW
+  te_ids <- rownames(test_coords)                                         # NEW
+  if (is.null(tr_ids)) tr_ids <- sprintf("train_%d", seq_len(nrow(train_mat)))   # NEW
+  if (is.null(te_ids)) te_ids <- sprintf("test_%d",  seq_len(nrow(test_mat)))    # NEW
+  rownames(train_mat) <- tr_ids                                           # NEW
+  rownames(test_mat)  <- te_ids                                           # NEW
+
+  # Labels
+  train_labels <- as.character(train_labels)
+  if (length(train_labels) != nrow(train_mat)) {
+    stop("Length of train_labels (", length(train_labels), ") does not match number of rows in train_coords (", nrow(train_mat), ").")
+  }
+
+  # Clamp neighbor counts to available samples --------------------------------
+  max_neighbors <- max(1, min(max_neighbors, nrow(train_mat)))            # CHANGED
+  k <- max(1, min(k, max_neighbors))                                      # CHANGED
+  if (verbose) message("Using k=", k, " (max_neighbors=", max_neighbors, ").")    # NEW
+
+  # Get neighbors (FNN::get.knnx)
+  nn <- FNN::get.knnx(train_mat, test_mat, max_neighbors)                 # CHANGED (namespaced)
+
+  preds <- character(nrow(test_mat))
+  confs <- numeric(nrow(test_mat))
+  all_neighbors <- if (track_neighbors) data.frame() else NULL
+
+  # For speed inside loop
+  trnames <- rownames(train_mat)                                          # NEW
+  has_other <- any(train_labels == other_class)                           # NEW
+
+  for (i in seq_len(nrow(test_mat))) {
+    self <- rownames(test_mat)[i]
+
+    neighbors <- nn$nn.index[i, ]
+    distances <- nn$nn.dist[i, ]
+
+    if (ignore_self) {
+      neighbor_ids <- trnames[neighbors]
+      keep <- neighbor_ids != self
+      neighbors <- neighbors[keep]
+      distances <- distances[keep]
+    }
+
+    # If nothing left, assign na_label and keep diagnostics (if requested)
+    if (length(neighbors) == 0) {
+      preds[i] <- na_label
+      confs[i] <- 1
+      if (track_neighbors) {
+        neighbor_info <- data.frame(
+          other_score = 0,
+          neighbor_id = "",
+          neighbor = "",
+          distance = "",
+          label = "",
+          vote_labels = "",
+          weighted_votes = "",
+          neighbors_other = 0,
+          other_weighted_votes = 0,
+          total_w = 0,
+          pred_w = 0
+        )
+        all_neighbors <- dplyr::bind_rows(all_neighbors, neighbor_info)
+      }
+      next
+    }
+
+    distances <- distances + epsilon
+    weights <- if (use_weights) 1 / distances else rep(1, length(distances))
+    neighbor_labels <- train_labels[neighbors]
+
+    # Outgroup neighbors (if present)
+    if (has_other) {                                                      # NEW
+      other_mask  <- (neighbor_labels == other_class)
+      other_dists <- distances[other_mask]
+    } else {
+      other_mask  <- rep(FALSE, length(neighbor_labels))                  # NEW
+      other_dists <- numeric(0)                                           # NEW
+    }
+
+    valid <- !is.na(neighbor_labels)
+    if (separate_other) valid <- valid & !other_mask
+
+    neighbor_labels <- neighbor_labels[valid]
+    weights         <- weights[valid]
+    distances       <- distances[valid]
+    neighbors       <- neighbors[valid]
+
+    if (length(neighbor_labels) < (k - 1) && verbose) {
+      message("Warning: usable neighbors < k-1 (i=", i, ", k=", k, ", usable=", length(neighbor_labels), ")")
+    }
+
+    # Trim to k in-group neighbors (if we still have > k)
+    if (length(neighbor_labels) > k) {
+      neighbor_labels <- neighbor_labels[1:k]
+      weights         <- weights[1:k]
+      distances       <- distances[1:k]
+      neighbors       <- neighbors[1:k]
+    }
+
+    # Weighted vote among in-group neighbors
+    if (length(neighbor_labels) == 0) {
+      preds[i] <- na_label
+      confs[i] <- NA_real_
+
+      if (track_neighbors) {
+        neighbor_info <- data.frame(
+          other_score = 0,
+          neighbor_id = "",
+          neighbor = "",
+          distance = "",
+          label = "",
+          vote_labels = "",
+          weighted_votes = "",
+          neighbors_other = 0,
+          other_weighted_votes = 0,
+          total_w = 0,
+          pred_w = 0
+        )
+        all_neighbors <- dplyr::bind_rows(all_neighbors, neighbor_info)
+      }
+      next
+    }
+
+    weighted_votes <- tapply(weights, neighbor_labels, sum)
+    predicted_label <- names(which.max(weighted_votes))
+    total_weight <- sum(weighted_votes)
+    pred_weight  <- unname(weighted_votes[predicted_label])
+    confidence   <- pred_weight / total_weight
+
+    # Optional confidence thresholding
+    if (!is.null(conf_threshold) && is.finite(confidence) && confidence < conf_threshold) {
+      preds[i] <- na_label
+      confs[i] <- confidence
+    } else {
+      preds[i] <- predicted_label
+      confs[i] <- confidence
+    }
+
+    if (track_neighbors) {
+      # Outgroup diagnostics: count/sum outgroup neighbors closer than farthest in-group neighbor
+      farthest_in_group <- max(distances)
+      closer_idx <- if (length(other_dists)) which(other_dists < farthest_in_group) else integer(0)
+
+      neighbors_other <- length(closer_idx)
+      if (neighbors_other > 0) {
+        closer_dists <- other_dists[closer_idx]
+        other_weighted_votes <- if (use_weights) sum(1 / closer_dists) else neighbors_other
+      } else {
+        other_weighted_votes <- 0
+      }
+
+      rel_other <- if (separate_other && isTRUE(pred_weight > 0)) other_weighted_votes / pred_weight else 0
+
+      neighbor_info <- data.frame(
+        other_score = rel_other,
+        neighbor_id = paste(trnames[neighbors], collapse = ","),
+        neighbor    = paste(neighbors, collapse = ","),
+        distance    = paste(round(distances, 3), collapse = ","),
+        label       = paste(neighbor_labels, collapse = ","),
+        vote_labels = paste(names(weighted_votes), collapse = ","),
+        weighted_votes = paste(unname(weighted_votes), collapse = ","),
+        neighbors_other = neighbors_other,
+        other_weighted_votes = other_weighted_votes,
+        total_w = total_weight,
+        pred_w  = pred_weight
+      )
+      all_neighbors <- dplyr::bind_rows(all_neighbors, neighbor_info)
+    }
+  }
+
+  out <- data.frame(
+    predicted_label = preds,
+    confidence = confs,
+    stringsAsFactors = FALSE
+  )
+
+  if (track_neighbors) {
+    stopifnot(nrow(out) == nrow(all_neighbors))
+    out <- dplyr::bind_cols(out, all_neighbors)
+    rownames(out) <- rownames(test_mat)
+  }
+  out
+}
+
+
 
 
 #' Predict class for a single sample without using umap_transform and plot result of classification
@@ -2591,7 +2827,8 @@ predict_single_sample_DLBCLone <- function(
     title2="predicted_class_for_HighConf",
     title3 ="predicted_class_for_Other",
     seed = 12345,
-    max_neighbors = 500
+    max_neighbors = 500,
+    other_class = "Other"
 ){
     set.seed(seed)
     if(is.null(optimized_model)){
@@ -2699,7 +2936,7 @@ predict_single_sample_DLBCLone <- function(
         test_coords = train_coords, # <- predicitng training on self
         k = best_params$k,
         conf_threshold = best_params$threshold,
-        na_label = "Other",
+        other_class = other_class,
         use_weights = best_params$use_weights,
         ignore_self = ignore_self
       )
@@ -2714,7 +2951,7 @@ predict_single_sample_DLBCLone <- function(
         test_coords = test_coords,
         k = best_params$k,
         conf_threshold = best_params$threshold,
-        na_label = "Other",
+        other_class = other_class,
         use_weights = best_params$use_weights,
         ignore_self = ignore_self,
         max_neighbors = max_neighbors
@@ -2726,14 +2963,14 @@ predict_single_sample_DLBCLone <- function(
       test_pred = mutate(test_pred, 
                        DLBCLone_i = predicted_label,
                        DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
-                                                          "Other",
+                                                          other_class,
                                                           predicted_label)) 
 
     }else{
       test_pred = mutate(test_pred, 
                        DLBCLone_i = predicted_label,
                        DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
-                                                          "Other",
+                                                         other_class,
                                                           predicted_label)) 
     }
   
@@ -2775,7 +3012,7 @@ predict_single_sample_DLBCLone <- function(
           DLBCLone_wo = ifelse(score_ratio >= optimized_model$purity_DLBCLone_w | 
                                   top_group_score > optimized_model$score_thresh_DLBCLone_w, 
                                 by_score, 
-                                "Other"))
+                                other_class))
 
     }
     to_return = list(
@@ -3093,4 +3330,259 @@ to_return = list(gaussian_mixture_model = gmm_supervised,
 return(to_return)
 }
 
+
+# Some comment here
+# 
+
+old_process_votes <- function(df,
+                          raw_col = "label",
+                          group_labels = c("EZB", "MCD", "ST2", "BN2", "N1", "Other"),
+                          vote_labels_col = "vote_labels",
+                          k,
+                          other_vote_multiplier = 2,
+                          score_purity_requirement = 1,
+                          weighted_votes_col = "weighted_votes") {
+  if(missing(k)){
+    stop("k value is required")
+  }
+  score_thresh = 2 * k
+
+  count_labels_in_string <- function(string, labels) {
+    tokens <- str_split(string, ",")[[1]]
+    map_int(labels, ~ sum(tokens == .x))
+  }
+
+  extract_weighted_scores <- function(label_str, vote_str, labels) {
+    lbls  <- str_split(label_str, ",")[[1]]
+    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    map_dbl(labels, ~ sum(votes[lbls == .x])) %>%
+      set_names(paste0(labels, "_score"))
+  }
+
+  get_top_score_group <- function(label_str, vote_str, labels) {
+    lbls  <- str_split(label_str, ",")[[1]]
+    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    scores_by_label <- set_names(map_dbl(labels, ~ sum(votes[lbls == .x])), labels)
+    top    <- names(scores_by_label)[which.max(scores_by_label)]
+    value  <- scores_by_label[[top]]
+    list(top_score_group = top, top_group_score = value)
+  }
+
+  df_out <- df %>%
+    mutate(.id = row_number()) %>%
+    rowwise() %>%
+    mutate(
+      # 1) counts
+      counts = list(
+        set_names(
+          count_labels_in_string(.data[[raw_col]], group_labels),
+          paste0(group_labels, "_NN_count")
+        )
+      ),
+      top_group = {
+        cnts <- count_labels_in_string(.data[[raw_col]], group_labels)
+        group_labels[which.max(cnts)]
+      },
+
+      # 2) scores
+      scores = list(
+        if (!is.null(vote_labels_col) && !is.null(weighted_votes_col)) {
+          extract_weighted_scores(
+            .data[[vote_labels_col]],
+            .data[[weighted_votes_col]],
+            group_labels
+          )
+        } else {
+          set_names(rep(0, length(group_labels)), paste0(group_labels, "_score"))
+        }
+      ),
+
+      # 3) top score group summary
+      score_summary = list(
+        if (!is.null(vote_labels_col) && !is.null(weighted_votes_col)) {
+          get_top_score_group(
+            .data[[vote_labels_col]],
+            .data[[weighted_votes_col]],
+            group_labels
+          )
+        } else {
+          list(top_score_group = NA_character_, top_group_score = NA_real_)
+        }
+      )
+    ) %>%
+    ungroup() %>%
+    unnest_wider(counts) %>%
+    unnest_wider(scores) %>%
+    unnest_wider(score_summary) %>%
+    rowwise() %>%
+mutate(
+  top_group_count = get(paste0(top_group, "_NN_count"))
+) %>%
+ungroup()
+
+  # Optional adjustments based on external columns (if present)
+  if ("neighbors_other" %in% colnames(df)) {
+    df_out <- df_out %>%
+      mutate(Other_count = neighbors_other)
+  }
+
+  if ("other_weighted_votes" %in% colnames(df)) {
+    df_out <- df_out %>%
+      mutate(Other_score = other_weighted_votes)
+  }
+
+  # Optional override of top group if Other dominates by a fold
+  if (all(c("top_group_count", "Other_count") %in% colnames(df_out))) {
+    df_out <- df_out %>%
+      mutate(by_vote = top_group_count) %>%
+      mutate(by_vote_opt = ifelse(top_group_count * other_vote_multiplier > Other_count, top_group, "Other"))
+  }
+  
+  df_out = mutate(df_out,
+                  by_score = top_score_group,
+                  score_ratio = top_group_score / Other_score,
+                  by_score_opt=ifelse(score_ratio > score_purity_requirement | top_group_score > score_thresh,top_score_group,"Other"))
+  
+  return(df_out)
+}
+
+old_optimize_purity <- function(optimized_model_object,
+                            vote_df, 
+                            mode, 
+                            optimize_by = "balanced_accuracy", #or overall_accuracy
+                            truth_column, 
+                            all_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+                            k,
+                            exclude_other_for_accuracy = FALSE) {
+  if(mode == "DLBCLone_w"){
+    in_column = "by_score"
+    out_column = mode
+  }
+  if(!missing(optimized_model_object)){
+    if(!is.null(optimized_model_object$best_params)){
+      if(!missing(k)){
+        message("k is provided in the optimized_model_object, ignoring the k parameter")
+      }
+      k = optimized_model_object$best_params$k
+    }else{
+      stop("optimized_model_object must contain best_params with k value")
+    }
+    vote_df = optimized_model_object$predictions
+  }
+
+  #all_classes = unique(vote_df[[truth_column]])
+  some_classes = all_classes[all_classes != "Other"]
+  score_thresh = 2 * k
+
+  processed_votes = process_votes(vote_df,
+                group_labels=all_classes,
+                k=k,
+                score_purity_requirement=0.5)
+  # Function to optimize purity based on processed votes and truth labels
+  if(!truth_column %in% colnames(processed_votes)){
+    stop("truth_column must be a column in processed_votes")
+  }
+  best_accuracy <- 0
+  best_purity_threshold <- 0
+
+  processed_votes = mutate(processed_votes,!!sym(truth_column):= as.character(!!sym(truth_column))) 
+  
+  no_other_df = processed_votes %>%
+    filter(!!sym(truth_column) != "Other")
+  for(purity_threshold in seq(3, 0, -0.05)){
+    updated_votes <- processed_votes %>%
+      mutate(!!sym(out_column) := ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
+    updated_no_other_df <- no_other_df %>%
+      mutate(!!sym(out_column) := ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
+
+    if(!exclude_other_for_accuracy){
+      
+      xx = select(updated_votes, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
+        mutate(match=ifelse(!!sym(truth_column) == !!sym(out_column),TRUE,FALSE)) %>%
+        group_by(match) %>%
+        #summarise(concordant) %>%
+        summarise(concordant=sum(match==TRUE), discordant = sum(match==FALSE)) %>%
+        ungroup() %>%
+        summarise(all_conc = sum(concordant), dis = sum(discordant), total=all_conc+dis, percent=100*sum(concordant)/total)
+        pc_conc = xx$percent %>% round(.,1)
+        num_conc = xx$all_conc
+        num_dis = xx$dis
+      
+      # calculate accuracy
+      updated_votes = mutate(updated_votes,!!sym(out_column) := factor(!!sym(out_column),levels=all_classes))
+      updated_votes = mutate(updated_votes,!!sym(truth_column) := factor(!!sym(truth_column),levels=all_classes))
+      confusion_matrix <- table(updated_votes[[truth_column]],updated_votes[[out_column]])
+      conf_matrix <- confusionMatrix(updated_votes[[out_column]], updated_votes[[truth_column]])
+
+
+    }else{
+      xx = select(updated_no_other_df, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
+        filter(!!sym(truth_column) != "Other") %>%
+        mutate(match=ifelse(!!sym(truth_column) == !!sym(out_column),TRUE,FALSE)) %>%
+        group_by(match) %>%
+        #summarise(concordant) %>%
+        summarise(concordant=sum(match==TRUE), discordant = sum(match==FALSE)) %>%
+        ungroup() %>%
+        summarise(all_conc = sum(concordant), dis = sum(discordant), total=all_conc+dis, percent=100*sum(concordant)/total)
+      updated_no_other_df = mutate(updated_no_other_df,
+        !!sym(out_column) := factor(!!sym(out_column),levels=all_classes),
+        !!sym(truth_column) := factor(!!sym(truth_column),levels=all_classes))
+      confusion_matrix <- table(updated_no_other_df[[truth_column]],updated_no_other_df[[out_column]])
+
+      conf_matrix <- confusionMatrix(updated_no_other_df[[out_column]], updated_no_other_df[[truth_column]])
+
+    }
+    accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+
+    bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
+    oa = conf_matrix$overall[["Accuracy"]]
+    pc_conc = xx$percent %>% round(.,1)
+    bal_acc = mean(bal_acc,na.rm=T)
+    
+    if(optimize_by == "balanced_accuracy"){
+      accuracy = bal_acc
+    }else if(optimize_by == "overall_accuracy"){
+      accuracy = oa
+    }
+    num_conc = xx$all_conc
+    num_dis = xx$dis
+    
+    #if(accuracy > best_accuracy){
+    if(accuracy > best_accuracy){
+      #print(confusion_matrix)
+      #print(bal_acc)
+      #print(paste("Percent: ",pc_conc,"Overall:",oa, "Balanced:",mean(bal_acc,na.rm=T)))
+      #print(conf_matrix)
+      #message(paste0("New best accuracy: ", round(accuracy, 3)))
+      #message(paste0("Matches:" ,num_conc, " %Concordance: ",pc_conc, " Mismatches: ",num_dis))
+      #message(paste0(" at purity threshold: ", round(purity_threshold, 2)))
+      best_accuracy <- accuracy
+      best_purity_threshold <- purity_threshold
+    }else{
+      #print(paste("No improvement", accuracy, "vs", best_accuracy, "at threshold", purity_threshold))
+    }
+
+    #print(confusion_matrix_ignore_other)
+  }
+  best_out = processed_votes %>%
+      mutate(!!sym(out_column) := ifelse(score_ratio >= best_purity_threshold | top_group_score > score_thresh, by_score, "Other")) 
+
+  
+  if(missing(optimized_model_object)){
+    optimized_model_object = list()
+    optimized_model_object$best_params = list(k=k,
+                                                purity_threshold=best_purity_threshold,
+                                                accuracy=best_accuracy,
+                                                num_classes=length(unique(best_out$predicted_label)),
+                                                num_features=ncol(best_out)-3, #minus V1,V2,sample_id
+                                                seed=12345)  
+  }
+  optimized_model_object$predictions = best_out
+  optimized_model_object$best_accuracy = best_accuracy  
+  optimized_model_object$best_purity_threshold = best_purity_threshold
+  optimized_model_object$maximize = optimize_by
+  optimized_model_object$score_thresh = score_thresh
+  optimized_model_object$exclude_other_for_accuracy = exclude_other_for_accuracy
+  return(optimized_model_object)
+}
 

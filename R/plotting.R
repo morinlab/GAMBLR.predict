@@ -114,83 +114,98 @@ nearest_neighbor_heatmap <- function(this_sample_id,
 
 #' Basic UMAP Scatterplot
 #'
-#' Generates a simple UMAP scatterplot for visualizing sample clustering or separation in two dimensions.
+#' Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
 #'
-#' @param df Data frame containing at least columns \code{V1} and \code{V2} (UMAP coordinates) and optionally a grouping variable.
-#' @param colour_by Character. Name of the column in \code{df} to use for point color (default: \code{"lymphgen"}).
-#' @param title Optional plot title.
-#' @param alpha Numeric. Point transparency (default: 0.8).
-#' @param size Numeric. Point size (default: 1).
-#' @param custom_colours Optional named vector of colors to use for groups.
+#' @param optimized Data frame containing at least V1, V2, sample_id, and grouping columns.
+#' @param plot_samples Optional character vector of sample_ids to annotate.
+#' @param colour_by Column name to color points by. Defaults to `truth_column`.
+#' @param truth_column Name of the truth/ground-truth column (default: "lymphgen").
+#' @param pred_column  Name of the predicted-class column (default: "DLBCLone_ko").
+#' @param other_label  Label used for the outgroup/unclassified class (default: "Other").
+#' @param title Plot title.
+#' @param use_plotly Logical; if FALSE and `plot_samples` provided, draw static labels.
+#' @param custom_colours Optional named vector of colors for groups; falls back to `get_gambl_colours()`.
 #'
-#' @return A \code{ggplot2} object representing the UMAP scatterplot.
-#'
-#' @details
-#' - Plots UMAP coordinates (\code{V1}, \code{V2}) colored by the specified grouping variable.
-#' - Useful for quick visualization of sample groupings or batch effects.
-#' - If \code{custom_colours} is provided, it overrides the default color palette.
-#'
-#' @examples
-#' basic_umap_scatterplot(df, colour_by = "lymphgen",plot_samples = "DLBCL1001")
-#' @import plotly
+#' @return A ggplot object.
 #' @export
 basic_umap_scatterplot <- function(optimized,
-                                  plot_samples,
-                                  use_plotly = TRUE,
-                                  colour_by = "lymphgen",
-                                  title = "UMAP based on selected features") {
-  optimized_label <- mutate(optimized, label = paste(sample_id, "\nLymphgen:\n", lymphgen, "DLBCLone_ko:\n", DLBCLone_ko))
+                                   plot_samples = NULL,
+                                   colour_by    = NULL,
+                                   truth_column = "lymphgen",
+                                   pred_column  = "DLBCLone_ko",
+                                   other_label  = "Other",
+                                   title        = "UMAP based on selected features",
+                                   use_plotly   = TRUE,
+                                   custom_colours = NULL) {
+  stopifnot(all(c("V1","V2","sample_id") %in% colnames(optimized)))
+  stopifnot(is.data.frame(optimized))
+stopifnot(all(c("V1", "V2") %in% colnames(optimized)))
+message("colour_by: ", colour_by)
+  colour_by <- colour_by %||% truth_column
 
-  background_points <- optimized[, c("V1", "V2")]
-  label_points <- filter(optimized_label, sample_id %in% plot_samples)
-  
-  # Combine for repel logic
-  repel_df <- bind_rows(
-    mutate(background_points, label = NA_character_), # no labels, just repulsion targets
-    label_points # actual labeled points
-  )
-  label_points <- filter(optimized_label, sample_id %in% plot_samples) %>%
+  # dynamic label text (e.g., "lymphgen" and "DLBCLone_ko")
+  optimized_label <- optimized %>%
     mutate(
-      label_x = V1 + 0.75,
-      label_y = V2 - 0.75
+      label = paste0(
+        sample_id,
+        "\n", truth_column, ":\n", .data[[truth_column]],
+        "  ", pred_column, ":\n", .data[[pred_column]]
+      )
     )
-  #print(colnames(optimized))
-  
-  if(colour_by=="lymphgen"){
-    p <- ggplot(optimized, aes(x = V1, y = V2, sample_id = sample_id, color = lymphgen, DLBCLone_ko = DLBCLone_ko)) +
-      geom_point(data = filter(optimized, lymphgen == "Other")) +
-      geom_point(data = filter(optimized, lymphgen != "Other")) 
-  }else{
-    p <- ggplot(optimized, aes(x = V1, y = V2, sample_id = sample_id, color = DLBCLone_ko, lymphgen = lymphgen)) +
-      geom_point(data = filter(optimized, lymphgen == "Other")) +
-      geom_point(data = filter(optimized, lymphgen != "Other")) 
-  }
 
-  p <- p + scale_color_manual(values = get_gambl_colours()) +
-    guides(color = guide_legend(title = "Original Class"))
-  if (!missing(plot_samples) & !use_plotly) {
-    p <- p +
-    geom_segment(
-      data = label_points,
-      aes(x = V1, y = V2, xend = label_x, yend = label_y),
-      arrow = arrow(length = unit(0.02, "npc")),
-      color = "black"
+  # points to label
+  label_points <- dplyr::filter(optimized_label, sample_id %in% (plot_samples %||% character())) %>%
+    mutate(label_x = V1 + 0.75, label_y = V2 - 0.75)
+
+  # base mapping: color by chosen column
+  aes_cols <- aes(
+    x = V1, y = V2,
+    sample_id = sample_id,
+    color = .data[[colour_by]]
+  )
+
+  # draw outgroup first (by truth column) to keep it visually underneath
+  p <- ggplot()
+  p <- p +
+    geom_point(
+      data = dplyr::filter(optimized, .data[[truth_column]] == other_label),
+      mapping = aes_cols
     ) +
+    geom_point(
+      data = dplyr::filter(optimized, .data[[truth_column]] != other_label),
+      mapping = aes_cols
+    )
 
-    geom_label(
-      data = label_points,
-      aes(x = label_x, y = label_y, label = label),
-      size = 3,
-      fill = "white",
-      label.size = 0.25
-    ) 
-   
+  # palette
+  pal <- custom_colours %||% get_gambl_colours()
+  p <- p + scale_color_manual(values = pal) +
+    guides(color = guide_legend(title = if (identical(colour_by, truth_column)) "Original Class" else "Predicted Class"))
+
+  # optional static labels when not using plotly
+  if (!is.null(plot_samples) && length(plot_samples) > 0 && !isTRUE(use_plotly)) {
+    p <- p +
+      geom_segment(
+        data = label_points,
+        aes(x = V1, y = V2, xend = label_x, yend = label_y),
+        arrow = arrow(length = unit(0.02, "npc")),
+        color = "black"
+      ) +
+      geom_label(
+        data = label_points,
+        aes(x = label_x, y = label_y, label = label),
+        size = 3,
+        fill = "white",
+        label.size = 0.25
+      )
   }
-  p =  p +
+
+  p <- p +
     labs(title = title) +
-    theme_minimal() +
+    theme_minimal()
+
   return(p)
 }
+
 
 #' Summarize and Export DLBCLone Model Results
 #'
@@ -605,9 +620,9 @@ make_alluvial <- function(
     add_accuracy_to_title = TRUE,
     accuracy_per_group = TRUE,
     accuracy_type = "sensitivity",
-    truth_name = "Lymphgen",
     truth_column = "lymphgen",
     pred_name = "DLBCLone",
+    truth_name = "Lymphgen",
     pred_column = "predicted_label_optimized",
     nudge = 0.03,
     box_nudge = 0.15,
@@ -631,11 +646,16 @@ make_alluvial <- function(
   }
   
 
-  if(is.null(truth_column) && !is.null(optimized$truth_column)){
+  if(!is.null(optimized$truth_column)){
     truth_column = optimized$truth_column
+    truth_name = truth_column
+  }
+  if(!is.null(optimized$pred_column)){
+    pred_column = optimized$pred_column
+     pred_name = pred_column
   }
   
-
+ 
 
   if (accuracy_per_group) {
     accuracies <- report_accuracy(predictions, 
