@@ -19,7 +19,7 @@ basic_umap_scatterplot(
 \arguments{
 \item{optimized}{Data frame containing at least V1, V2, sample_id, and grouping columns.}
 
-\item{plot_samples}{Optional character vector of sample_ids to annotate.}
+\item{plot_samples}{Optional character vector of sample_ids to label in the plot}
 
 \item{colour_by}{Column name to color points by. Defaults to \code{truth_column}.}
 
@@ -40,4 +40,14 @@ A ggplot object.
 }
 \description{
 Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
+}
+\examples{
+
+\dontrun{
+my_umap = make_and_annotate_umap(my_data, my_metadata)
+
+basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
+                       plot_samples = "some_sample_ID",
+                       colour_by = "DLBCLone_ko")
+}
 }

@@ -22,9 +22,11 @@
 #' @importFrom circlize colorRamp2
 #'
 #' @examples
-#' # Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
-#' nearest_neighbor_heatmap(sample_id, model)
-#'
+#' # Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
+#' and "SomeSample_ID" is a valid sample ID from among the test (not training) samples
+#' \dontrun{
+#' nearest_neighbor_heatmap("SomeSample_ID", predicted_out)
+#'}
 nearest_neighbor_heatmap <- function(this_sample_id,
                                      DLBCLone_model,
                                      clustering_distance = "binary"){
@@ -65,10 +67,6 @@ nearest_neighbor_heatmap <- function(this_sample_id,
   top = max(xx)
   mid = top/2
   col_fun = circlize::colorRamp2(c(0, mid, top), c("white", "#FFB3B3", "red"))
-  #print(xx)
-  #make row annotation
-  #row_df = select(bind_rows(DLBCLone_model$predictions, DLBCLone_model$unlabeled_predictions), sample_id, lymphgen) %>% 
- 
   row_df = select(DLBCLone_model$predictions, sample_id, lymphgen, !!sym(pred_name)) %>% 
     filter(sample_id %in% rownames(xx)) 
   if(!this_sample_id %in% row_df$sample_id){
@@ -117,7 +115,7 @@ nearest_neighbor_heatmap <- function(this_sample_id,
 #' Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
 #'
 #' @param optimized Data frame containing at least V1, V2, sample_id, and grouping columns.
-#' @param plot_samples Optional character vector of sample_ids to annotate.
+#' @param plot_samples Optional character vector of sample_ids to label in the plot
 #' @param colour_by Column name to color points by. Defaults to `truth_column`.
 #' @param truth_column Name of the truth/ground-truth column (default: "lymphgen").
 #' @param pred_column  Name of the predicted-class column (default: "DLBCLone_ko").
@@ -128,6 +126,16 @@ nearest_neighbor_heatmap <- function(this_sample_id,
 #'
 #' @return A ggplot object.
 #' @export
+#' 
+#' @examples 
+#' 
+#' \dontrun{
+#' my_umap = make_and_annotate_umap(my_data, my_metadata)
+#' 
+#' basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
+#'                        plot_samples = "some_sample_ID",
+#'                        colour_by = "DLBCLone_ko")
+#' }
 basic_umap_scatterplot <- function(optimized,
                                    plot_samples = NULL,
                                    colour_by    = NULL,
@@ -209,10 +217,14 @@ message("colour_by: ", colour_by)
 
 #' Summarize and Export DLBCLone Model Results
 #'
-#' Generates and saves a set of summary plots and tables for a DLBCLone model, including UMAP scatterplots, alluvial plots, and oncoplots.
-#' Results are saved as PDF files in a directory named after the provided base name.
+#' Generates and saves a set of summary plots and tables for
+#' a DLBCLone model, including UMAP scatterplots, alluvial
+#' plots, and oncoplots.
+#' Results are saved as PDF files in a directory named after the provided
+#' base name.
 #'
-#' @param base_name Character. The base name (and directory) for saving output files.
+#' @param base_name Character. The base name (and directory)
+#' for saving output files.
 #' @param optimized_model List. The output from DLBCLone optimization, containing predictions, features, and metadata.
 #'
 #' @details
@@ -224,12 +236,17 @@ message("colour_by: ", colour_by)
 #'
 #' @return No return value. Side effect: writes multiple PDF files to disk.
 #'
-#' @examples
-#' DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
 #' @import ggalluvial
 #' 
 #' @export
-DLBCLone_summarize_model = function(base_name,optimized_model){
+#' 
+#' @examples
+#' \dontrun{
+#' DLBCLone_summarize_model(optimized_model = all_features_optimized,
+#'                          base_name="model_summaries/Lymphgen_all_features")
+#' }
+DLBCLone_summarize_model = function(base_name,
+                                    optimized_model){
   base_dir = here::here()
   full_dir = paste0(base_dir,"/",base_name)
   if(!dir.exists(full_dir)){
@@ -319,7 +336,9 @@ DLBCLone_summarize_model = function(base_name,optimized_model){
 #' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
 #' # and 'output' is the result of DLBCLone_predict_single_sample
 #' # on sample_id "SAMPLE123":
-#' make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+#' \dontrun{
+#'  make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+#' }
 make_neighborhood_plot <- function(single_sample_prediction_output,
                                    training_predictions,
                                   this_sample_id,
@@ -363,10 +382,6 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
 
   #set up links connecting each neighbor to the sample's point
   links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
-  #my_x = filter(single_sample_prediction_output$anno_df,
-  #              sample_id==this_sample_id) %>% pull(V1)
-  #my_y = filter(single_sample_prediction_output$anno_df,
-  #              sample_id==this_sample_id) %>% pull(V2)
   my_x = filter(single_sample_prediction_output$anno_out,
                 sample_id==this_sample_id) %>% pull(V1)
   my_y = filter(single_sample_prediction_output$anno_out,
@@ -421,7 +436,7 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
 #'
 #' @returns
 #' 
-#' @import ggExtra
+#' @import ggside
 #' @export
 #'
 #' @examples
@@ -446,10 +461,10 @@ make_umap_scatterplot = function(df,
     cols = get_gambl_colours()
   }
   if(drop_composite){
-    df = filter(df,!is.na(lymphgen),!grepl("COMP",lymphgen))
+    df = filter(df,!is.na(!!sym(colour_by)),!grepl("COMP",!!sym(colour_by)))
   }
   if(drop_other){
-    df = filter(df,!is.na(lymphgen),lymphgen!="Other",lymphgen!="NOS")
+    df = filter(df,!is.na(!!sym(colour_by)),!!sym(colour_by) != "Other",!!sym(colour_by) !="NOS")
   }
   if(high_confidence){
     df = filter(df,Confidence > 0.7)
@@ -458,7 +473,7 @@ make_umap_scatterplot = function(df,
     labels = group_by(df,!!sym(colour_by)) %>%
       summarise(median_x = median(V1),median_y = median(V2)) 
   }
-  unique_lg = unique(df$lymphgen)
+  unique_lg = unique(df[[colour_by]])
   if(any(!unique_lg %in% names(cols))){
     missing = unique_lg[!unique_lg %in% names(cols)]
     print(paste("missing colour for:",paste(missing,collapse=",")))
@@ -470,6 +485,7 @@ make_umap_scatterplot = function(df,
              geom_point(data=df %>% filter(!!sym(colour_by) =="Other"),alpha=0.8) + 
              geom_point(data=df %>% filter(!!sym(colour_by) !="Other"),alpha=0.8) + 
     scale_colour_manual(values=cols) + 
+    scale_fill_manual(values=cols) + 
     theme_Morons() + 
     guides(colour = guide_legend(nrow = 1)) + 
     xlim(xmin,xmax) + 
@@ -480,8 +496,17 @@ make_umap_scatterplot = function(df,
   if(add_labels){
     p = p + geom_label_repel(data=labels,aes(x=median_x,y=median_y,label=!!sym(colour_by)))
   }
-  ggMarginal(p,groupColour = TRUE,groupFill=TRUE)
+  #p = ggMarginal(p,groupColour = TRUE,groupFill=TRUE)
+  p <- p +
   
+  ggside::geom_xsidedensity(aes(y = after_stat(density), fill = !!sym(colour_by)),
+                            alpha = 0.3, size = 0.2) +
+  ggside::geom_ysidedensity(aes(x = after_stat(density), fill = !!sym(colour_by)),
+                            alpha = 0.3, size = 0.2) +
+  ggside::scale_xsidey_continuous(breaks = NULL, minor_breaks = NULL) +
+  ggside::scale_ysidex_continuous(breaks = NULL, minor_breaks = NULL)
+  #theme(axis.ticks.x = NULL)
+  return(p)
 }
 
 
@@ -611,6 +636,7 @@ report_accuracy <- function(predictions,
 #' # Example usage:
 #' # make_alluvial(optimized_result)
 #'
+#' @import ggrepel
 #' @export
 make_alluvial <- function(
     optimized,

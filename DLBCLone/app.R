@@ -26,11 +26,13 @@ k_high <- 20
 default_mode = "Lenient"
 truth_col <- "lymphgen"
 other_lbl <- "Other"
+
 # derive class set from metadata for the chosen paradigm
 meta_classes <- dlbcl_meta_clean[[truth_col]] %>% unique() %>% setdiff(NA) %>% as.character()
 meta_classes = sort(meta_classes[meta_classes!=other_lbl])
 
 meta_classes = c(meta_classes,other_lbl)
+
 default_knn <- DLBCLone_KNN(full_status %>% select(all_of(tier1_genes)),
   dlbcl_meta_clean,
   min_k = k_low,
@@ -506,7 +508,7 @@ build_query <- function(params) {
 
       dlbclone_pred_result(predicted)
       current_predict_id(input$predict_sample)
-      
+
       # Columns present in prediction
       pred_cols <- colnames(predicted$unlabeled_predictions)
 
@@ -717,7 +719,7 @@ observeEvent(input$features, {
     #fc = core_features()
     fc  = selected_core()
     updated_result <- make_and_annotate_umap(
-      df = status,    
+      df = status,
       metadata = dlbcl_meta_clean,
       core_features = fc
     )
@@ -809,7 +811,7 @@ observeEvent(input$features, {
     make_alluvial(result,
       # count_excluded_as_other = T,
       pred_column = "DLBCLone_ko",
-      
+
       label_size = 4,
       title = paste0("Optimal K=", result$DLBCLone_k_best_k, ",")
     )

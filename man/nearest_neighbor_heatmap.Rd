@@ -33,7 +33,9 @@ and plots a heatmap of features with nonzero values.
 }
 }
 \examples{
-# Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
-nearest_neighbor_heatmap(sample_id, model)
-
+# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
+and "SomeSample_ID" is a valid sample ID from among the test (not training) samples
+\dontrun{
+nearest_neighbor_heatmap("SomeSample_ID", predicted_out)
+}
 }

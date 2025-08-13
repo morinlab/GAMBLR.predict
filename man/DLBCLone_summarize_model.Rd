@@ -7,7 +7,8 @@
 DLBCLone_summarize_model(base_name, optimized_model)
 }
 \arguments{
-\item{base_name}{Character. The base name (and directory) for saving output files.}
+\item{base_name}{Character. The base name (and directory)
+for saving output files.}
 
 \item{optimized_model}{List. The output from DLBCLone optimization, containing predictions, features, and metadata.}
 }
@@ -15,8 +16,11 @@ DLBCLone_summarize_model(base_name, optimized_model)
 No return value. Side effect: writes multiple PDF files to disk.
 }
 \description{
-Generates and saves a set of summary plots and tables for a DLBCLone model, including UMAP scatterplots, alluvial plots, and oncoplots.
-Results are saved as PDF files in a directory named after the provided base name.
+Generates and saves a set of summary plots and tables for
+a DLBCLone model, including UMAP scatterplots, alluvial
+plots, and oncoplots.
+Results are saved as PDF files in a directory named after the provided
+base name.
 }
 \details{
 \itemize{
@@ -28,5 +32,8 @@ Results are saved as PDF files in a directory named after the provided base name
 }
 }
 \examples{
-DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
+\dontrun{
+DLBCLone_summarize_model(optimized_model = all_features_optimized,
+                         base_name="model_summaries/Lymphgen_all_features")
+}
 }

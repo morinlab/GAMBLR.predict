@@ -33,7 +33,11 @@ tier1_genes = unique(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",tier1_genes))
 
 #dlbcl_meta_clean <- read_tsv(file = paste0(here::here(), "/dlbcl_meta_clean.tsv"))
 dlbcl_meta_clean <- read_tsv(file = paste0(here::here(), "/dlbcl_meta_with_dlbclass.tsv")) %>%
-  mutate(DLBClass = ifelse(Confidence > 0.7,PredictedCluster,"Other"))
+  mutate(DLBClass = ifelse(Confidence > 0.7,PredictedCluster,"Other")) 
+dlbcl_meta_clean = dlbcl_meta_clean %>% 
+    filter(lymphgen %in% c("EZB","MCD","BN2","ST2","N1","Other"))
+
+
 
 # This code needs to be fixed to work anywhere
 lacy_df <- readxl::read_excel("~/git/Lyntegrate/data/bloodbld2019003535-suppl2.xlsx", sheet = 1) %>%

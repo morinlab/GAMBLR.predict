@@ -44,5 +44,7 @@ The function extracts the nearest neighbors of the specified sample, draws segme
 # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
 # and 'output' is the result of DLBCLone_predict_single_sample
 # on sample_id "SAMPLE123":
-make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+\dontrun{
+ make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+}
 }

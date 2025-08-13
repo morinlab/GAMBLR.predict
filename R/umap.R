@@ -608,7 +608,7 @@ make_and_annotate_umap = function(df,
     stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
   }
   if(!is.null(core_features)){
-    print(paste(core_features,collapse=","))
+    #print(paste(core_features,collapse=","))
     if(!is.numeric(core_feature_multiplier)){
       stop("core_feature_multiplier must be a numeric value")
     }
@@ -733,8 +733,7 @@ make_and_annotate_umap = function(df,
                               seed=seed,
                               batch = TRUE,
                               n_threads = 1,
-                              n_sgd_threads = 1,  
-                              rng_type = "deterministic")
+                              n_sgd_threads = 1)
       this_umap_df = as.data.frame(this_umap_df) 
       
       umap_df = bind_rows(umap_df,this_umap_df)
@@ -942,6 +941,7 @@ process_votes <- function(df,
 #' - Accuracy is computed as the proportion of correct assignments (diagonal of the confusion matrix).
 #' - The function is intended for use in optimizing classification purity in kNN-based workflows, especially when distinguishing between confident class assignments and ambiguous ("Other") cases.
 #'
+#' @import caret
 #' @examples
 #' # Example usage:
 #' # result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
@@ -1386,9 +1386,9 @@ DLBCLone_KNN <- function(features_df,
           dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
           dplyr::rowwise() %>%
           dplyr::mutate(
-            idx             = which.max(dplyr::c_across(dplyr::all_of(union(class_levels, other_class)))),
-            top_class       = union(class_levels, other_class)[idx],
-            top_class_count = dplyr::c_across(dplyr::all_of(union(class_levels, other_class)))[idx]
+            idx             = which.max(dplyr::c_across(dplyr::all_of(class_levels))),
+            top_class       = class_levels[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(class_levels))[idx]
           ) %>%
           dplyr::select(-idx) %>%
           dplyr::ungroup() %>%
@@ -1624,9 +1624,9 @@ DLBCLone_KNN <- function(features_df,
           dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
           dplyr::rowwise() %>%
           dplyr::mutate(
-            idx             = which.max(dplyr::c_across(dplyr::all_of(union(class_levels, other_class)))),
-            top_class       = union(class_levels, other_class)[idx],
-            top_class_count = dplyr::c_across(dplyr::all_of(union(class_levels, other_class)))[idx]
+            idx             = which.max(dplyr::c_across(dplyr::all_of(class_levels))),
+            top_class       = class_levels[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(class_levels))[idx]
           ) %>%
           dplyr::select(-idx) %>%
           dplyr::ungroup() %>%
@@ -1850,6 +1850,8 @@ DLBCLone_KNN <- function(features_df,
 #' UMAP output as a data frame. The list also includes the predictions for the
 #' "Other" class if it was included in the training and testing.
 #' 
+#' @import caret
+#' 
 #' @export
 #'
 #' @examples
@@ -1897,16 +1899,14 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            exclude_other_for_accuracy = FALSE,
                            weights_opt = c(TRUE)
                            ) {
-  #if(optimize_for_other){
-  #  exclude_other_for_accuracy = FALSE
-  #}else{
+
   exclude_other_for_accuracy = TRUE
-  #}
+
   na_opt = c("drop")
   num_class = length(truth_classes)
   
   threshs = seq(0,0.9,0.1)
-  #threshs = 0.5
+
   
   ks = seq(min_k,max_k,2)
   results <- data.frame()
@@ -1940,7 +1940,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                               na_vals = na_option)
     }else{
       #project onto existing model instead of re-running UMAP
-      outs = make_and_annotate_umap(df=combined_mutation_status_df,
+      if(!missing(combined_mutation_status_df)){
+        message("ignoring mutation status data frame and using features from umap_out instead")
+      }
+      outs = make_and_annotate_umap(df=umap_out$features,
                               umap_out = umap_out,
                               min_dist = 0,
                               n_neighbors = 55,
