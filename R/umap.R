@@ -1928,7 +1928,9 @@ predict_single_sample_DLBCLone <- function(
   }
 
   bad_samps <- rowSums(test_df) == 0 
-  bad_test_df <- test_df[bad_samps, ] 
+  bad_test_df <- test_df[bad_samps, ]  %>%
+    rownames_to_column("sample_id") %>%
+    select(sample_id)
   test_df <- test_df[!bad_samps, ]
 
   test_id <- test_df %>% 
@@ -2058,7 +2060,6 @@ predict_single_sample_DLBCLone <- function(
     predictions_test_df = predictions_test_df %>%
       bind_rows(
         bad_test_df %>%
-        rownames_to_column("sample_id") %>%
         mutate(
           predicted_label = "Other",
           confidence = 1
