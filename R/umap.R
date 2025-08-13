@@ -171,7 +171,7 @@ assemble_genetic_features <- function(these_samples_metadata,
                 include_GAMBL_sv= TRUE,
                 review_hotspots = TRUE,
                 verbose = FALSE){
-  #if("genome_build" %in% )
+
   if(!"maf_data" %in% class(maf_with_synon)){
     warning(paste("maf_with_synon should be a maf_data object, but is not.",
                 "Proceeding anyway with genome_build = ", genome_build))
@@ -179,7 +179,9 @@ assemble_genetic_features <- function(these_samples_metadata,
     genome_build = attr(maf_with_synon,"genome_build")
   }
   if(include_ashm){
-      #TODO: ensure this supports both genome builds correctly
+    stopifnot( genome_build == "grch37", "other genome builds are not yet supported for aSHM")
+    #TODO: consider shifting this function to GAMBLR.results
+    #TODO: ensure this supports both genome builds correctly. This is currently hard-coded
     some_regions = GAMBLR.utils::create_bed_data(
                   GAMBLR.data::grch37_ashm_regions,
                   fix_names = "concat",
@@ -358,7 +360,6 @@ optimize_outgroup <- function(predicted_labels,
                             exclude_other_for_accuracy = FALSE,
                             verbose = FALSE,
                             other_class = "Other"){
-  #print(paste("Exclude Other?",exclude_other_for_accuracy))
   rel_thresholds = seq(1,10,0.1)
   sens_df = data.frame()
   acc_df = data.frame()
@@ -390,7 +391,6 @@ optimize_outgroup <- function(predicted_labels,
   }
   
   if(maximize %in% c("balanced_accuracy","accuracy")){
-    #print(best)
     best = slice_head(arrange(acc_df,desc(average_accuracy)),n=1)
   }else{
     best = slice_head(arrange(sens_df,desc(average_sensitivity)),n=1)
@@ -450,7 +450,6 @@ DLBCLone_train_test_plot = function(test_df,
   }
   if(annotate_accuracy){
     if("BN2" %in% classes){
-      #print(details)
       acc_df = data.frame(lymphgen = classes,
                           accuracy = c(
                             details$BN2_bacc,
@@ -666,10 +665,10 @@ make_and_annotate_umap = function(df,
                          batch = TRUE,
                          n_sgd_threads = 1,
                          rng_type = "deterministic") # possibly add rng_type = "deterministic"
-        #IMPORTANT: n_threads must not be changed because it will break reproducibility  
+        #IMPORTANT: n_threads must never be changed because it will break reproducibility  
         
       }else if(algorithm == "tumap"){
-        #X = df %>% as.matrix()
+        
         message("running tumap")
         X = df
         umap_args = list(X=X,
@@ -705,7 +704,7 @@ make_and_annotate_umap = function(df,
         stop("metadata must be provided for supervised UMAP")
       }
       metadata[[target_column]] = factor(metadata[[target_column]])
-      #print(table(metadata[[target_column]]))
+      
       umap_out = umap2(df %>% as.matrix(),
                        n_neighbors = n_neighbors,
                        min_dist = min_dist,
@@ -717,9 +716,10 @@ make_and_annotate_umap = function(df,
                        n_threads = 1,
                        y = metadata[[target_column]],
                        target_metric = target_metric,
-                       target_weight = target_weight
-                       ) # possibly add rng_type = "deterministic"
-      #IMPORTANT: n_threads must not be changed because it will break reproducibility
+                       target_weight = target_weight,
+                       rng_type = "deterministic"
+                       ) 
+      #IMPORTANT: n_threads must never be changed because it will break reproducibility
     }
     
 
@@ -733,7 +733,8 @@ make_and_annotate_umap = function(df,
                               seed=seed,
                               batch = TRUE,
                               n_threads = 1,
-                              n_sgd_threads = 1)
+                              n_sgd_threads = 1,  
+                              rng_type = "deterministic")
       this_umap_df = as.data.frame(this_umap_df) 
       
       umap_df = bind_rows(umap_df,this_umap_df)
@@ -751,11 +752,7 @@ make_and_annotate_umap = function(df,
     umap_df = as.data.frame(umap_df) %>% rownames_to_column(var=join_column)
     
   }else{
-    #message("model not provided, created here")
     umap_df = as.data.frame(umap_out$embedding) %>% rownames_to_column(join_column)
-    #umap_df = as.data.frame(umap_out) %>% rownames_to_column(join_column)
-    #umap_df = as.data.frame(umap_df) %>% rownames_to_column(var=join_column)
-    #print(head(umap_df))
   }
   if(!missing(metadata)){
     umap_df = left_join(umap_df,metadata,by=join_column)
@@ -1166,7 +1163,7 @@ DLBCLone_KNN_predict <- function(train_df,
       metadata = metadata,
       DLBCLone_KNN_out = DLBCLone_KNN_out,
       predict_unlabeled = TRUE,
-      other_class = other_class   # <--- pass it in
+      other_class = other_class  
     )
     return(model_out)
   }
@@ -1961,8 +1958,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
       for(k in ks){
         best_w_acc = NULL
         message(paste("K:",k))
-
-        #for (threshold in threshs){
         test_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
         train_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
         train_labels = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(!!sym(truth_column))
@@ -2000,9 +1995,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               print(table(pred_with_truth[[truth_column]]))
             }
 
-            #return(pred_with_truth)
             pred_w = 
-            #suppressMessages(
              optimize_purity(
               vote_df = pred_with_truth,
               mode = "DLBCLone_w",
@@ -2011,13 +2004,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               optimize_by = maximize,
               k = k
              )
-            #)
             if(verbose){
               print("running optimize_purity for the first time at k:", k)
             }
           
-            
-            #print(names(pred_w))
             best_w_acc = pred_w$best_accuracy
             if(best_w_acc > best_acc_w){
               message(paste("best accuracy DLBCLone_wo:",pred_w$best_accuracy, "purity threshold:", pred_w$best_purity_threshold))
@@ -2057,11 +2047,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 ignore_self = ignore_self,
                 verbose = verbose)
 
-              #if(!is.null(eval_group)){
-              #  xx_o = bind_cols(filter(outs$df,dataset == eval_group,!!sym(truth_column) =="Other") ,pred_other)
-              #}else{
               xx_o = bind_cols(filter(outs$df,!!sym(truth_column) == "Other" | is.na(!!sym(truth_column))) ,pred_other)
-              #}
+
             }
             xx_d[[truth_column]] = factor(xx_d[[truth_column]],levels = c(unique(xx_d[[truth_column]]),"Other"))
 
@@ -2077,10 +2064,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           }
 
           conf_matrix <- confusionMatrix(pred_factor, true_factor)
-          #print(conf_matrix)
+          
           bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
           sn <- conf_matrix$byClass[, "Sensitivity"]  # one per class
-          #bal_acc = report_accuracy(xx_d,pred = "predicted_label")$mean_balanced_accuracy
+      
           if(verbose){
             print(bal_acc)
             print(conf_matrix$overall)
@@ -2101,9 +2088,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                              exclude_other_for_accuracy = exclude_other_for_accuracy)
             
             out_opt_thresh = optimized_accuracy_and_thresh$threshold
-            #print(optimized_accuracy_and_thresh$average_accuracy)
-            
-            #optimized_accuracy_and_thresh$average_accuracy[is.na(optimized_accuracy_and_thresh$average_accuracy)] = 0
             out_opt_acc = optimized_accuracy_and_thresh$average_accuracy
             
 
@@ -2126,7 +2110,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             
             this_accuracy = overall_accuracy
           }
-          #print(paste("accuracy:",this_accuracy, "out_opt_acc",out_opt_acc))
           if(out_opt_acc > this_accuracy){
             
             this_accuracy = out_opt_acc
@@ -2159,7 +2142,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           
           if(this_accuracy > best_acc){
             best_acc = this_accuracy
-            #(xx_d))
+          
             xx_d = mutate(xx_d, predicted_label_optimized = ifelse(other_score > out_opt_thresh, "Other", predicted_label))
             no_other_acc = report_accuracy(xx_d,pred = "predicted_label_optimized")$mean_balanced_accuracy
             message(paste("best accuracy DLBCLone_io:",best_acc, "without other: ", no_other_acc, "threshold_outgroup:", row$threshold_outgroup))
@@ -2182,11 +2165,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   best_params$seed = seed
 
   test_coords = outs$df %>% select(V1,V2)
-  
-  #train_coords = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% select(V1,V2)
-  #train_ids = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(sample_id)
-  #rownames(train_coords) = train_ids
-  #train_labels = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(!!sym(truth_column))
+
   train_coords = outs$df %>% select(V1,V2)
   train_ids = outs$df %>% pull(sample_id)
   rownames(train_coords) = train_ids
@@ -2354,12 +2333,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
       
       neighbors <- neighbors[neighbor_ids != self]
       distances <- distances[neighbor_ids != self]
-  #print(paste(self,nns,length(neighbors)))
-      #if(length(neighbors) == nns){
-      #  print(paste("self was not dropped",paste(neighbor_ids,collapse=","),"i:",i,"self:",self))
-      #  print(paste(neighbor_ids,collapse=","))
-      #  stop()
-      #}
+
     }
     
     
@@ -2423,9 +2397,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
     neighbors_other = length(others_closer)
     other_weighted_votes = sum(others_weights)
     mean_other_dist = mean(others_distances)
-    #other_weighted_votes = neighbors_other
-    #  print(paste("other weighted votes:",other_weighted_votes))
-    #}
+
     if (length(neighbor_labels) == 0) {
       preds[i] <- "Other"
       confs[i] <- 1
@@ -2482,10 +2454,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
       }else{
         rel_other = 0
       }
-      #print(head(rownames(train_coords)))
 
-
-      #rel_other = ifelse(rel_other==0,0,log(rel_other)) 
       neighbor_info <- data.frame(
         other_score = rel_other,
         neighbor_id = paste(rownames(train_coords)[neighbors],collapse=","),
@@ -2531,244 +2500,6 @@ weighted_knn_predict_with_conf <- function(train_coords,
   }
   return(to_return)
 }
-
-broken_weighted_knn_predict_with_conf <- function(train_coords,
-                                           train_labels,
-                                           test_coords,
-                                           k,
-                                           epsilon = 0.1,
-                                           conf_threshold = NULL,
-                                           na_label = "Other",
-                                           other_class = "Other",
-                                           verbose = FALSE,
-                                           use_weights = TRUE,
-                                           ignore_self = TRUE,
-                                           track_neighbors = TRUE,
-                                           separate_other = TRUE,
-                                           max_neighbors = 500) {
-
-  if (nrow(train_coords) == 0 || nrow(test_coords) == 0) {
-    stop("train_coords and test_coords must have at least one row each.")
-  }
-  if (missing(k) || !is.finite(k) || k < 1) {                 # NEW
-    stop("k must be a positive integer.")                      # NEW
-  }
-  str(train_coords)
-  str(test_coords)
-  vapply(train_coords, class, character(1))
-  # --- Ensure numeric matrices with aligned columns ---------------------------
-  train_df <- as.data.frame(train_coords)                      # NEW
-  test_df  <- as.data.frame(test_coords)                       # NEW
-
-  # If both have names, align by intersection; else just coerce as-is
-  if (!is.null(colnames(train_df)) && !is.null(colnames(test_df))) {   # NEW
-    common <- intersect(colnames(train_df), colnames(test_df))         # NEW
-    if (length(common) == 0) {                                         # NEW
-      stop("No shared columns between train_coords and test_coords.")   # NEW
-    }
-    if (length(common) < ncol(train_df) || length(common) < ncol(test_df)) { # NEW
-      if (verbose) message("Aligning coordinates on ", length(common), " shared column(s). Missing columns filled with 0.") # NEW
-    }
-    # Rebuild data frames with the common columns in same order               # NEW
-    train_df <- train_df[, common, drop = FALSE]                           # NEW
-    test_df  <- test_df[,  common, drop = FALSE]                           # NEW
-  }
-
-  # Coerce to numeric (protect against factors/characters sneaking in)     # NEW
-  train_mat <- as.matrix(lapply(train_df, function(x) as.numeric(x)))     # NEW
-  test_mat  <- as.matrix(lapply(test_df,  function(x) as.numeric(x)))     # NEW
-  #storage.mode(train_mat) <- "double"                                     # NEW
-  #storage.mode(test_mat)  <- "double"                                     # NEW
-
-  # Replace NAs with 0 (safer for distances than NA)                        # NEW
-  #train_mat[is.na(train_mat)] <- 0                                        # NEW
-  #test_mat[is.na(test_mat)]   <- 0                                        # NEW
-
-  # Row names (IDs) -----------------------------------------------------------
-  tr_ids <- rownames(train_coords)                                        # NEW
-  te_ids <- rownames(test_coords)                                         # NEW
-  if (is.null(tr_ids)) tr_ids <- sprintf("train_%d", seq_len(nrow(train_mat)))   # NEW
-  if (is.null(te_ids)) te_ids <- sprintf("test_%d",  seq_len(nrow(test_mat)))    # NEW
-  rownames(train_mat) <- tr_ids                                           # NEW
-  rownames(test_mat)  <- te_ids                                           # NEW
-
-  # Labels
-  train_labels <- as.character(train_labels)
-  if (length(train_labels) != nrow(train_mat)) {
-    stop("Length of train_labels (", length(train_labels), ") does not match number of rows in train_coords (", nrow(train_mat), ").")
-  }
-
-  # Clamp neighbor counts to available samples --------------------------------
-  max_neighbors <- max(1, min(max_neighbors, nrow(train_mat)))            # CHANGED
-  k <- max(1, min(k, max_neighbors))                                      # CHANGED
-  if (verbose) message("Using k=", k, " (max_neighbors=", max_neighbors, ").")    # NEW
-
-  # Get neighbors (FNN::get.knnx)
-  nn <- FNN::get.knnx(train_mat, test_mat, max_neighbors)                 # CHANGED (namespaced)
-
-  preds <- character(nrow(test_mat))
-  confs <- numeric(nrow(test_mat))
-  all_neighbors <- if (track_neighbors) data.frame() else NULL
-
-  # For speed inside loop
-  trnames <- rownames(train_mat)                                          # NEW
-  has_other <- any(train_labels == other_class)                           # NEW
-
-  for (i in seq_len(nrow(test_mat))) {
-    self <- rownames(test_mat)[i]
-
-    neighbors <- nn$nn.index[i, ]
-    distances <- nn$nn.dist[i, ]
-
-    if (ignore_self) {
-      neighbor_ids <- trnames[neighbors]
-      keep <- neighbor_ids != self
-      neighbors <- neighbors[keep]
-      distances <- distances[keep]
-    }
-
-    # If nothing left, assign na_label and keep diagnostics (if requested)
-    if (length(neighbors) == 0) {
-      preds[i] <- na_label
-      confs[i] <- 1
-      if (track_neighbors) {
-        neighbor_info <- data.frame(
-          other_score = 0,
-          neighbor_id = "",
-          neighbor = "",
-          distance = "",
-          label = "",
-          vote_labels = "",
-          weighted_votes = "",
-          neighbors_other = 0,
-          other_weighted_votes = 0,
-          total_w = 0,
-          pred_w = 0
-        )
-        all_neighbors <- dplyr::bind_rows(all_neighbors, neighbor_info)
-      }
-      next
-    }
-
-    distances <- distances + epsilon
-    weights <- if (use_weights) 1 / distances else rep(1, length(distances))
-    neighbor_labels <- train_labels[neighbors]
-
-    # Outgroup neighbors (if present)
-    if (has_other) {                                                      # NEW
-      other_mask  <- (neighbor_labels == other_class)
-      other_dists <- distances[other_mask]
-    } else {
-      other_mask  <- rep(FALSE, length(neighbor_labels))                  # NEW
-      other_dists <- numeric(0)                                           # NEW
-    }
-
-    valid <- !is.na(neighbor_labels)
-    if (separate_other) valid <- valid & !other_mask
-
-    neighbor_labels <- neighbor_labels[valid]
-    weights         <- weights[valid]
-    distances       <- distances[valid]
-    neighbors       <- neighbors[valid]
-
-    if (length(neighbor_labels) < (k - 1) && verbose) {
-      message("Warning: usable neighbors < k-1 (i=", i, ", k=", k, ", usable=", length(neighbor_labels), ")")
-    }
-
-    # Trim to k in-group neighbors (if we still have > k)
-    if (length(neighbor_labels) > k) {
-      neighbor_labels <- neighbor_labels[1:k]
-      weights         <- weights[1:k]
-      distances       <- distances[1:k]
-      neighbors       <- neighbors[1:k]
-    }
-
-    # Weighted vote among in-group neighbors
-    if (length(neighbor_labels) == 0) {
-      preds[i] <- na_label
-      confs[i] <- NA_real_
-
-      if (track_neighbors) {
-        neighbor_info <- data.frame(
-          other_score = 0,
-          neighbor_id = "",
-          neighbor = "",
-          distance = "",
-          label = "",
-          vote_labels = "",
-          weighted_votes = "",
-          neighbors_other = 0,
-          other_weighted_votes = 0,
-          total_w = 0,
-          pred_w = 0
-        )
-        all_neighbors <- dplyr::bind_rows(all_neighbors, neighbor_info)
-      }
-      next
-    }
-
-    weighted_votes <- tapply(weights, neighbor_labels, sum)
-    predicted_label <- names(which.max(weighted_votes))
-    total_weight <- sum(weighted_votes)
-    pred_weight  <- unname(weighted_votes[predicted_label])
-    confidence   <- pred_weight / total_weight
-
-    # Optional confidence thresholding
-    if (!is.null(conf_threshold) && is.finite(confidence) && confidence < conf_threshold) {
-      preds[i] <- na_label
-      confs[i] <- confidence
-    } else {
-      preds[i] <- predicted_label
-      confs[i] <- confidence
-    }
-
-    if (track_neighbors) {
-      # Outgroup diagnostics: count/sum outgroup neighbors closer than farthest in-group neighbor
-      farthest_in_group <- max(distances)
-      closer_idx <- if (length(other_dists)) which(other_dists < farthest_in_group) else integer(0)
-
-      neighbors_other <- length(closer_idx)
-      if (neighbors_other > 0) {
-        closer_dists <- other_dists[closer_idx]
-        other_weighted_votes <- if (use_weights) sum(1 / closer_dists) else neighbors_other
-      } else {
-        other_weighted_votes <- 0
-      }
-
-      rel_other <- if (separate_other && isTRUE(pred_weight > 0)) other_weighted_votes / pred_weight else 0
-
-      neighbor_info <- data.frame(
-        other_score = rel_other,
-        neighbor_id = paste(trnames[neighbors], collapse = ","),
-        neighbor    = paste(neighbors, collapse = ","),
-        distance    = paste(round(distances, 3), collapse = ","),
-        label       = paste(neighbor_labels, collapse = ","),
-        vote_labels = paste(names(weighted_votes), collapse = ","),
-        weighted_votes = paste(unname(weighted_votes), collapse = ","),
-        neighbors_other = neighbors_other,
-        other_weighted_votes = other_weighted_votes,
-        total_w = total_weight,
-        pred_w  = pred_weight
-      )
-      all_neighbors <- dplyr::bind_rows(all_neighbors, neighbor_info)
-    }
-  }
-
-  out <- data.frame(
-    predicted_label = preds,
-    confidence = confs,
-    stringsAsFactors = FALSE
-  )
-
-  if (track_neighbors) {
-    stopifnot(nrow(out) == nrow(all_neighbors))
-    out <- dplyr::bind_cols(out, all_neighbors)
-    rownames(out) <- rownames(test_mat)
-  }
-  out
-}
-
-
 
 
 #' Predict class for a single sample without using umap_transform and plot result of classification
@@ -2848,26 +2579,19 @@ predict_single_sample_DLBCLone <- function(
     } else {
         # Drop overlaps to prevent rowname collisions
         dupes <- intersect(train_df$sample_id, test_df$sample_id)
-        if(length(dupes) > 0){
-            #warning(paste("Removing", length(dupes),
-            #              "overlapping samples from train_df to avoid duplicated rownames.\n",
-            #              "Consider setting ignore_self = TRUE to avoid inaccurate high confidence, and to keep all training samples."))
-            #train_df <- train_df %>% filter(!sample_id %in% dupes)
-            #train_metadata <- train_metadata %>% filter(!sample_id %in% dupes)
-        }
+
     }
 
-    #trained_features = colnames(umap_out$features)
 
     train_df = train_df %>%
         column_to_rownames("sample_id") %>%
-        #select(all_of(trained_features)) %>% 
+
         rownames_to_column("sample_id")
     train_id <- train_df$sample_id
 
     test_df = test_df %>%
         column_to_rownames("sample_id") %>%
-        #select(all_of(trained_features)) %>%
+
         rownames_to_column("sample_id")
     test_id <- test_df$sample_id
     

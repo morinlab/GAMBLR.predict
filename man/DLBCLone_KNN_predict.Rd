@@ -8,11 +8,9 @@ DLBCLone_KNN_predict(
   train_df,
   test_df,
   metadata,
-  core_features = NULL,
-  core_feature_multiplier = 1.5,
-  hidden_features = NULL,
   DLBCLone_KNN_out,
-  mode = "batch"
+  mode = "batch",
+  other_class = "Other"
 )
 }
 \arguments{
@@ -22,15 +20,15 @@ DLBCLone_KNN_predict(
 
 \item{metadata}{Data frame with metadata for all samples, including at least a \code{sample_id} column.}
 
+\item{DLBCLone_KNN_out}{List. Output from a previous call to \code{DLBCLone_KNN} containing optimized parameters. (Required)}
+
+\item{mode}{Character. If \code{"iterative"}, runs KNN prediction for each test sample individually (recommended for stability).}
+
 \item{core_features}{Optional character vector of feature names to upweight in the KNN calculation.}
 
 \item{core_feature_multiplier}{Numeric. Multiplier to apply to core features (default: 1.5).}
 
 \item{hidden_features}{Optional character vector of feature names to exclude from the analysis.}
-
-\item{DLBCLone_KNN_out}{List. Output from a previous call to \code{DLBCLone_KNN} containing optimized parameters. (Required)}
-
-\item{mode}{Character. If \code{"iterative"}, runs KNN prediction for each test sample individually (recommended for stability).}
 }
 \value{
 A list containing the KNN prediction results for the test samples, including predicted class labels and scores.

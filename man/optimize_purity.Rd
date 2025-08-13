@@ -12,7 +12,8 @@ optimize_purity(
   truth_column,
   all_classes = c("MCD", "EZB", "BN2", "N1", "ST2", "Other"),
   k,
-  exclude_other_for_accuracy = FALSE
+  exclude_other_for_accuracy = FALSE,
+  other_class = "Other"
 )
 }
 \arguments{

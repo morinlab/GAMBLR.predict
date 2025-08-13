@@ -8,6 +8,7 @@ make_and_annotate_umap(
   df,
   metadata,
   umap_out,
+  truth_column = "lymphgen",
   core_features = NULL,
   core_feature_multiplier = 1.5,
   hidden_features = NULL,

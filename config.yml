@@ -1,0 +1,185 @@
+remote:
+    project_base: "/Users/rmorin/gambl_results/"
+    repo_base: "/Users/rmorin/git/gambl/"
+    dependencies:
+        tabix: "/Users/rmorin/miniconda3/bin/tabix"
+    host: "gphost03.bcgsc.ca"
+    results_merged:
+        ex_matrix_path: "/icgc_dart/DESeq2-0.0_salmon-1.0/mrna--gambl-icgc-all/vst-matrix.tsv"
+
+default:
+    project_base: "/projects/nhl_meta_analysis_scratch/gambl/results_local/"
+    repo_base: "/projects/rmorin/projects/gambl-repos/gambl-crushton-canary/"
+    archive: "/projects/rmorin/projects/gambl_results/"
+    derived_and_curated: "icgc_dart/derived_and_curated_metadata/"
+    database_name: "gambl_test"
+    results_staging:
+        manta: "manta_current/level_3/01-gamblr_preprocess/"
+    results_merged:
+        collated: "shared/gambl_{seq_type_filter}_results.tsv"
+        tidy_expression_path: "icgc_dart/DESeq2-0.0_salmon-1.0/mrna--gambl-icgc-all/vst-matrix-Hugo_Symbol_tidy.tsv"
+        tidy_expression_metadata: "icgc_dart/DESeq2-0.0_salmon-1.0/mrna--gambl-icgc-all/sample_metadata.tsv"
+        tidy_expression_path_gambl: "gambl/DESeq2-0.0_salmon-1.0/mrna/vst-matrix-Hugo_Symbol_tidy.tsv"
+        ex_matrix_file: "/projects/rmorin/projects/gambl-repos/gambl-rmorin/results/icgc_dart/DESeq2-0.0_salmon-1.0/mrna--gambl-icgc-all/vst-matrix.tsv"
+        ex_matrix_path: "icgc_dart/DESeq2-0.0_salmon-1.0/mrna--gambl-icgc-all/vst-matrix.tsv"
+        deblacklisted: "all_the_things/slms_3-1.0_vcf2maf-1.3/{seq_type}--projection/deblacklisted/maf/all_slms-3--{projection}.CDS.maf"
+        augmented: "all_the_things/slms_3-1.0_vcf2maf-1.3/{seq_type}--projection/deblacklisted/augmented_maf/all_slms-3--{projection}.CDS.maf"
+        cnv: "all_the_things/cnv_master-1.0/merges/{seq_type}--{projection}.seg"
+        battenberg: "all_the_things/battenberg/merges/battenberg--{seq_type}--{projection}.seg"
+        sv: "all_the_things/svar_master-1.0/merges/gridss_manta.genome--{projection}.bedpe"
+        manta_sv: 
+            gambl: "gambl/manta-2.3/merges/manta.genome--{projection}.bedpe"
+            icgc_dart: "all_the_things/manta-2.3/merges/manta.genome--{projection}.bedpe"
+    results_merged_wildcards:
+        lymphgen_template: "no_cnvs.no_sv.with_A53,no_cnvs.no_sv.no_A53,no_cnvs.with_sv.with_A53,with_cnvs.no_sv.no_A53,no_cnvs.with_sv.no_A53,with_cnvs.no_sv.with_A53,with_cnvs.with_sv.no_A53,with_cnvs.with_sv.with_A53"
+    results_versioned:
+        lymphgen_template:
+                default: "versioned_results/LymphGen/GAMBL_all_the_things.lymphgen_calls.{flavour}.tsv"
+        oncodriveclustl:
+                clusters: "versioned_results/oncodriveclustl-0.0_{abase}_clusters_results.tsv"
+                elements: "versioned_results/oncodriveclustl-0.0_{abase}_elements_results.tsv"
+    resources:
+        whitelist:
+            template: all_the_things/slms_3-1.0_vcf2maf-1.3/level_3/{projection}_whitelist.txt
+        blacklist:
+            template: all_the_things/slms_3-1.0_vcf2maf-1.3/level_3/{seq_type}--{projection}_clean_blacklist.txt
+            capture:
+                grch37: all_the_things/slms_3-1.0_vcf2maf-1.3/level_3/capture--grch37_clean_blacklist.txt
+                hg38: all_the_things/slms_3-1.0_vcf2maf-1.3/level_3/capture--hg38_clean_blacklist.txt
+            genome:
+                grch37: all_the_things/slms_3-1.0_vcf2maf-1.3/level_3/genome--grch37_clean_blacklist.txt
+                hg38: all_the_things/slms_3-1.0_vcf2maf-1.3/level_3/genome--hg38_clean_blacklist.txt
+        curated_blacklist: "etc/curated_blacklist/candidateblacklist.schmitz.{projection}.tsv"
+
+    dependencies:
+        tabix: "/home/rmorin/miniconda3/bin/tabix"
+        bedToBigBed: "/projects/rmorin_scratch/conda_environments/ucsc_utils/bin/bedToBigBed"
+#results from every combination of each of these will be included in the database
+    unix_groups: "gambl,icgc_dart"
+    genome_builds: "grch37,hg38,hs37d5"
+    projections: "grch37,hg38"
+    seq_types: "capture,genome"
+    vcf_base_name: "slms-3.final"
+#the genome build to use for all coordinate-based results in the database
+    canonical_genome_build: "grch37"
+    analyses:
+        matched:
+            copy_number: "battenberg"
+            ssm: "slms-3"
+            sv: "manta"
+        unmatched:
+            copy_number: "controlfreec"
+            ssm: "slms-3"
+            sv: "manta"
+
+#tables that likely need to be populated sequentially or outside of R due to their size
+    results_tables:
+        ssm: "maf_slms3_hg19_icgc"
+        copy_number: "seg_battenberg_hg19"
+        sv: "bedpe_manta_hg19"
+        copy_number_unmatched: "seg_controlfreec_hg19"
+
+    qc_met: "{unix_group}/qc-1.0/99-outputs/{seq_type_filter}.qc_metrics.tsv"
+
+    results_flatfiles:
+        expression:
+            salmon: 
+                counts: "all_the_things/salmon-1.0/counts_files/"
+        cnv:
+            gambl:
+                unmatched: "controlfreec_liftover_current/99-outputs/"
+            template: "{unix_group}/cnv_master-1.0/99-outputs/{seq_type}--projection/all--{projection}.seg"
+            battenberg: "{unix_group}/battenberg_current/99-outputs/seg/{seq_type}--projection/{tumour_sample_id}--{normal_sample_id}--{pairing_status}.battenberg.{projection}.seg"
+            battenberg_cellularity: "{unix_group}/battenberg-1.1/02-battenberg/{seq_type}--{genome_build}/{sample_id}--{normal_sample_id}/{sample_id}_cellularity_ploidy.txt"
+            battenberg_wildcards:
+                pairing_status: "matched"
+        cnv_combined:
+            gambl: "gambl/cnv_master-1.0/99-outputs/{seq_type}--projection/all--{projection}.seg"
+            icgc_dart: "all_the_things/cnv_master-1.0/merges/{seq_type}--{projection}.seg"
+            template: "all_the_things/cnv_master-1.0/merges/{seq_type}--{projection}.seg"
+        sv: "icgc_dart/cbioportal-1.0/01-filtered-manta/genome-grch37/all_merged_sv_info.tsv"
+        sv_manta:
+            template: "{unix_group}/manta_current/99-outputs/bedpe/{seq_type}--{genome_build}/somaticSV/{tumour_sample_id}--{normal_sample_id}--{pairing_status}.somaticSV.bedpe"
+        sv_combined:
+            gambl: "gambl/svar_master-1.0/merges/gridss_manta.genome--grch37.bedpe"
+            icgc_dart: "all_the_things/svar_master-1.0/merges/gridss_manta.genome--grch37.bedpe"
+            template: "all_the_things/svar_master-1.0/merges/gridss_manta.genome--{projection}.bedpe"
+        ssm:
+            template:
+                mrna:
+                    lifted: "{unix_group}/slms_3-1.0_vcf2maf-1.3/level_3/augmented_mafs/99-outputs/mrna--{genome_build}/{sample_id}-None--no_normal.converted_{direction}.maf"
+                    native: "{unix_group}/slms_3-1.0_vcf2maf-1.3/level_3/augmented_mafs/99-outputs/mrna--{genome_build}/{sample_id}--None--no_normal_final.maf"
+                clustered:
+                    deblacklisted: "{unix_group}/slms_3-1.0_vcf2maf-1.3/99-outputs/deblacklisted/maf/{seq_type}--projection/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{vcf_base_name}.{target_builds}.maf"
+                    augmented: "{unix_group}/slms_3-1.0_vcf2maf-1.3/99-outputs/deblacklisted/augmented_maf/{seq_type}--projection/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{vcf_base_name}.{target_builds}.maf"
+                merged:
+                    deblacklisted: "all_the_things/slms_3-1.0_vcf2maf-1.3/{seq_type}--projection/deblacklisted/maf/all_slms-3--{projection}.maf"
+                    augmented: "all_the_things/slms_3-1.0_vcf2maf-1.3/{seq_type}--projection/deblacklisted/augmented_maf/all_slms-3--{projection}.maf"
+                cds:
+                    deblacklisted: "all_the_things/slms_3-1.0_vcf2maf-1.3/{seq_type}--projection/deblacklisted/maf/all_slms-3--{projection}.CDS.maf"
+                    augmented: "all_the_things/slms_3-1.0_vcf2maf-1.3/{seq_type}--projection/deblacklisted/augmented_maf/all_slms-3--{projection}.CDS.maf"
+            all:
+                full: "icgc_dart/slms_3-1.0_vcf2maf-1.2/level_3/final_merged_grch37.maf"
+                clustered: "icgc_dart/slms_3-1.0_vcf2maf-1.3/level_3/final_merged_grch37.maf"
+                clustered_cds: "icgc_dart/slms_3-1.0_vcf2maf-1.3/level_3/final_merged_grch37.CDS.maf"
+                cds: "icgc_dart/slms_3-1.0_vcf2maf-1.2/level_3/final_merged_grch37.CDS.maf"
+                strelka2: "icgc_dart/strelka-1.1_vcf2maf-1.2/level_3/final_merged_grch37.maf"
+            gambl:
+                full: "gambl/slms_3-1.0_vcf2maf-1.2/level_3/final_merged_grch37.maf"
+                clustered: "gambl/slms_3-1.0_vcf2maf-1.3/level_3/final_merged_grch37.maf"
+                clustered_cds: "gambl/slms_3-1.0_vcf2maf-1.3/level_3/final_merged_grch37.CDS.maf"
+                cds: "gambl/slms_3-1.0_vcf2maf-1.2/level_3/final_merged_grch37.CDS.maf"
+                strelka2: "gambl/strelka-1.1_vcf2maf-1.2/level_3/final_merged_grch37.maf"
+
+    results_directories:
+        manta: "manta_current/99-outputs/bedpe/"
+        controlfreec: "controlfreec_liftover_current/99-outputs/"
+
+    tables:
+        biopsies: "biopsy_metadata"
+        samples: "sample_metadata"
+        outcomes: "outcome_metadata"
+        derived: "derived_data"
+        files: "gambl_files"
+
+    table_flatfiles:
+        biopsies: "data/metadata/gambl_biopsy_metadata.tsv"
+        samples: "data/metadata/gambl_samples_available.tsv"
+        outcomes: "data/metadata/gambl_all_outcomes.tsv"
+
+    sample_sets:
+        default: "data/metadata/level3_samples_subsets.tsv"
+        hashes: "data/metadata/level3_samples_subsets_hashes.tsv"
+
+    unmatched_normal_ids:
+        gambl:
+            genome:
+                grch37: "14-11247N"
+                hg38: "BLGSP-71-06-00286-99A-01D"
+                hs37d5: "14-11247Normal"
+            capture:
+                hg38: "BLGSP-71-06-00286-99A-01D"
+                hg19-reddy: "04-24937N-Reddy"
+                grch37: "14-11247N-Chapuy"
+                hs37d5: "BNHL_26N"
+                hg38-panea: "BLGSP-71-06-00286-99A-01DN-Panea"
+                hg38-nci: "04-24937N-Schmitz"
+                hg19-clc: "PA011-G"
+        icgc_dart:
+            genome:
+                grch37: "14-11247N"  # Note this does not work, since this sample isn't in the ICGC group
+                hg38: "SP59382"
+                hs37d5: "SP193960"
+            capture:
+                hg19-reddy: "04-24937N-Reddy"
+                hs37d5: "BNHL_26N"
+                grch37: "14-11247N-Chapuy"
+                hg38-panea: "BLGSP-71-06-00286-99A-01DN-Panea"
+                hg38-nci: "04-24937N-Schmitz"
+                hg38: "BLGSP-71-06-00286-99A-01D"
+                hg19-clc: "PA011-G"
+
+    bundled_data_versions:
+        # keep this key to always use the latest data. Othervise specify version, like "0.1"
+        somatic_hypermutation_locations: "_latest"
+        lymphoma_genes: "_latest"

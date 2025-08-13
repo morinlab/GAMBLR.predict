@@ -12,7 +12,8 @@ process_votes(
   k,
   other_vote_multiplier = 2,
   score_purity_requirement = 1,
-  weighted_votes_col = "weighted_votes"
+  weighted_votes_col = "weighted_votes",
+  other_class = "Other"
 )
 }
 \arguments{

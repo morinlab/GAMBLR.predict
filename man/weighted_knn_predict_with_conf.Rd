@@ -11,7 +11,7 @@ weighted_knn_predict_with_conf(
   k,
   epsilon = 0.1,
   conf_threshold = NULL,
-  na_label = "Other",
+  other_class = "Other",
   verbose = FALSE,
   use_weights = TRUE,
   ignore_self = TRUE,
@@ -21,39 +21,59 @@ weighted_knn_predict_with_conf(
 )
 }
 \arguments{
-\item{train_coords}{Data frame containing coordinates for samples with known
-labels (training samples). One row per sample, one column per feature. Usually
-this would be the two UMAP components}
+\item{train_coords}{Data frame of coordinates for labeled (training) samples.
+One row per sample, columns are features (typically UMAP V1, V2).}
 
-\item{train_labels}{Vector of labels for training cases}
+\item{train_labels}{Character/factor vector of labels for training samples.}
 
-\item{test_coords}{Data frame containing coordinates for samples to be classified
-with the same format as train_coords}
+\item{test_coords}{Data frame of coordinates for samples to classify
+(same columns/space as train_coords).}
 
-\item{k}{The number of neigbors to consider}
+\item{k}{Integer; number of neighbors to consider.}
 
-\item{epsilon}{This value is added to the distances before applying weights
-when use_weights is TRUE. Default: 1e-5}
+\item{epsilon}{Numeric; small value added to distances before weighting
+(when use_weights = TRUE). Default: 0.1.}
 
-\item{conf_threshold}{Minimum confidence for classifying a sample based on
-it's neighbors. Below this value the sample will be assigned na_label instead}
+\item{conf_threshold}{Optional numeric; minimum confidence for assigning a
+class. If provided and confidence < threshold, sample is assigned
+\code{other_class}.}
 
-\item{na_label}{Class to assign all samples that are not confidently assigned.
-Default: Other}
+\item{other_class}{Name of the outgroup class to treat specially when
+\code{separate_other = TRUE}. Default: "Other".}
 
-\item{verbose}{Whether to print verbose outputs to console}
+\item{verbose}{Logical; print verbose info. Default: FALSE.}
 
-\item{use_weights}{Set to FALSE for all neigbors to have equal weight when
-calculating the confidence}
+\item{use_weights}{Logical; inverse-distance weights (1 / (d + epsilon)).
+If FALSE, neighbors contribute equally. Default: TRUE.}
 
-\item{ignore_self}{Set to TRUE to avoid considering a nearest neighbor with
-distance = 0. This is usually only relevant when re-classifying labeled
-samples to estimate overall accuracy}
+\item{ignore_self}{Logical; drop a zero-distance self-neighbor. Default: TRUE.}
 
-\item{track_neighbors}{Set to TRUE to include details for the nearest neighbors of each sample}
+\item{track_neighbors}{Logical; append neighbor diagnostics to output.
+Default: TRUE.}
+
+\item{separate_other}{Logical; when TRUE, exclude neighbors labeled
+\code{other_class} from the main weighted vote and report their
+influence separately (as \code{other_*} columns). Default: TRUE.}
+
+\item{max_neighbors}{Integer; maximum neighbors to retrieve from the
+search index before trimming to k. Default: 500.}
 }
 \value{
-data frame with labels and confidence values for rows in test_coords
+Data frame with rows = test samples and columns:
+\item{predicted_label}{the predicted class}
+\item{confidence}{predicted class weight / total weight}
+If \code{track_neighbors = TRUE}, additional columns:
+\item{other_score}{relative weight of outgroup vs predicted class}
+\item{neighbor_id}{comma-separated neighbor sample IDs}
+\item{neighbor}{comma-separated neighbor indices (in train order)}
+\item{distance}{comma-separated neighbor distances}
+\item{label}{comma-separated neighbor labels (in-group only if separate_other=TRUE)}
+\item{vote_labels}{comma-separated unique labels contributing to weights}
+\item{weighted_votes}{comma-separated weights per \code{vote_labels}}
+\item{neighbors_other}{count of outgroup neighbors closer than the farthest in-group neighbor}
+\item{other_weighted_votes}{sum of outgroup weights closer than the farthest in-group neighbor}
+\item{total_w}{sum of weights for in-group neighbors used}
+\item{pred_w}{weight supporting the predicted class}
 }
 \description{
 Weighted k-nearest neighbor with confidence estimate

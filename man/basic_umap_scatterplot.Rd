@@ -6,38 +6,38 @@
 \usage{
 basic_umap_scatterplot(
   optimized,
-  plot_samples,
+  plot_samples = NULL,
+  colour_by = NULL,
+  truth_column = "lymphgen",
+  pred_column = "DLBCLone_ko",
+  other_label = "Other",
+  title = "UMAP based on selected features",
   use_plotly = TRUE,
-  colour_by = "lymphgen",
-  title = "UMAP based on selected features"
+  custom_colours = NULL
 )
 }
 \arguments{
-\item{colour_by}{Character. Name of the column in \code{df} to use for point color (default: \code{"lymphgen"}).}
+\item{optimized}{Data frame containing at least V1, V2, sample_id, and grouping columns.}
 
-\item{title}{Optional plot title.}
+\item{plot_samples}{Optional character vector of sample_ids to annotate.}
 
-\item{df}{Data frame containing at least columns \code{V1} and \code{V2} (UMAP coordinates) and optionally a grouping variable.}
+\item{colour_by}{Column name to color points by. Defaults to \code{truth_column}.}
 
-\item{alpha}{Numeric. Point transparency (default: 0.8).}
+\item{truth_column}{Name of the truth/ground-truth column (default: "lymphgen").}
 
-\item{size}{Numeric. Point size (default: 1).}
+\item{pred_column}{Name of the predicted-class column (default: "DLBCLone_ko").}
 
-\item{custom_colours}{Optional named vector of colors to use for groups.}
+\item{other_label}{Label used for the outgroup/unclassified class (default: "Other").}
+
+\item{title}{Plot title.}
+
+\item{use_plotly}{Logical; if FALSE and \code{plot_samples} provided, draw static labels.}
+
+\item{custom_colours}{Optional named vector of colors for groups; falls back to \code{get_gambl_colours()}.}
 }
 \value{
-A \code{ggplot2} object representing the UMAP scatterplot.
+A ggplot object.
 }
 \description{
-Generates a simple UMAP scatterplot for visualizing sample clustering or separation in two dimensions.
-}
-\details{
-\itemize{
-\item Plots UMAP coordinates (\code{V1}, \code{V2}) colored by the specified grouping variable.
-\item Useful for quick visualization of sample groupings or batch effects.
-\item If \code{custom_colours} is provided, it overrides the default color palette.
-}
-}
-\examples{
-basic_umap_scatterplot(df, colour_by = "lymphgen",plot_samples = "DLBCL1001")
+Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
 }

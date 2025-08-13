@@ -14,6 +14,8 @@ DLBCLone_KNN(
   max_k = 60,
   truth_column = "lymphgen",
   truth_classes = c("EZB", "BN2", "ST2", "MCD", "N1", "Other"),
+  other_class = "Other",
+  optimize_for_other = TRUE,
   predict_unlabeled = FALSE,
   plot_samples = NULL,
   DLBCLone_KNN_out = NULL,
@@ -23,6 +25,67 @@ DLBCLone_KNN(
   skip_umap = FALSE
 )
 }
+\arguments{
+\item{features_df}{Numeric matrix/data.frame (rows = samples, cols = features).
+Row names must be sample IDs.}
+
+\item{metadata}{Data frame with at least \code{sample_id} and the ground-truth
+label column given in \code{truth_column}.}
+
+\item{core_features}{Character vector of feature names to upweight (optional).}
+
+\item{core_feature_multiplier}{Numeric multiplier for \code{core_features}.}
+
+\item{hidden_features}{Character vector of feature names to drop (optional).}
+
+\item{min_k, max_k}{Integer K range to explore when optimizing.}
+
+\item{truth_column}{Name of metadata column with ground-truth class labels.}
+
+\item{truth_classes}{Character vector of all classes to consider (including
+\code{other_class} if you intend to optimize for it).}
+
+\item{other_class}{Name of the explicit outgroup class (default: "Other").}
+
+\item{optimize_for_other}{Logical; if TRUE, computes a separate "other"
+score (ratio) and searches a purity threshold; if FALSE, treats all
+classes symmetrically.}
+
+\item{predict_unlabeled}{If TRUE, re-runs KNN to classify samples that were
+present in \code{features_df} but not in \code{metadata}.}
+
+\item{plot_samples}{Optional vector of sample_ids to keep in example plots.}
+
+\item{DLBCLone_KNN_out}{Optional prior result; if supplied, its learned
+parameters are reused (skip optimization).}
+
+\item{seed}{Random seed.}
+
+\item{epsilon}{Small value added to distances before weighting.}
+
+\item{weighted_votes}{If FALSE, neighbors are unweighted (equal votes).}
+
+\item{skip_umap}{If TRUE, skip layout optimization plots at the end.}
+}
+\value{
+A list with fields including:
+\item{predictions}{Per-sample vote/score summary and predicted labels}
+\item{DLBCLone_k_best_k}{Best K found}
+\item{DLBCLone_k_purity_threshold}{Best purity threshold (if applicable)}
+\item{DLBCLone_k_accuracy}{Best accuracy metric achieved}
+\item{truth_classes, truth_column}{Echoed arguments}
+\item{unlabeled_predictions}{Predictions for unlabeled samples (if requested)}
+\item{df}{Annotated layout for plotting (when built in this run)}
+\item{plot_truth, plot_predicted}{ggplots when built in this run}
+}
 \description{
-Run DLBCLone KNN Classification
+Weighted KNN on a feature (mutation) matrix with optional upweighting of
+user-specified "core" features, optional exclusion of "hidden" features,
+and optional optimization of an explicit outgroup (e.g. "Other").
+}
+\details{
+This version removes hard-coded LymphGen class names and instead derives the
+in-group classes and the outgroup column name from the arguments
+\code{truth_classes} and \code{other_class}. It keeps backward compatibility
+for the default LymphGen-like usage.
 }

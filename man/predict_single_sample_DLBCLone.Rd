@@ -23,7 +23,8 @@ predict_single_sample_DLBCLone(
   title2 = "predicted_class_for_HighConf",
   title3 = "predicted_class_for_Other",
   seed = 12345,
-  max_neighbors = 500
+  max_neighbors = 500,
+  other_class = "Other"
 )
 }
 \arguments{
