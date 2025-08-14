@@ -26,7 +26,11 @@ lyseq_genes <- sort(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",
   "MS4A1", "CD19", "HNRNPD", "NFKBIE", "TMSB4X"
 ))
 
-full_status <- read_tsv(file = paste0(here::here(), "/all_full_status.tsv")) %>% column_to_rownames("sample_id")
+
+#full_status <- read_tsv(file = paste0(here::here(), "/all_full_status.tsv")) %>% column_to_rownames("sample_id")
+full_status = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "all_full_status.tsv")) %>% column_to_rownames("sample_id")
+
+
 tier1_genes = lymphoma_genes %>% filter(DLBCL_Tier==1) %>% pull(Gene)
 tier1_genes = tier1_genes[tier1_genes %in% colnames(full_status)]
 tier1_genes = unique(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",tier1_genes))
@@ -44,7 +48,7 @@ dlbcl_meta_clean = dlbcl_meta_clean %>%
 
 
 # This code needs to be fixed to work anywhere
-lacy_df = readxl::read_excel(file=system.file(package = "GAMBLR.predict", "extdata", "bloodbld2019003535-suppl2.xlsx"))
+lacy_df = readxl::read_excel(system.file(package = "GAMBLR.predict", "extdata", "bloodbld2019003535-suppl2.xlsx")) %>%
 #lacy_df <- readxl::read_excel("~/git/Lyntegrate/data/bloodbld2019003535-suppl2.xlsx", sheet = 1) %>%
   mutate(Gene = gsub("_.+", "", Gene))
 all_lacy_genes <- c(unique(lacy_df$Gene), "MYD88HOTSPOT")
