@@ -2073,7 +2073,8 @@ predict_single_sample_DLBCLone <- function(
       model=optimized_model$model,
       df = predictions_df,
       anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id"),
-      anno_out = anno_out
+      anno_out = anno_out,
+      test_feats = test_df
     )
 
   return(to_return)
