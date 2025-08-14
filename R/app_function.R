@@ -12,7 +12,18 @@
 #library(caret)
 #library(GAMBLR.predict)
 
-
+#' Run the DLBCLone Shiny App
+#'
+#' Launches the Shiny application for interactive exploration.
+#'
+#' @import shiny
+#' @import readr
+#' @import dplyr
+#' @import DT
+#' @import shinybusy
+#' @import plotly
+#' @import shinyjs
+#' @import ggplot2
 DLBCLone_shiny <- function(...){
     ## Preamble
 lyseq_genes <- sort(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",

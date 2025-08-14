@@ -17,7 +17,7 @@
 #'   and plots a heatmap of features with nonzero values.
 #'
 #' @importFrom dplyr filter
-#' @importFrom ComplexHeatmap Heatmap
+#' @import ComplexHeatmap
 #' @importFrom grid gpar
 #' @importFrom circlize colorRamp2
 #'

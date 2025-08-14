@@ -7,6 +7,7 @@
 nearest_neighbor_heatmap(
   this_sample_id,
   DLBCLone_model,
+  truth_column = "lymphgen",
   clustering_distance = "binary"
 )
 }
