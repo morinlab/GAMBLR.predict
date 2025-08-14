@@ -10,6 +10,7 @@ DLBCLone_KNN_predict(
   metadata,
   DLBCLone_KNN_out,
   mode = "batch",
+  truth_column = "lymphgen",
   other_class = "Other"
 )
 }
