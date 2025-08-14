@@ -30,7 +30,8 @@
 nearest_neighbor_heatmap <- function(this_sample_id,
                                      DLBCLone_model,
                                      truth_column = "lymphgen",
-                                     clustering_distance = "binary"){
+                                     clustering_distance = "binary",
+                                     font_size = 14){
   pred_name = NULL
   if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model)){
     if(DLBCLone_model$type == "DLBCLone_optimize_params"){
@@ -52,7 +53,8 @@ nearest_neighbor_heatmap <- function(this_sample_id,
         return(NULL)
       }
       neighbor_transpose = neighbor_transpose %>% t()
-
+      #deal with fewer than K neighbours
+      neighbor_transpose = neighbor_transpose[!is.na(neighbor_transpose)]
       pred_name = "DLBCLone_ko"
     }
 
@@ -103,23 +105,24 @@ nearest_neighbor_heatmap <- function(this_sample_id,
   if (!is.null(pred_name)) {
     anno_list[[pred_name]] = anno_colours
   }
+  xx = xx[,colSums(xx)>0,drop=FALSE]
   row_anno = rowAnnotation(
     df = row_df[rownames(xx),,drop=FALSE],
     col = anno_list,
     #annotation_name_side = "left",
-    annotation_name_gp = gpar(fontsize = 12),
+    annotation_name_gp = gpar(fontsize = font_size),
     show_legend = FALSE
   )
 
   title_text = paste("Sample", this_sample_id, "classified as", sample_class)
-  Heatmap(xx[,colSums(xx)>0],
+  Heatmap(xx,
           col = col_fun,
-          column_names_gp = gpar(fontsize=12),
-
           right_annotation = row_anno,
           clustering_distance_rows = clustering_distance,
           show_heatmap_legend = FALSE,
-          column_title = title_text)
+          column_title = title_text,
+          column_title_gp = gpar(fontsize=font_size),
+          column_names_gp = gpar(fontsize=font_size))
 }
 
 #' Basic UMAP Scatterplot
