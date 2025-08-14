@@ -66,7 +66,7 @@ summarize_all_ssm_status <- function(maf_df,
                                      count_hits = FALSE){
   if(missing(genes_of_interest)){
     message("defaulting to all Tier 1 B-cell lymphoma genes")
-    genes_of_interest = filter(lymphoma_genes,
+    genes_of_interest = filter(GAMBLR.data::lymphoma_genes,
       DLBCL_Tier==1 | FL_Tier == 1 | BL_Tier == 1 ) %>% 
       pull(Gene) %>% unique()
   }

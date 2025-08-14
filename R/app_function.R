@@ -1,17 +1,4 @@
 
-#library(tidyverse)
-#library(ComplexHeatmap)
-#library(shiny)
-#library(shinyjs)
-#library(DT)
-#library(ggrepel)
-#library(shinybusy)
-#library(GAMBLR)
-#library(ggalluvial)
-##library(plotly)
-#library(caret)
-#library(GAMBLR.predict)
-
 
 DLBCLone_shiny <- function(...){
     ## Preamble
@@ -52,10 +39,6 @@ tier1_genes = GAMBLR.data::lymphoma_genes %>% filter(DLBCL_Tier==1) %>% pull(Gen
 tier1_genes = tier1_genes[tier1_genes %in% colnames(full_status)]
 tier1_genes = unique(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",tier1_genes))
 
-#dlbcl_meta_clean <- read_tsv(file = paste0(here::here(), "/dlbcl_meta_clean.tsv"))
-#dlbcl_meta_clean <- read_tsv(file = paste0(here::here(), "/dlbcl_meta_with_dlbclass.tsv")) %>%
-#  mutate(DLBClass = ifelse(Confidence > 0.7,PredictedCluster,"Other")) 
-
 dlbcl_meta_clean = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "dlbcl_meta_with_dlbclass.tsv"))
 
 
@@ -65,14 +48,11 @@ dlbcl_meta_clean = dlbcl_meta_clean %>%
 
 
 
-# This code needs to be fixed to work anywhere
 lacy_df = readxl::read_excel(system.file(package = "GAMBLR.predict", "extdata", "bloodbld2019003535-suppl2.xlsx")) %>%
-#lacy_df <- readxl::read_excel("~/git/Lyntegrate/data/bloodbld2019003535-suppl2.xlsx", sheet = 1) %>%
   mutate(Gene = gsub("_.+", "", Gene))
+
 all_lacy_genes <- c(unique(lacy_df$Gene), "MYD88HOTSPOT")
 all_lacy_genes <- all_lacy_genes[all_lacy_genes %in% colnames(full_status)]
-
-
 lacy_df <- lacy_df %>% filter(`Included in statistical analysis` == "Yes")
 
 lacy_genes <- lacy_df %>%
@@ -80,20 +60,19 @@ lacy_genes <- lacy_df %>%
   unique()
 lacy_genes <- c(lacy_genes, "MYD88HOTSPOT")
 lacy_genes <- lacy_genes[lacy_genes %in% colnames(full_status)]
+
 ## make demo data
 
-
-
 prototypes <- full_status[c(1:17), ]
-rownames(prototypes) <- c("CCS_0004","CCS_0005","CCS_0007","CCS_0009","CCS_0010",
+rownames(prototypes) <- c("EX_0004","EX_0005","EX_0007","EX_0009","EX_0010",
   "BN2_1", "BN2_2", "ST2_1", "ST2_2", "EZB_1", "EZB_2", "MCD_1", "MCD_2", "N1_1", "N1_2", "Other_1", "Other_2")
 prototypes[] <- 0
 maxval = max(full_status)
-prototypes["CCS_0004",c("ETS1","BTG2","KMT2D","BTG1","CD83")] <- maxval
-prototypes["CCS_0005",c("DTX1","NOL9","BTG2","PIM1","OSBPL10","TBL1XR1","CD83","ACTG1")] <- maxval
-prototypes["CCS_0007",c("BCL6_SV","NOTCH2","DTX1","NOL9","KLF2","BTG2","BCL2_SV","KMT2D","SOCS1","PIM1","HLA-A","CD83","ZFP36L1","DUSP2")] <- maxval
-prototypes["CCS_0009",c("DTX1","EDRF1")] <- maxval
-prototypes["CCS_0010",c("BCL6_SV","DTX1","PIM1","BTG1","CD83","DUSP2","HIST1H1B")] <- maxval
+prototypes["EX_0004",c("ETS1","BTG2","KMT2D","BTG1","CD83")] <- maxval
+prototypes["EX_0005",c("DTX1","NOL9","BTG2","PIM1","OSBPL10","TBL1XR1","CD83","ACTG1")] <- maxval
+prototypes["EX_0007",c("BCL6_SV","NOTCH2","DTX1","NOL9","KLF2","BTG2","BCL2_SV","KMT2D","SOCS1","PIM1","HLA-A","CD83","ZFP36L1","DUSP2")] <- maxval
+prototypes["EX_0009",c("DTX1","EDRF1")] <- maxval
+prototypes["EX_0010",c("BCL6_SV","DTX1","PIM1","BTG1","CD83","DUSP2","HIST1H1B")] <- maxval
 prototypes["BN2_1", c("BCL6_SV", "TNFAIP3", "KLF2")] <- maxval
 prototypes["BN2_2", c("NOTCH2", "BCL6", "SPEN", "UBE2A")] <- maxval
 prototypes["ST2_1", c("SGK1", "ZFP36L1", "ACTG1", "STAT3", "CD83")] <- maxval
@@ -193,10 +172,14 @@ demo_samples <- rownames(prototypes)
 
 default_panel <- "Coyle"
 
-default_umap <- make_and_annotate_umap(
-  df = full_status %>% select(all_of(tier1_genes)),
-  metadata = dlbcl_meta_clean
-)
+#default_umap <- make_and_annotate_umap(
+#  df = full_status %>% select(all_of(tier1_genes)),
+#  metadata = dlbcl_meta_clean
+#)
+#write_tsv(default_umap$df,file="inst/extdata/default_umap_df.tsv")
+#default_umap = list(df=read_tsv("inst/extdata/default_umap_df.tsv"))
+default_umap_df = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "default_umap_df.tsv")) %>% column_to_rownames("sample_id")
+default_umap = list(df=default_umap_df)
 k_low <- 10
 k_high <- 20
 default_mode = "Lenient"
