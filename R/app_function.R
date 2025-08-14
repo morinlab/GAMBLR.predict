@@ -100,6 +100,7 @@ prototypes["Other_2", c("RRAGC", "P2RY8", "CDKN2A", "MS4A1", "B2M")] <- maxval
 
 
 
+load_gene_panels = function(){
 
 impact_genes <- c(
   "MYD88HOTSPOT", "ABL1", "BCL2", "CEBPA", "ETV6", "HGF", "JUN", "MSH2", "PHF6", "RPTOR",
@@ -178,11 +179,14 @@ panels <- list(
   `Lyseq Tier 1 (no TP53)` = lyseq_genes[lyseq_genes != "TP53"],
   `MSK Impact` = impact_genes[impact_genes %in% colnames(full_status)]
 )
-
+return(panels)
+}
+panels = load_gene_panels()
 
 demo_samples <- rownames(prototypes)
 
-default_panel <- "Coyle"
+#default_panel <- "Coyle"
+defaul_panel <- "Lyseq Tier 1 (no TP53)"
 
 #default_umap <- make_and_annotate_umap(
 #  df = full_status %>% select(all_of(tier1_genes)),

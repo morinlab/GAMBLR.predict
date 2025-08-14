@@ -76,12 +76,15 @@ nearest_neighbor_heatmap <- function(this_sample_id,
     filter(sample_id %in% rownames(xx)) 
   if(!this_sample_id %in% row_df$sample_id){
     if("unlabeled_predictions" %in% names(DLBCLone_model)){
+      print("=====")
       row_df = bind_rows(row_df,
                         select(DLBCLone_model$unlabeled_predictions, sample_id, !!sym(truth_column), !!sym(pred_name)) %>% 
                             filter(sample_id %in% rownames(xx))
                         )
+      print(row_df)
        sample_class = filter(DLBCLone_model$unlabeled_predictions, sample_id == this_sample_id) %>%
         pull(!!sym(pred_name))
+      print(sample_class)
              
     }else{
       sample_class = NULL
