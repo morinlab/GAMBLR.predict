@@ -1112,6 +1112,8 @@ optimize_purity <- function(optimized_model_object,
 #'   test_df = new_samples,
 #'   metadata = sample_metadata,
 #'   DLBCLone_KNN_out = model_out
+#' 
+#' @export
 #'
 DLBCLone_KNN_predict <- function(train_df,
                                  test_df,
