@@ -1272,15 +1272,15 @@ DLBCLone_KNN <- function(features_df,
   }
 
   # Partition rows by presence in metadata and by empty feature rows
-  exclude_df  <- features_df[!row.names(features_df) %in% metadata$sample_id, ]
-  features_df <- features_df[ rownames(features_df) %in% metadata$sample_id, ]
+  exclude_df  <- features_df[!row.names(features_df) %in% metadata$sample_id, , drop = FALSE]
+  features_df <- features_df[ rownames(features_df) %in% metadata$sample_id, , drop = FALSE]
 
-  df_empty <- features_df[rowSums(features_df) == 0, ]
+  df_empty <- features_df[rowSums(features_df) == 0, , drop = FALSE]
   sample_metadata_no_features <- dplyr::filter(metadata, sample_id %in% rownames(df_empty))
-  features_df <- features_df[rowSums(features_df) > 0, ]
+  features_df <- features_df[rowSums(features_df) > 0, , drop = FALSE]
 
-  exclude_empty <- exclude_df[rowSums(exclude_df) == 0, ]
-  exclude_df    <- exclude_df[rowSums(exclude_df) > 0, ]
+  exclude_empty <- exclude_df[rowSums(exclude_df) == 0, , drop = FALSE]
+  exclude_df    <- exclude_df[rowSums(exclude_df) > 0, , drop = FALSE]
 
   if (is.null(DLBCLone_KNN_out)) {
     # ------------------------

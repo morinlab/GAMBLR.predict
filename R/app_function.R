@@ -193,7 +193,7 @@ default_panel <- "Coyle"
 default_umap_df = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "default_umap_df.tsv")) %>% column_to_rownames("sample_id")
 default_umap = list(df=default_umap_df)
 k_low <- 10
-k_high <- 20
+k_high <- 10
 default_mode = "Lenient"
 truth_col <- "lymphgen"
 other_lbl <- "Other"
@@ -328,7 +328,7 @@ addResourcePath("predictions", pred_dir)
             tabPanel("Results overview", plotOutput("alluvial", height = "800px", width = "700px")),
             tabPanel("All DLBCLone assignments", downloadButton("downloadData", "Download"), DTOutput("predictions")),
             tabPanel("Model Log", DTOutput("run_log_table")),
-            tabPanel("Sample Neighbors", plotOutput("heatmap")),
+            tabPanel("Sample Neighbors", plotOutput("heatmap",height="500px", width="800px")),
             tabPanel("Prediction Log", DTOutput("sample_log_table"))
         )
         )
@@ -922,6 +922,8 @@ addResourcePath("predictions", pred_dir)
         text(0.5, 0.5, "No neighbors found.", cex = 1.5)
         return()
         }
+        print(DLBCLone_KNN_out$unlabeled_predictions)
+        print(DLBCLone_KNN_out$unlabeled_neighbors)
         nearest_neighbor_heatmap(sid, DLBCLone_KNN_out, truth_column = current_truth_column())
     })
     output$DLBCLone_KNN_plot_truth <- renderPlotly({
