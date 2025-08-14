@@ -29,6 +29,7 @@
 #'}
 nearest_neighbor_heatmap <- function(this_sample_id,
                                      DLBCLone_model,
+                                     truth_column = "lymphgen",
                                      clustering_distance = "binary"){
   pred_name = NULL
   if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model)){
@@ -67,12 +68,16 @@ nearest_neighbor_heatmap <- function(this_sample_id,
   top = max(xx)
   mid = top/2
   col_fun = circlize::colorRamp2(c(0, mid, top), c("white", "#FFB3B3", "red"))
-  row_df = select(DLBCLone_model$predictions, sample_id, lymphgen, !!sym(pred_name)) %>% 
+  if(!truth_column %in% colnames(DLBCLone_model$predictions)){
+    print(head(DLBCLone_model$predictions))
+    stop("missing",truth_column)
+  }
+  row_df = select(DLBCLone_model$predictions, sample_id, !!sym(truth_column), !!sym(pred_name)) %>% 
     filter(sample_id %in% rownames(xx)) 
   if(!this_sample_id %in% row_df$sample_id){
     if("unlabeled_predictions" %in% names(DLBCLone_model)){
       row_df = bind_rows(row_df,
-                        select(DLBCLone_model$unlabeled_predictions, sample_id, lymphgen, !!sym(pred_name)) %>% 
+                        select(DLBCLone_model$unlabeled_predictions, sample_id, !!sym(truth_column), !!sym(pred_name)) %>% 
                             filter(sample_id %in% rownames(xx))
                         )
        sample_class = filter(DLBCLone_model$unlabeled_predictions, sample_id == this_sample_id) %>%
@@ -81,13 +86,17 @@ nearest_neighbor_heatmap <- function(this_sample_id,
     }else{
       sample_class = NULL
       row_df = bind_rows(row_df,
-                       tibble(sample_id = this_sample_id, lymphgen = NA)) 
+                       tibble(sample_id = this_sample_id,
+                       !!rlang::sym(truth_column) := NA_character_,
+                       !!rlang::sym(pred_name) := NA_character_)) 
     }
   }
   row_df = row_df %>% 
     column_to_rownames("sample_id") 
   anno_colours = get_gambl_colours()
-  anno_list = list(lymphgen = anno_colours)
+  anno_list = list()
+
+  anno_list[[truth_column]] = anno_colours
   if (!is.null(pred_name)) {
     anno_list[[pred_name]] = anno_colours
   }

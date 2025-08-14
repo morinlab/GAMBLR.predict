@@ -48,7 +48,7 @@ lyseq_genes <- sort(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",
 full_status = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "all_full_status.tsv")) %>% column_to_rownames("sample_id")
 
 
-tier1_genes = lymphoma_genes %>% filter(DLBCL_Tier==1) %>% pull(Gene)
+tier1_genes = GAMBLR.data::lymphoma_genes %>% filter(DLBCL_Tier==1) %>% pull(Gene)
 tier1_genes = tier1_genes[tier1_genes %in% colnames(full_status)]
 tier1_genes = unique(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",tier1_genes))
 
@@ -60,7 +60,8 @@ dlbcl_meta_clean = read_tsv(file=system.file(package = "GAMBLR.predict", "extdat
 
 
 dlbcl_meta_clean = dlbcl_meta_clean %>% 
-    filter(lymphgen %in% c("EZB","MCD","BN2","ST2","N1","Other"))
+    filter(lymphgen %in% c("EZB","MCD","BN2","ST2","N1","Other")) %>%
+    mutate(DLBClass = ifelse(Confidence > 0.7,PredictedCluster,"Other"))
 
 
 
@@ -677,7 +678,8 @@ addResourcePath("predictions", pred_dir)
             test_df = sample_features,
             metadata = dlbcl_meta_clean,
             #core_features = core_feats,
-            DLBCLone_KNN_out = current_DLBCLone_KNN
+            DLBCLone_KNN_out = current_DLBCLone_KNN,
+            truth_column = current_truth_column()
         )
 
         dlbclone_pred_result(predicted)
@@ -925,7 +927,7 @@ addResourcePath("predictions", pred_dir)
         text(0.5, 0.5, "No neighbors found.", cex = 1.5)
         return()
         }
-        nearest_neighbor_heatmap(sid, DLBCLone_KNN_out)
+        nearest_neighbor_heatmap(sid, DLBCLone_KNN_out, truth_column = current_truth_column())
     })
     output$DLBCLone_KNN_plot_truth <- renderPlotly({
         result <- dlbclone_result()

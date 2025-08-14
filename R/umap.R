@@ -1120,6 +1120,7 @@ DLBCLone_KNN_predict <- function(train_df,
                                  metadata,
                                  DLBCLone_KNN_out,
                                  mode = "batch",
+                                 truth_column = "lymphgen",
                                  other_class = "Other") {  # <--- NEW ARG
   if(missing(DLBCLone_KNN_out)){
     stop("DLBCLone_KNN_out must be provided, run DLBCLone_KNN first to get the optimal parameters")
@@ -1164,8 +1165,10 @@ DLBCLone_KNN_predict <- function(train_df,
       features_df = combined_df,
       metadata = metadata,
       DLBCLone_KNN_out = DLBCLone_KNN_out,
+      truth_column = DLBCLone_KNN_out$truth_column,
+      truth_classes = DLBCLone_KNN_out$truth_classes,
       predict_unlabeled = TRUE,
-      other_class = other_class  
+      other_class = DLBCLone_KNN_out$other_class  
     )
     return(model_out)
   }
@@ -1810,6 +1813,7 @@ DLBCLone_KNN <- function(features_df,
 
   to_return$type <- "DLBCLone_KNN"
   to_return$pred_column <- "DLBCLone_ko"
+  to_return$other_class = other_class
   return(to_return)
 }
 
