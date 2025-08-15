@@ -8,14 +8,7 @@ nearest_neighbor_heatmap(
   this_sample_id,
   DLBCLone_model,
   truth_column = "lymphgen",
-  clustering_distance = "binary",
-  font_size = 14
-)
-
-nearest_neighbor_heatmap(
-  this_sample_id,
-  DLBCLone_model,
-  truth_column = "lymphgen",
+  metadata_cols = NULL,
   clustering_distance = "binary",
   font_size = 14
 )
@@ -23,43 +16,25 @@ nearest_neighbor_heatmap(
 \arguments{
 \item{this_sample_id}{Character. The sample ID for which to plot the nearest neighbor heatmap.}
 
-\item{DLBCLone_model}{List. A DLBCLone model object, either from \code{DLBCLone_optimize_params}
-or \code{DLBCLone_KNN} (with \code{predict_unlabeled = TRUE}).}
+\item{DLBCLone_model}{A DLBCLone model object, which can be the output of \code{DLBCLone_optimize_params}, \code{DLBCLone_KNN}, or \code{predict_single_sample_DLBCLone}.}
 
 \item{truth_column}{Character. The column name in the predictions data frame that contains the ground truth labels (default: "lymphgen").}
 
+\item{metadata_cols}{Optional character vector of additional metadata columns to include in the heatmap annotations.}
+
 \item{clustering_distance}{Character. The distance metric to use for clustering rows. Default is "binary".}
 
-\item{single_sample_prediction_output}{A list containing the prediction results from predict_single_sample_DLBCLone,
-including the feature matrix and predictions.}
-
-\item{optimized_model}{list of parameters from DLBCLone_optimize_params, neccessary UMAP output from a
-previous, Data frame with the best parameters. useful for reproducibility.}
-
-\item{pred_column}{Character. The column name in the predictions data frame that contains the predicted labels.}
-
-\item{metadata_cols}{Optional character vector of additional metadata columns to include in the heatmap annotations.}
+\item{font_size}{Numeric. Font size for heatmap text (default: 14).}
 }
 \value{
-A ComplexHeatmap object showing the feature matrix for the nearest neighbors of the sample.
-
 A ComplexHeatmap object showing the feature matrix for the nearest neighbors of the sample.
 }
 \description{
 Generates a heatmap of feature values for the nearest neighbors of a specified sample,
 based on a DLBCLone model object. This visualization helps to inspect the feature profiles
 of samples most similar to the query sample.
-
-Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
 }
 \details{
-\itemize{
-\item For models of type \code{DLBCLone_optimize_params}, uses the \code{neighbors} and \code{lyseq_status} fields.
-\item For models of type \code{DLBCLone_KNN}, uses the \code{unlabeled_neighbors} field.
-\item The function extracts the feature matrix rows corresponding to the nearest neighbors of the specified sample,
-and plots a heatmap of features with nonzero values.
-}
-
 \itemize{
 \item For models of type \code{DLBCLone_optimize_params}, uses the \code{neighbors} and \code{lyseq_status} fields.
 \item For models of type \code{DLBCLone_KNN}, uses the \code{unlabeled_neighbors} field.
@@ -71,9 +46,4 @@ and plots a heatmap of features with nonzero values.
 # Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
 nearest_neighbor_heatmap(sample_id, model)
 
-# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
-and "SomeSample_ID" is a valid sample ID from among the test (not training) samples
-\dontrun{
-nearest_neighbor_heatmap("SomeSample_ID", predicted_out)
-}
 }

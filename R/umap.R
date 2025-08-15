@@ -1895,6 +1895,7 @@ DLBCLone_KNN <- function(features_df,
       core_feature_multiplier  = core_feature_multiplier,
       core_features            = core_features,
       hidden_features          = hidden_features,
+      metadata                 = metadata,
       seed                     = seed,
       optimize_for_other       = optimize_for_other,
       unlabeled_predictions    = NULL
