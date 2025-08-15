@@ -149,96 +149,125 @@ nearest_neighbor_heatmap <- function(
 #'
 #' Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
 #'
-#' @param optimized Data frame containing at least V1, V2, sample_id, and grouping columns.
-#' @param plot_samples Optional character vector of sample_ids to annotate.
-#' @param colour_by Column name to color points by. Defaults to `truth_column`.
-#' @param truth_column Name of the truth/ground-truth column (default: "lymphgen").
-#' @param pred_column  Name of the predicted-class column (default: "DLBCLone_ko").
-#' @param other_label  Label used for the outgroup/unclassified class (default: "Other").
-#' @param title Plot title.
-#' @param use_plotly Logical; if FALSE and `plot_samples` provided, draw static labels.
-#' @param custom_colours Optional named vector of colors for groups; falls back to `get_gambl_colours()`.
+#' @param this_sample_id Character. The sample ID for which to plot the nearest neighbor heatmap.
+#' @param DLBCLone_model List. A DLBCLone model object, either from \code{DLBCLone_optimize_params}
+#'   or \code{DLBCLone_KNN} (with \code{predict_unlabeled = TRUE}).
 #'
-#' @return A ggplot object.
-#' @export
-#' 
-basic_umap_scatterplot <- function(
-  optimized,
-  plot_samples = NULL,
-  colour_by = NULL,
-  truth_column = "lymphgen",
-  pred_column = "DLBCLone_ko",
-  other_label = "Other",
-  title = "UMAP based on selected features",
-  use_plotly = TRUE,
-  custom_colours = NULL
-){
-  stopifnot(all(c("V1","V2","sample_id") %in% colnames(optimized)))
-  stopifnot(is.data.frame(optimized))
-  stopifnot(all(c("V1", "V2") %in% colnames(optimized)))
-  message("colour_by: ", colour_by)
-  colour_by <- colour_by %||% truth_column
+#' @return A ComplexHeatmap object showing the feature matrix for the nearest neighbors of the sample.
+#'
+#' @details
+#' - For models of type \code{DLBCLone_optimize_params}, uses the \code{neighbors} and \code{lyseq_status} fields.
+#' - For models of type \code{DLBCLone_KNN}, uses the \code{unlabeled_neighbors} field.
+#' - The function extracts the feature matrix rows corresponding to the nearest neighbors of the specified sample,
+#'   and plots a heatmap of features with nonzero values.
+#'
+#' @importFrom dplyr filter
+#' @import ComplexHeatmap
+#' @importFrom grid gpar
+#' @importFrom circlize colorRamp2
+#'
+#' @examples
+#' # Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
+#' and "SomeSample_ID" is a valid sample ID from among the test (not training) samples
+#' \dontrun{
+#' nearest_neighbor_heatmap("SomeSample_ID", predicted_out)
+#'}
+nearest_neighbor_heatmap <- function(this_sample_id,
+                                     DLBCLone_model,
+                                     truth_column = "lymphgen",
+                                     clustering_distance = "binary",
+                                     font_size = 14){
+  pred_name = NULL
+  if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model)){
+    if(DLBCLone_model$type == "DLBCLone_optimize_params"){
+      neighbor_df = DLBCLone_model$neighbors
+      lyseq_status = DLBCLone_model$lyseq_status
+    }else if(DLBCLone_model$type == "DLBCLone_KNN"){
+      if(!"unlabeled_neighbors" %in% names(DLBCLone_model)){
+        print(names(DLBCLone_model))
+        stop("DLBCLone_model must be the output of DLBCLone_KNN with predict_unlabeled = TRUE")
+      }else if(is.null(DLBCLone_model$unlabeled_neighbors)){
+        #no neighbors found for any of the incoming samples
+        message("No neighbors found for any sample. Returning NULL.")
+        return(NULL)
+      }
+      neighbor_df = DLBCLone_model$unlabeled_neighbors
+      neighbor_transpose = filter(neighbor_df,sample_id==this_sample_id) 
+      if(nrow(neighbor_transpose) == 0){
+        message("No neighbors found for sample ", this_sample_id, ". Returning NULL.")
+        return(NULL)
+      }
+      neighbor_transpose = neighbor_transpose %>% t()
+      #deal with fewer than K neighbours
+      neighbor_transpose = neighbor_transpose[!is.na(neighbor_transpose)]
+      pred_name = "DLBCLone_ko"
+    }
 
-  # dynamic label text (e.g., "lymphgen" and "DLBCLone_ko")
-  optimized_label <- optimized %>%
-    mutate(
-      label = paste0(
-        sample_id,"\n",truth_column, ":\n",.data[[truth_column]],"  ",pred_column,":\n",.data[[pred_column]]
-      )
-    )
+  }else{
+    stop("DLBCLone_model must be the output of DLBCLone_optimize_params or DLBCLone_KNN")
+  }
+  
+  xx=DLBCLone_model$features_df[neighbor_transpose,]
+  if(any(is.na(rownames(xx)))){
+    print(neighbor_transpose)
+    stop("something went wrong. Some samples are missing from features_df")
+  }
+  top = max(xx)
+  mid = top/2
+  col_fun = circlize::colorRamp2(c(0, mid, top), c("white", "#FFB3B3", "red"))
+  if(!truth_column %in% colnames(DLBCLone_model$predictions)){
+    print(head(DLBCLone_model$predictions))
+    stop("missing",truth_column)
+  }
+  row_df = select(DLBCLone_model$predictions, sample_id, !!sym(truth_column), !!sym(pred_name)) %>% 
+    filter(sample_id %in% rownames(xx)) 
+  if(!this_sample_id %in% row_df$sample_id){
+    if("unlabeled_predictions" %in% names(DLBCLone_model)){
+      print("=====")
+      row_df = bind_rows(row_df,
+                        select(DLBCLone_model$unlabeled_predictions, sample_id, !!sym(truth_column), !!sym(pred_name)) %>% 
+                            filter(sample_id %in% rownames(xx))
+                        )
+      print(row_df)
+       sample_class = filter(DLBCLone_model$unlabeled_predictions, sample_id == this_sample_id) %>%
+        pull(!!sym(pred_name))
+      print(sample_class)
+             
+    }else{
+      sample_class = NULL
+      row_df = bind_rows(row_df,
+                       tibble(sample_id = this_sample_id,
+                       !!rlang::sym(truth_column) := NA_character_,
+                       !!rlang::sym(pred_name) := NA_character_)) 
+    }
+  }
+  row_df = row_df %>% 
+    column_to_rownames("sample_id") 
+  anno_colours = get_gambl_colours()
+  anno_list = list()
 
-  # points to label
-  label_points <- dplyr::filter(optimized_label, sample_id %in% (plot_samples %||% character())) %>%
-    mutate(label_x = V1 + 0.75, label_y = V2 - 0.75)
-
-  # base mapping: color by chosen column
-  aes_cols <- aes(
-    x = V1, y = V2,
-    sample_id = sample_id,
-    color = .data[[colour_by]]
+  anno_list[[truth_column]] = anno_colours
+  if (!is.null(pred_name)) {
+    anno_list[[pred_name]] = anno_colours
+  }
+  xx = xx[,colSums(xx)>0,drop=FALSE]
+  row_anno = rowAnnotation(
+    df = row_df[rownames(xx),,drop=FALSE],
+    col = anno_list,
+    #annotation_name_side = "left",
+    annotation_name_gp = gpar(fontsize = font_size),
+    show_legend = FALSE
   )
 
-  # draw outgroup first (by truth column) to keep it visually underneath
-  p <- ggplot()
-  p <- p +
-    geom_point(
-      data = dplyr::filter(optimized, .data[[truth_column]] == other_label),
-      mapping = aes_cols
-    ) +
-    geom_point(
-      data = dplyr::filter(optimized, .data[[truth_column]] != other_label),
-      mapping = aes_cols
-    )
-
-  # palette
-  pal <- custom_colours %||% get_gambl_colours()
-  p <- p + 
-    scale_color_manual(values = pal) +
-    guides(color = guide_legend(title = if (identical(colour_by, truth_column)) "Original Class" else "Predicted Class"))
-
-  # optional static labels when not using plotly
-  if (!is.null(plot_samples) && length(plot_samples) > 0 && !isTRUE(use_plotly)) {
-    p <- p +
-      geom_segment(
-        data = label_points,
-        aes(x = V1, y = V2, xend = label_x, yend = label_y),
-        arrow = arrow(length = unit(0.02, "npc")),
-        color = "black"
-      ) +
-      geom_label(
-        data = label_points,
-        aes(x = label_x, y = label_y, label = label),
-        size = 3,
-        fill = "white",
-        label.size = 0.25
-      )
-  }
-
-  p <- p +
-    labs(title = title) +
-    theme_minimal()
-
-  return(p)
+  title_text = paste("Sample", this_sample_id, "classified as", sample_class)
+  Heatmap(xx,
+          col = col_fun,
+          right_annotation = row_anno,
+          clustering_distance_rows = clustering_distance,
+          show_heatmap_legend = FALSE,
+          column_title = title_text,
+          column_title_gp = gpar(fontsize=font_size),
+          column_names_gp = gpar(fontsize=font_size))
 }
 
 #' Summarize and Export DLBCLone Model Results
@@ -395,17 +424,17 @@ make_neighborhood_plot <- function(
   }else if(missing(single_sample_prediction_output)){
     #Just plot the single sample in the context of the rest based on the optimization
     single_sample_prediction_output = list()
-    single_sample_prediction_output[["prediction"]] = filter(training_predictions, sample_id==this_sample_id) 
+    single_sample_prediction_output[["predictions"]] = filter(training_predictions, sample_id==this_sample_id) 
     single_sample_prediction_output[["anno_df"]] = training_predictions
   }else{
-    single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
+    single_sample_prediction_output$predictions = filter(single_sample_prediction_output$predictions, sample_id==this_sample_id)
   }
   xmin = min(training_predictions$V1, na.rm = TRUE)
   xmax = max(training_predictions$V1, na.rm = TRUE)
   ymin = min(training_predictions$V2, na.rm = TRUE)
   ymax = max(training_predictions$V2, na.rm = TRUE)
   #extract the sample_id for all the nearest neighbors with non-Other labels
-  my_neighbours = filter(single_sample_prediction_output$prediction,sample_id == this_sample_id) %>% 
+  my_neighbours = filter(single_sample_prediction_output$predictions,sample_id == this_sample_id) %>% 
     pull(neighbor_id) %>% strsplit(.,",") %>% unlist()
 
   #set up links connecting each neighbor to the sample's point
@@ -413,9 +442,9 @@ make_neighborhood_plot <- function(
   my_x = filter(single_sample_prediction_output$anno_df,sample_id==this_sample_id) %>% pull(V1)
   my_y = filter(single_sample_prediction_output$anno_df,sample_id==this_sample_id) %>% pull(V2)
   if(prediction_in_title){
-    title = paste(this_sample_id,pull(single_sample_prediction_output$prediction,!!sym(label_column)))
-    if(single_sample_prediction_output$prediction[[label_column]] == "Other" && single_sample_prediction_output$prediction$predicted_label !="Other"){
-      title = paste(title,"(",single_sample_prediction_output$prediction$predicted_label,")")
+    title = paste(this_sample_id,pull(single_sample_prediction_output$predictions,!!sym(label_column)))
+    if(single_sample_prediction_output$predictions[[label_column]] == "Other" && single_sample_prediction_output$predictions$predicted_label !="Other"){
+      title = paste(title,"(",single_sample_prediction_output$predictions$predicted_label,")")
     }
 
   }else{

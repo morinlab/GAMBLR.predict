@@ -1223,6 +1223,744 @@ optimize_purity <- function(
   return(optimized_model_object)
 }
 
+#' Predict DLBCLone Classes for New Samples Using a Trained KNN Model
+#'
+#' Applies a previously optimized DLBCLone KNN model to predict class labels for new (test) samples.
+#' This function combines the training and test feature matrices, ensures feature compatibility, and uses the
+#' parameters from a DLBCLone KNN optimization run to classify the test samples. Optionally, runs in iterative mode
+#' for more stable results when predicting multiple samples.
+#'
+#' @param train_df Data frame or matrix of features for training samples (rows = samples, columns = features).
+#' @param test_df Data frame or matrix of features for test samples to be classified.
+#' @param metadata Data frame with metadata for all samples, including at least a \code{sample_id} column.
+#' @param core_features Optional character vector of feature names to upweight in the KNN calculation.
+#' @param core_feature_multiplier Numeric. Multiplier to apply to core features (default: 1.5).
+#' @param hidden_features Optional character vector of feature names to exclude from the analysis.
+#' @param DLBCLone_KNN_out List. Output from a previous call to \code{DLBCLone_KNN} containing optimized parameters. (Required)
+#' @param mode Character. If \code{"iterative"}, runs KNN prediction for each test sample individually (recommended for stability).
+#'
+#' @return A list containing the KNN prediction results for the test samples, including predicted class labels and scores.
+#'
+#' @details
+#' - Ensures that the feature columns in \code{train_df} and \code{test_df} are compatible.
+#' - If \code{mode = "iterative"}, runs KNN prediction for each test sample one at a time.
+#' - Uses the parameters (e.g., k, feature weights) from the provided \code{DLBCLone_KNN_out} object.
+#' - Returns the same structure as \code{DLBCLone_KNN}, with predictions for the test samples.
+#'
+#' @examples
+#' # Assuming you have run DLBCLone_KNN to get optimized parameters:
+#' # model_out <- DLBCLone_KNN(train_features, train_metadata, ...)
+#' # Predict on new samples:
+#' predictions <- DLBCLone_KNN_predict(
+#'   train_df = train_features,
+#'   test_df = new_samples,
+#'   metadata = sample_metadata,
+#'   DLBCLone_KNN_out = model_out
+#' 
+#' @export
+#'
+DLBCLone_KNN_predict <- function(train_df,
+                                 test_df,
+                                 metadata,
+                                 DLBCLone_KNN_out,
+                                 mode = "batch",
+                                 truth_column = "lymphgen",
+                                 other_class = "Other") {  # <--- NEW ARG
+  if(missing(DLBCLone_KNN_out)){
+    stop("DLBCLone_KNN_out must be provided, run DLBCLone_KNN first to get the optimal parameters")
+  }
+  nsamp = nrow(test_df)
+  message(paste0("Running DLBCLone KNN individually on ", nsamp, " samples")) 
+  if(nsamp > 1){
+    if(mode != "iterative"){
+      warning("Running DLBCLone KNN on multiple samples at once is not recommended as the result may be unstable",
+              " and may not reflect the true classification of each sample. ",
+              "Running in iterative mode is recommended for more stable results.")
+    }
+  }
+
+  if(any(!colnames(test_df) %in% colnames(train_df))){
+    stop("test_df should not contain any features that are not in train_df. ",
+         "Please check the column names of test_df and train_df.")
+  }
+  combined_df = bind_rows(train_df, test_df)
+  if(any(!colnames(train_df) %in% colnames(test_df))){
+    message("filling in missing features in test_df with zeros")
+    combined_df[is.na(combined_df)] = 0
+  }
+  if(mode == "iterative"){
+    predictions_list = list()
+    for(i in seq_len(nrow(test_df))){
+      message("iteration:", i, "of", nrow(test_df))
+      combined_df = bind_rows(train_df, test_df[i,])
+      model_out = DLBCLone_KNN(
+        features_df = combined_df,
+        metadata = metadata,
+        DLBCLone_KNN_out = DLBCLone_KNN_out,
+        predict_unlabeled = TRUE,
+        other_class = other_class   # <--- pass it in
+      )
+      predictions_list[[i]] = model_out$unlabeled_predictions
+    }
+    all_predictions = do.call("bind_rows", predictions_list)
+    return(all_predictions)
+  } else {
+    model_out = DLBCLone_KNN(
+      features_df = combined_df,
+      metadata = metadata,
+      DLBCLone_KNN_out = DLBCLone_KNN_out,
+      truth_column = DLBCLone_KNN_out$truth_column,
+      truth_classes = DLBCLone_KNN_out$truth_classes,
+      predict_unlabeled = TRUE,
+      other_class = DLBCLone_KNN_out$other_class  
+    )
+    return(model_out)
+  }
+}
+
+
+#' Run DLBCLone KNN Classification
+#'
+#' Weighted KNN on a feature (mutation) matrix with optional upweighting of
+#' user-specified "core" features, optional exclusion of "hidden" features,
+#' and optional optimization of an explicit outgroup (e.g. "Other").
+#'
+#' This version removes hard-coded LymphGen class names and instead derives the
+#' in-group classes and the outgroup column name from the arguments
+#' \code{truth_classes} and \code{other_class}. It keeps backward compatibility
+#' for the default LymphGen-like usage.
+#'
+#' @param features_df Numeric matrix/data.frame (rows = samples, cols = features).
+#'                    Row names must be sample IDs.
+#' @param metadata Data frame with at least \code{sample_id} and the ground-truth
+#'                 label column given in \code{truth_column}.
+#' @param core_features Character vector of feature names to upweight (optional).
+#' @param core_feature_multiplier Numeric multiplier for \code{core_features}.
+#' @param hidden_features Character vector of feature names to drop (optional).
+#' @param min_k,max_k Integer K range to explore when optimizing.
+#' @param truth_column Name of metadata column with ground-truth class labels.
+#' @param truth_classes Character vector of all classes to consider (including
+#'                      \code{other_class} if you intend to optimize for it).
+#' @param other_class Name of the explicit outgroup class (default: "Other").
+#' @param optimize_for_other Logical; if TRUE, computes a separate "other"
+#'        score (ratio) and searches a purity threshold; if FALSE, treats all
+#'        classes symmetrically.
+#' @param predict_unlabeled If TRUE, re-runs KNN to classify samples that were
+#'        present in \code{features_df} but not in \code{metadata}.
+#' @param plot_samples Optional vector of sample_ids to keep in example plots.
+#' @param DLBCLone_KNN_out Optional prior result; if supplied, its learned
+#'        parameters are reused (skip optimization).
+#' @param seed Random seed.
+#' @param epsilon Small value added to distances before weighting.
+#' @param weighted_votes If FALSE, neighbors are unweighted (equal votes).
+#' @param skip_umap If TRUE, skip layout optimization plots at the end.
+#'
+#' @return A list with fields including:
+#'   \item{predictions}{Per-sample vote/score summary and predicted labels}
+#'   \item{DLBCLone_k_best_k}{Best K found}
+#'   \item{DLBCLone_k_purity_threshold}{Best purity threshold (if applicable)}
+#'   \item{DLBCLone_k_accuracy}{Best accuracy metric achieved}
+#'   \item{truth_classes, truth_column}{Echoed arguments}
+#'   \item{unlabeled_predictions}{Predictions for unlabeled samples (if requested)}
+#'   \item{df}{Annotated layout for plotting (when built in this run)}
+#'   \item{plot_truth, plot_predicted}{ggplots when built in this run}
+#'
+#' @export
+DLBCLone_KNN <- function(features_df,
+                         metadata,
+                         core_features = NULL,
+                         core_feature_multiplier = 1.5,
+                         hidden_features = NULL,
+                         min_k = 5,
+                         max_k = 60,
+                         truth_column = "lymphgen",
+                         truth_classes = c("EZB", "BN2", "ST2", "MCD", "N1", "Other"),
+                         other_class = "Other",
+                         optimize_for_other = TRUE,
+                         predict_unlabeled = FALSE,
+                         plot_samples = NULL,
+                         DLBCLone_KNN_out = NULL, 
+                         seed = 12345, 
+                         epsilon = 0.001,
+                         weighted_votes = TRUE,
+                         skip_umap = FALSE){
+
+  # In-group classes (exclude the explicit outgroup label if present)
+  class_levels <- setdiff(truth_classes, other_class)
+
+  if(!missing(DLBCLone_KNN_out)){
+    core_features        <- DLBCLone_KNN_out$core_features
+    core_feature_multiplier <- DLBCLone_KNN_out$core_feature_multiplier
+    hidden_features      <- DLBCLone_KNN_out$hidden_features
+    optimize_for_other   <- DLBCLone_KNN_out$optimize_for_other
+  }
+
+  # Upweight core features, drop hidden features
+  if(!is.null(core_features)){
+    if(!is.numeric(core_feature_multiplier)){
+      stop("core_feature_multiplier must be a numeric value")
+    }
+    if(!all(core_features %in% colnames(features_df))){
+      stop("core_features must be a vector of column names in features_df")
+    }
+    ncore <- length(core_features)
+    message(paste0("multiplying ", ncore, " core features by ", core_feature_multiplier))
+    features_df[, core_features] <- features_df[, core_features] * core_feature_multiplier
+  }
+  if(!is.null(hidden_features)){
+    if(!all(hidden_features %in% colnames(features_df))){
+      stop("hidden_features must be a vector of column names in features_df")
+    }
+    message(paste0("dropping ", length(hidden_features), " hidden features"))
+    features_df <- features_df %>% dplyr::select(-dplyr::any_of(hidden_features))
+  }
+
+  # Partition rows by presence in metadata and by empty feature rows
+  exclude_df  <- features_df[!row.names(features_df) %in% metadata$sample_id, , drop = FALSE]
+  features_df <- features_df[ rownames(features_df) %in% metadata$sample_id, , drop = FALSE]
+
+  df_empty <- features_df[rowSums(features_df) == 0, , drop = FALSE]
+  sample_metadata_no_features <- dplyr::filter(metadata, sample_id %in% rownames(df_empty))
+  features_df <- features_df[rowSums(features_df) > 0, , drop = FALSE]
+
+  exclude_empty <- exclude_df[rowSums(exclude_df) == 0, , drop = FALSE]
+  exclude_df    <- exclude_df[rowSums(exclude_df) > 0, , drop = FALSE]
+
+  if (is.null(DLBCLone_KNN_out)) {
+    # ------------------------
+    # Optimize over K (and purity threshold if requested)
+    # ------------------------
+    overall_best_acc_k   <- 0
+    overall_best_acc     <- 0
+    overall_best_thresh  <- 0
+    best_pred            <- NULL
+
+    metadata <- metadata %>% dplyr::filter(sample_id %in% rownames(features_df))
+    metadata_simple <- metadata %>% dplyr::select(sample_id, !!rlang::sym(truth_column))
+
+    message("Finding all nearest neighbors up to k=", max_k + 1, " using cosine distance")
+    nn_u <- uwot::umap(features_df,
+                       n_neighbors = max_k + 1,
+                       ret_nn = TRUE,
+                       metric = "cosine",
+                       seed = seed,
+                       n_threads = 1,
+                       batch = TRUE,
+                       n_sgd_threads = 1,
+                       rng_type = "deterministic")
+
+    fkn_ids   <- nn_u$nn$cosine$idx
+    fkn_dists <- nn_u$nn$cosine$dist
+    rownames(fkn_dists) <- rownames(features_df)
+    rownames(fkn_ids)   <- rownames(features_df)
+
+    fkn_dists <- as.data.frame(fkn_dists) %>% dplyr::select(-1)
+    if (weighted_votes) {
+      fkn_weighted <- round(1 / (fkn_dists + epsilon), 7)
+    } else {
+      fkn_weighted <- fkn_dists
+      fkn_weighted[] <- 1
+    }
+
+    fkn_ids <- as.data.frame(fkn_ids) %>% dplyr::select(-1)
+    truth_index <- metadata[[truth_column]]
+    names(truth_index) <- metadata$sample_id
+
+    fkn_ids_named <- apply(fkn_ids, 2, function(x) rownames(fkn_ids)[x])
+    rownames(fkn_ids_named) <- rownames(fkn_ids)
+
+    fkn_ids_truth <- apply(fkn_ids_named, 2, function(x) truth_index[x])
+    rownames(fkn_ids_truth) <- rownames(fkn_ids)
+    fkn_ids_truth <- as.data.frame(fkn_ids_truth)
+
+    fkn_ids_long <- tibble::rownames_to_column(fkn_ids_truth, "sample_id") %>%
+      tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "class")
+    fkn_weighted_long <- tibble::rownames_to_column(fkn_weighted, "sample_id") %>%
+      tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "vote")
+
+    fkn_votes <- dplyr::left_join(fkn_ids_long, fkn_weighted_long,
+                                  by = c("sample_id", "column"))
+
+    for (k in seq(max_k, min_k, by = -5)) {
+      message(paste0("Running DLBCLone KNN with k=", k))
+
+      fkn_weighted <- fkn_votes %>%
+        dplyr::group_by(sample_id) %>%
+        dplyr::slice_head(n = k) %>%
+        dplyr::ungroup() %>%
+        dplyr::group_by(sample_id, class) %>%
+        dplyr::summarize(weighted_vote = sum(vote), .groups = "drop")
+
+      if (optimize_for_other) {
+        # Treat outgroup separately; compute top group among in-groups only
+        fkn_weighted <- fkn_weighted %>%
+          tidyr::pivot_wider(
+            id_cols     = "sample_id",
+            names_from  = "class",
+            values_from = "weighted_vote",
+            values_fill = 0
+          ) %>%
+          dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            idx             = which.max(dplyr::c_across(dplyr::all_of(class_levels))),
+            top_class       = class_levels[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(class_levels))[idx]
+          ) %>%
+          dplyr::select(-idx) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            top_class       = ifelse(top_class_count == 0, other_class, top_class),
+            "{other_class}" := round(.data[[other_class]], 4),
+            top_class_count = round(top_class_count, 4)
+          ) %>%
+          dplyr::rename(
+            "{other_class}_score" := dplyr::all_of(other_class)
+          ) %>%
+          dplyr::mutate(
+            by_score        = top_class,
+            top_group_score = top_class_count,
+            score_ratio     = round(top_group_score / .data[[paste0(other_class, "_score")]], 4)
+          )
+
+      } else {
+        # All classes symmetric; still provide an {other_class}_score column
+        fkn_weighted <- fkn_weighted %>%
+          tidyr::pivot_wider(
+            id_cols     = "sample_id",
+            names_from  = "class",
+            values_from = "weighted_vote",
+            values_fill = 0
+          ) %>%
+          dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            idx             = which.max(dplyr::c_across(dplyr::all_of(class_levels))),
+            top_class       = class_levels[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(class_levels))[idx]
+          ) %>%
+          dplyr::select(-idx) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            top_class = ifelse(top_class_count == 0, other_class, top_class),
+            "{other_class}_score" := dplyr::if_else(
+              !is.na(.data[[other_class]]), .data[[other_class]], 0
+            )
+          ) %>%
+          dplyr::mutate(
+            by_score        = top_class,
+            top_group_score = top_class_count,
+            score_ratio     = 10
+          )
+      }
+
+      # Attach truth labels for reporting
+      fkn_weighted <- dplyr::left_join(
+        fkn_weighted,
+        dplyr::select(metadata, sample_id, !!rlang::sym(truth_column)),
+        by = "sample_id"
+      )
+
+      score_thresh <- 1.5 * k
+
+      # Grid search purity threshold if outgroup optimization is on
+      if (optimize_for_other) {
+        best <- 0
+        best_thresh <- 0
+        for (purity_threshold in seq(3, 0, -0.05)) {
+          updated_votes <- fkn_weighted %>%
+            dplyr::mutate(min_score = score_thresh) %>%
+            dplyr::mutate(
+              by_score_opt = ifelse(
+                score_ratio >= purity_threshold | top_group_score > score_thresh,
+                by_score, other_class
+              )
+            )
+
+          acc <- report_accuracy(updated_votes, pred = "by_score_opt", truth = truth_column)
+          if (acc$mean_balanced_accuracy > best) {
+            best <- acc$mean_balanced_accuracy
+            best_thresh <- purity_threshold
+          }
+        }
+      } else {
+        updated_votes <- dplyr::mutate(fkn_weighted, by_score_opt = by_score)
+        acc          <- report_accuracy(updated_votes, pred = "by_score_opt", truth = truth_column)
+        best         <- acc$mean_balanced_accuracy
+        best_thresh  <- 0
+      }
+
+      classes_for_span <- setdiff(intersect(class_levels, names(fkn_weighted)), other_class)
+      if (best > overall_best_acc) {
+        overall_best_acc    <- best
+        overall_best_thresh <- best_thresh
+        overall_best_acc_k  <- k
+
+        updated_votes <- fkn_weighted %>%
+          dplyr::mutate(min_score = score_thresh) %>%
+          dplyr::mutate(DLBCLone_k  = by_score) %>%
+          dplyr::mutate(DLBCLone_ko = ifelse(
+            score_ratio >= best_thresh | top_group_score > score_thresh,
+            by_score, other_class
+          )) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            valid_classes = {
+              scores <- dplyr::c_across(dplyr::all_of(classes_for_span))
+              keep_idx <- which(replace(scores > score_thresh, is.na(scores), FALSE))
+              if (length(keep_idx) == 0) other_class else paste(classes_for_span[keep_idx], collapse = "/")
+            }
+          ) %>%
+          dplyr::ungroup()
+
+        best_pred <- updated_votes
+        message(paste0(
+          "New best accuracy: ", round(best, 3),
+          " at k=", k, " with purity threshold: ", round(best_thresh, 2)
+        ))
+      } else {
+        message(paste(
+          "best accuracy did not improve at k=", k,
+          " with purity threshold:", round(best_thresh, 2),
+          " accuracy:", round(best, 3)
+        ))
+      }
+    } # end for K
+
+  } else {
+    message("Using DLBCLone_KNN_out provided, skipping KNN run")
+    best_pred            <- DLBCLone_KNN_out$predictions
+    optimized_layout     <- DLBCLone_KNN_out$df
+    overall_best_acc_k   <- DLBCLone_KNN_out$DLBCLone_k_best_k
+    overall_best_acc     <- DLBCLone_KNN_out$DLBCLone_k_accuracy
+    overall_best_thresh  <- DLBCLone_KNN_out$DLBCLone_k_purity_threshold
+  }
+
+  # ------------------------
+  # Predict for unlabeled samples (optional)
+  # ------------------------
+  unlabeled_predictions <- data.frame()
+  samples_no_metadata <- c(
+    rownames(exclude_df)[!rownames(exclude_df) %in% metadata$sample_id],
+    rownames(exclude_empty)[!rownames(exclude_empty) %in% metadata$sample_id]
+  )
+
+  if (predict_unlabeled && length(samples_no_metadata) > 0) {
+    message("Re-running KNN to include unlabeled samples. Will use K value and thresholds from optimized model, if provided")
+    message("will use newly provided features rather than recycling!")
+
+    if (!is.null(DLBCLone_KNN_out)) {
+      k <- DLBCLone_KNN_out$DLBCLone_k_best_k
+      overall_best_thresh <- DLBCLone_KNN_out$DLBCLone_k_purity_threshold
+      best_thresh <- overall_best_thresh
+    }
+
+    # Build an augmented metadata where the unlabeled have NA in the truth column
+    placeholder_metadata <- data.frame(sample_id = samples_no_metadata, stringsAsFactors = FALSE)
+    placeholder_metadata[[truth_column]] <- NA
+    metadata_merge <- dplyr::bind_rows(metadata, placeholder_metadata)
+
+    k_buffer   <- min(length(samples_no_metadata), overall_best_acc_k)
+    generous_k <- overall_best_acc_k + k_buffer
+    message("Finding all nearest neighbors up to k=", generous_k + 1, " using cosine distance")
+
+    if (nrow(exclude_df) > 0) {
+      features_df_merge <- dplyr::bind_rows(features_df, exclude_df)
+
+      nn_u <- uwot::umap(features_df_merge,
+                         n_neighbors = generous_k + 1,
+                         ret_nn = TRUE,
+                         metric = "cosine",
+                         seed = seed,
+                         n_threads = 1,
+                         batch = TRUE,
+                         n_sgd_threads = 1,
+                         rng_type = "deterministic")
+      fkn_ids   <- nn_u$nn$cosine$idx
+      fkn_dists <- nn_u$nn$cosine$dist
+      rownames(fkn_dists) <- rownames(features_df_merge)
+      rownames(fkn_ids)   <- rownames(features_df_merge)
+
+      fkn_dists <- as.data.frame(fkn_dists) %>% dplyr::select(-1)
+      if (weighted_votes) {
+        fkn_weighted <- round(1 / (fkn_dists + epsilon), 7)
+      } else {
+        fkn_weighted <- fkn_dists
+        fkn_weighted[] <- 1
+      }
+
+      fkn_ids <- as.data.frame(fkn_ids) %>% dplyr::select(-1)
+
+      truth_index <- metadata_merge[[truth_column]]
+      names(truth_index) <- metadata_merge$sample_id
+
+      fkn_ids_named <- apply(fkn_ids, 2, function(x) rownames(fkn_ids)[x])
+      rownames(fkn_ids_named) <- rownames(fkn_ids)
+
+      fkn_ids_truth <- apply(fkn_ids_named, 2, function(x) truth_index[x])
+      rownames(fkn_ids_truth) <- rownames(fkn_ids)
+      fkn_ids_truth <- as.data.frame(fkn_ids_truth)
+
+      fk_neighbors_long <- as.data.frame(fkn_ids_named) %>%
+        tibble::rownames_to_column("sample_id") %>%
+        tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "neighbor")
+
+      fkn_ids_long <- tibble::rownames_to_column(fkn_ids_truth, "sample_id") %>%
+        tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "class")
+
+      fkn_weighted_long <- tibble::rownames_to_column(fkn_weighted, "sample_id") %>%
+        tidyr::pivot_longer(-sample_id, names_to = "column", values_to = "vote")
+
+      fkn_votes <- dplyr::left_join(fkn_ids_long, fkn_weighted_long, by = c("sample_id", "column")) %>%
+        dplyr::left_join(fk_neighbors_long, by = c("sample_id", "column")) %>%
+        dplyr::filter(!is.na(class))
+
+      k <- overall_best_acc_k
+
+      fkn_weighted <- fkn_votes %>%
+        dplyr::group_by(sample_id) %>%
+        dplyr::slice_head(n = k) %>%
+        dplyr::mutate(neighbor_id = paste(neighbor, collapse = ",")) %>%
+        dplyr::ungroup()
+
+      fkn_weighted_neighbors <- fkn_weighted %>%
+        dplyr::select(sample_id, neighbor_id) %>%
+        dplyr::distinct() %>%
+        dplyr::filter(sample_id %in% rownames(exclude_df))
+
+      fkn_weighted <- fkn_weighted %>%
+        dplyr::group_by(sample_id, class) %>%
+        dplyr::summarize(weighted_vote = sum(vote), .groups = "drop")
+
+      if (optimize_for_other) {
+        fkn_weighted <- fkn_weighted %>%
+          tidyr::pivot_wider(
+            id_cols     = "sample_id",
+            names_from  = "class",
+            values_from = "weighted_vote",
+            values_fill = 0
+          ) %>%
+          dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            idx             = which.max(dplyr::c_across(dplyr::all_of(class_levels))),
+            top_class       = class_levels[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(class_levels))[idx]
+          ) %>%
+          dplyr::select(-idx) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            top_class       = ifelse(top_class_count == 0, other_class, top_class),
+            "{other_class}" := round(.data[[other_class]], 4),
+            top_class_count = round(top_class_count, 4)
+          ) %>%
+          dplyr::rename(
+            "{other_class}_score" := dplyr::all_of(other_class)
+          ) %>%
+          dplyr::mutate(
+            by_score        = top_class,
+            top_group_score = top_class_count,
+            score_ratio     = round(top_group_score / .data[[paste0(other_class, "_score")]], 4)
+          )
+      } else {
+        fkn_weighted <- fkn_weighted %>%
+          tidyr::pivot_wider(
+            id_cols     = "sample_id",
+            names_from  = "class",
+            values_from = "weighted_vote",
+            values_fill = 0
+          ) %>%
+          dplyr::select(sample_id, dplyr::all_of(union(class_levels, other_class))) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            idx             = which.max(dplyr::c_across(dplyr::all_of(class_levels))),
+            top_class       = class_levels[idx],
+            top_class_count = dplyr::c_across(dplyr::all_of(class_levels))[idx]
+          ) %>%
+          dplyr::select(-idx) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            top_class = ifelse(top_class_count == 0, other_class, top_class),
+            "{other_class}_score" := dplyr::if_else(
+              !is.na(.data[[other_class]]), .data[[other_class]], 0
+            )
+          ) %>%
+          dplyr::mutate(
+            by_score        = top_class,
+            top_group_score = top_class_count,
+            score_ratio     = 10
+          )
+      }
+
+      fkn_weighted <- fkn_weighted %>%
+        dplyr::filter(sample_id %in% rownames(exclude_df))
+
+      fkn_weighted <- dplyr::left_join(
+        fkn_weighted,
+        dplyr::select(metadata_merge, sample_id, !!rlang::sym(truth_column)),
+        by = "sample_id"
+      )
+
+      score_thresh <- 1.5 * k
+
+      if (optimize_for_other) {
+        unlabeled_predictions <- fkn_weighted %>%
+          dplyr::mutate(DLBCLone_k = by_score) %>%
+          dplyr::mutate(DLBCLone_ko = ifelse(
+            score_ratio >= overall_best_thresh | top_group_score > score_thresh,
+            by_score, other_class
+          )) %>%
+          dplyr::left_join(., fkn_weighted_neighbors, by = "sample_id")
+      } else {
+        classes_for_span <- intersect(class_levels, names(fkn_weighted))
+        other_score_col  <- paste0(other_class, "_score")
+
+        unlabeled_predictions <- fkn_weighted %>%
+          dplyr::mutate(DLBCLone_k = by_score) %>%
+          dplyr::mutate(DLBCLone_ko = by_score) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            valid_classes = {
+              scores   <- c_across(all_of(classes_for_span))
+              keep_idx <- which(replace(scores > .data[[other_score_col]], is.na(scores), FALSE))
+              if (length(keep_idx) == 0) other_class else paste(classes_for_span[keep_idx], collapse = "/")
+            }
+          ) %>%
+          dplyr::ungroup() %>%
+          dplyr::left_join(., fkn_weighted_neighbors, by = "sample_id")
+      }
+    } else {
+      other_score_col <- paste0(other_class, "_score")
+      unlabeled_predictions <- data.frame(sample_id = rownames(exclude_empty), stringsAsFactors = FALSE)
+      unlabeled_predictions[[truth_column]] <- NA
+      unlabeled_predictions <- unlabeled_predictions %>%
+        dplyr::mutate(
+          DLBCLone_k   = other_class,
+          DLBCLone_ko  = other_class,
+          by_score     = NA,
+          top_group_score = NA,
+          score_ratio  = NA
+        )
+      # Ensure truth_classes columns exist as NA
+      for (cls in truth_classes) {
+        if (!cls %in% colnames(unlabeled_predictions)) {
+          unlabeled_predictions[[cls]] <- NA
+        }
+      }
+      unlabeled_predictions[[other_score_col]] <- NA
+      # no neighbor_id information in this branch
+    }
+  }
+
+  # ------------------------
+  # Assemble return object
+  # ------------------------
+  if (is.null(DLBCLone_KNN_out)) {
+
+    if (nrow(sample_metadata_no_features) > 0) {
+      sample_metadata_no_features <- sample_metadata_no_features %>%
+        dplyr::select(sample_id, !!rlang::sym(truth_column)) %>%
+        dplyr::mutate(
+          DLBCLone_k = NA,
+          DLBCLone_ko = other_class,
+          by_score = NA,
+          top_group_score = NA,
+          score_ratio = NA
+        )
+      best_pred <- dplyr::bind_rows(best_pred, sample_metadata_no_features)
+    }
+
+    format_for_output <- function(x) {
+      x_rounded <- round(x, 4)
+      ifelse(
+        is.na(x_rounded),
+        NA_character_,
+        ifelse(
+          x_rounded == 0,
+          "0",
+          sub("\\.?0+$", "", format(x_rounded, scientific = FALSE, trim = TRUE, nsmall = 0))
+        )
+      )
+    }
+
+    to_return <- list(
+      predictions = best_pred %>%
+        dplyr::mutate(dplyr::across(where(is.numeric), ~ format_for_output(.))),
+      DLBCLone_k_best_k        = overall_best_acc_k,
+      DLBCLone_k_purity_threshold = overall_best_thresh,
+      DLBCLone_k_accuracy      = overall_best_acc,
+      truth_classes            = truth_classes,
+      truth_column             = truth_column,
+      sample_metadata_no_features = sample_metadata_no_features,
+      core_feature_multiplier  = core_feature_multiplier,
+      core_features            = core_features,
+      hidden_features          = hidden_features,
+      seed                     = seed,
+      optimize_for_other       = optimize_for_other,
+      unlabeled_predictions    = NULL
+    )
+  } else {
+    to_return <- DLBCLone_KNN_out
+  }
+
+  # Fill in neighbors / predictions for unlabeled (if requested)
+  to_return$unlabeled_neighbors   <- NULL
+  if (predict_unlabeled && length(samples_no_metadata) > 0) {
+    if (exists("fkn_weighted_neighbors")) {
+      to_return$unlabeled_neighbors <- fkn_weighted_neighbors %>%
+        tidyr::separate(neighbor_id, into = paste0("N", c(1:k)), sep = ",")
+    }
+    to_return$unlabeled_predictions <- unlabeled_predictions
+
+    if (is.null(DLBCLone_KNN_out) & !skip_umap) {
+      message("Optimizing graph layout for visualization, predict_unlabeled = TRUE")
+      df_show <- dplyr::bind_rows(features_df, exclude_df)
+
+      optimized <- make_and_annotate_umap(df_show, metadata = metadata)$df
+      optimized <- optimized %>%
+        dplyr::left_join(
+          dplyr::bind_rows(
+            dplyr::select(best_pred, -!!rlang::sym(truth_column)),
+            dplyr::select(unlabeled_predictions, -!!rlang::sym(truth_column))
+          ),
+          by = "sample_id"
+        ) %>%
+        dplyr::mutate(!!rlang::sym(truth_column) := ifelse(is.na(.data[[truth_column]]), DLBCLone_ko, .data[[truth_column]]))
+    } else {
+      optimized <- if (!is.null(DLBCLone_KNN_out)) DLBCLone_KNN_out$features_df else NULL
+    }
+  } else {
+    if (is.null(DLBCLone_KNN_out)) {
+      message("Optimizing graph layout for visualization")
+      optimized <- make_and_annotate_umap(features_df, metadata = metadata)$df
+      optimized <- optimized %>%
+        dplyr::left_join(dplyr::select(best_pred, -!!rlang::sym(truth_column)), by = "sample_id") %>%
+        dplyr::mutate(!!rlang::sym(truth_column) := ifelse(is.na(.data[[truth_column]]), DLBCLone_ko, .data[[truth_column]]))
+    } else {
+      message("Using DLBCLone_KNN_out provided, skipping graph layout optimization")
+      optimized <- DLBCLone_KNN_out$features_df
+    }
+  }
+
+  if(!is.null(optimized) & is.null(DLBCLone_KNN_out)){
+    to_return$plot_truth     <- basic_umap_scatterplot(optimized, plot_samples, colour_by = truth_column)
+    to_return$plot_predicted <- basic_umap_scatterplot(optimized, plot_samples, colour_by = "DLBCLone_ko")
+    to_return$df             <- optimized
+  }
+
+  # Ensure features_df is included in the return for downstream plotting
+  if (predict_unlabeled && length(samples_no_metadata) > 0) {
+    to_return$features_df <- if (exists("features_df_merge")) features_df_merge else features_df
+  } else {
+    to_return$features_df <- features_df
+  }
+
+  to_return$type <- "DLBCLone_KNN"
+  to_return$pred_column <- "DLBCLone_ko"
+  to_return$other_class = other_class
+  return(to_return)
+}
+
 #' Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 #'
 #' @param combined_mutation_status_df Data frame with one row per sample and
@@ -1927,6 +2665,13 @@ predict_single_sample_DLBCLone <- function(
     stop("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
   }
 
+  if(any(!colnames(test_df) %in% colnames(optimized_model$features))){
+    stop(
+      "test_df should not contain any features that are not in training data. ",
+      "Please check the column names of test_df and optimized_model$features."
+    )
+  }
+
   bad_samps <- rowSums(test_df) == 0 
   bad_test_df <- test_df[bad_samps, ]  %>%
     rownames_to_column("sample_id") %>%
@@ -2066,15 +2811,26 @@ predict_single_sample_DLBCLone <- function(
         ) 
       )
 
+    combined_df <- bind_rows(
+      optimized_model$features %>% rownames_to_column("sample_id"),
+      test_df %>% rownames_to_column("sample_id")
+    ) %>%
+      distinct(sample_id, .keep_all = TRUE) %>%  # keep first occurrence
+      column_to_rownames("sample_id")
+
+    if(any(!colnames(optimized_model$features) %in% colnames(test_df))){
+      message("filling in missing features in test_df with zeros")
+      combined_df[is.na(combined_df)] = 0
+    }
+
     to_return = list(
-      prediction = predictions_test_df, 
-      projection = optimized_model$df,
-      umap_input = optimized_model$features, 
-      model=optimized_model$model,
+      predictions = predictions_test_df, 
       df = predictions_df,
       anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id"),
       anno_out = anno_out,
-      test_feats = test_df
+      features_df = combined_df,
+      type = "predict_single_sample_DLBCLone",
+      optimized_predictions = optimized_model$predictions
     )
 
   return(to_return)
