@@ -1195,21 +1195,29 @@ stacked_bar_plot <- function(
     ) %>%
     ungroup()
 
-  n_colors <- max(plot_df$rank)
-  palette <- colorRampPalette(c("darkred","pink","white"))(n_colors)
+  colours <- get_gambl_colours()
+  n_colours <- max(plot_df$rank)
 
-  ggplot(plot_df, aes(x = subtype, y = prop, fill = factor(rank))) +
-    geom_bar(
-      stat = "identity",
-      color = "black",
-      position = position_stack(reverse = TRUE)
-    ) +
+  fill_map <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      base_col = ifelse(!is.na(colours[subtype]), colours[subtype], "grey"),
+      ramp = list(colorRampPalette(c(first(base_col), "white"))(max(rank))),
+      fill_color = ramp[[1]][rank]
+    ) %>%
+    ungroup()
+
+  # merge colors back into plot_df
+  plot_df$fill_color <- fill_map$fill_color
+
+  ggplot(plot_df, aes(x = subtype, y = prop, fill = fill_color)) +
+    geom_bar(stat = "identity", color = "black", position = position_stack(reverse = TRUE)) +
     geom_text(
       aes(label = paste0(gene, " ", scales::percent(prop_gene, accuracy = 1))),
       position = position_stack(vjust = 0.5, reverse = TRUE),
       size = 3
     ) +
-    scale_fill_manual(values = palette) +
+    scale_fill_identity() +   
     labs(
       title = paste(title, ", Top", num_feats, "genes per subtype (method:", method, ")"),
       x = "Subtype",
@@ -1217,7 +1225,7 @@ stacked_bar_plot <- function(
     ) +
     theme_minimal() +
     theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.text.x = element_text(angle = 0, hjust = 1),
       legend.position = "none"
     )
 
