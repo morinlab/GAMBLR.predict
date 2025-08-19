@@ -5,7 +5,7 @@
 \title{Create a stacked bar plot of top features per subtype}
 \usage{
 stacked_bar_plot(
-  optimized_model,
+  DLBCLone_model,
   truth_column = "lymphgen",
   truth_classes = c("BN2", "EZB", "MCD", "ST2"),
   method = "common",
@@ -14,7 +14,7 @@ stacked_bar_plot(
 )
 }
 \arguments{
-\item{optimized_model}{output from DLBCLone_optimize_params function}
+\item{DLBCLone_model}{A DLBCLone model object, which can be the output of \code{DLBCLone_optimize_params}, or \code{DLBCLone_KNN}}
 
 \item{truth_column}{Name of the column containing the true class labels (default: "lymphgen").}
 

@@ -6,10 +6,10 @@
 #'
 #' @param this_sample_id Character. The sample ID for which to plot the nearest neighbor heatmap.
 #' @param DLBCLone_model A DLBCLone model object, which can be the output of \code{DLBCLone_optimize_params}, \code{DLBCLone_KNN}, or \code{predict_single_sample_DLBCLone}.
-#' @param truth_column Character. The column name in the predictions data frame that contains the ground truth labels (default: "lymphgen").
+#' @param truth_column The column name in the predictions data frame that contains the ground truth labels (default: "lymphgen").
 #' @param metadata_cols Optional character vector of additional metadata columns to include in the heatmap annotations.
-#' @param clustering_distance Character. The distance metric to use for clustering rows. Default is "binary".
-#' @param font_size Numeric. Font size for heatmap text (default: 14).
+#' @param clustering_distance The distance metric to use for clustering rows. Default is "binary".
+#' @param font_size Font size for heatmap text (default: 14).
 #'
 #' @return A ComplexHeatmap object showing the feature matrix for the nearest neighbors of the sample.
 #'
@@ -540,8 +540,8 @@ make_neighborhood_plot <- function(
 #' Make UMAP scatterplot
 #'
 #' @param df Data frame containing the UMAP coordinates and annotations. 
+#' @param truth_column Name of the column containing the labels to be plotted (default: "lymphgen").
 #' @param drop_composite If TRUE: removes composite labels from the lymphgen column.
-#' @param colour_by Column name to color the points by. Default: "lymphgen". 
 #' @param drop_other If TRUE: removes "Other" and "NOS" labels from the lymphgen column. 
 #' @param high_confidence If TRUE: filters the data to include only samples with confidence > 0.7.
 #' @param custom_colours Custom color palette for the plot. If not provided, uses default GAMBL colors.
@@ -552,10 +552,11 @@ make_neighborhood_plot <- function(
 #' @export
 #'
 #' @examples
+#' 
 make_umap_scatterplot = function(
   df,
+  truth_column = "lymphgen",
   drop_composite = TRUE,
-  colour_by="lymphgen",
   drop_other = FALSE,
   high_confidence = FALSE,
   custom_colours,
@@ -572,24 +573,24 @@ make_umap_scatterplot = function(
     cols = get_gambl_colours()
   }
   if(drop_composite){
-    df = filter(df,!is.na(lymphgen),!grepl("COMP",lymphgen))
+    df = filter(df,!is.na(!!sym(truth_column)),!grepl("COMP",!!sym(truth_column)))
   }
   if(drop_other){
-    df = filter(df,!is.na(lymphgen),lymphgen!="Other",lymphgen!="NOS")
+    df = filter(df,!is.na(!!sym(truth_column)),!!sym(truth_column)!="Other",!!sym(truth_column)!="NOS")
   }
   if(high_confidence){
     df = filter(df,Confidence > 0.7)
   }
   if(add_labels){
-    labels = group_by(df,!!sym(colour_by)) %>%
+    labels = group_by(df,!!sym(truth_column)) %>%
       summarise(median_x = median(V1),median_y = median(V2)) 
   }
-  unique_lg = unique(df$lymphgen)
+  unique_lg = unique(df[[truth_column]])
   if(any(!unique_lg %in% names(cols))){
     missing = unique_lg[!unique_lg %in% names(cols)]
     print(paste("missing colour for:",paste(missing,collapse=",")))
   }
-  p = ggplot(df,aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + 
+  p = ggplot(df,aes(x=V1,y=V2,colour=!!sym(truth_column),label=cohort)) + 
     geom_point(alpha=0.8) + 
     scale_colour_manual(values=cols) + theme_Morons() + 
     guides(colour = guide_legend(nrow = 1)) + 
@@ -600,10 +601,9 @@ make_umap_scatterplot = function(
     p = p + ggtitle(title)
   }
   if(add_labels){
-    p = p + geom_label_repel(data=labels,aes(x=median_x,y=median_y,label=!!sym(colour_by)))
+    p = p + geom_label_repel(data=labels,aes(x=median_x,y=median_y,label=!!sym(truth_column)))
   }
   ggMarginal(p,groupColour = TRUE,groupFill=TRUE)
-  
 }
 
 #' Report Classification Accuracy and Per-Class Metrics
@@ -1075,7 +1075,7 @@ make_alluvial <- function(
 #'
 #' This function generates a stacked bar plot showing the top features (genes) for each subtype based on their prevalence in the dataset. 
 #'
-#' @param optimized_model output from DLBCLone_optimize_params function
+#' @param DLBCLone_model A DLBCLone model object, which can be the output of \code{DLBCLone_optimize_params}, or \code{DLBCLone_KNN}
 #' @param truth_column Name of the column containing the true class labels (default: "lymphgen").
 #' @param truth_classes Vector of class labels to consider (default: c("BN2","EZB","MCD","ST2")).
 #' @param method Method to determine top features: "common" for most common features, "chi_square" for subtype vs rest significance (default : "common").
@@ -1094,21 +1094,28 @@ make_alluvial <- function(
 #'
 
 stacked_bar_plot <- function(
-  optimized_model,
+  DLBCLone_model,
   truth_column = "lymphgen",
   truth_classes = c("BN2","EZB","MCD","ST2"),
   method = "common",
   num_feats = 10,
   title = NULL
 ){
+  if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model) && DLBCLone_model$type == "predict_single_sample_DLBCLone"){
+    stop("DLBCLone_model must be the output of DLBCLone_optimize_params, or DLBCLone_KNN")
+  }
 
-  bad_cols <- colSums(optimized_model$features) <= 0.02 * nrow(optimized_model$features)
-  optimized_model$features <- optimized_model$features[, !bad_cols]
+  if ("type" %in% names(DLBCLone_model) && DLBCLone_model$type == "DLBCLone_KNN") {
+    DLBCLone_model$features <- DLBCLone_model$features_df
+  }
 
-  annotated_feats <- optimized_model$features %>%
+  bad_cols <- colSums(DLBCLone_model$features) <= 0.02 * nrow(DLBCLone_model$features)
+  DLBCLone_model$features <- DLBCLone_model$features[, !bad_cols]
+
+  annotated_feats <- DLBCLone_model$features %>%
     rownames_to_column("sample_id") %>%
     left_join(
-      optimized_model$df %>% select(sample_id, !!sym(truth_column)), 
+      DLBCLone_model$df %>% select(sample_id, !!sym(truth_column)), 
       by = "sample_id"
     ) %>%
     column_to_rownames("sample_id") 
@@ -1128,6 +1135,7 @@ stacked_bar_plot <- function(
       gene_counts <- colSums(subtype_samples[, gene_cols, drop = FALSE])
       gene_ranking <- order(gene_counts, decreasing = TRUE)
       
+      # Top genes for this subtype
       top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
     }
 
@@ -1219,7 +1227,7 @@ stacked_bar_plot <- function(
     ) +
     scale_fill_identity() +   
     labs(
-      title = paste(title, ", Top", num_feats, "genes per subtype (method:", method, ")"),
+      title = paste(title, " Top", num_feats, "genes per subtype (method:", method, ")"),
       x = "Subtype",
       y = "Proportion of Samples with Mutation"
     ) +
@@ -1228,5 +1236,4 @@ stacked_bar_plot <- function(
       axis.text.x = element_text(angle = 0, hjust = 1),
       legend.position = "none"
     )
-
 }

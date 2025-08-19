@@ -6,8 +6,8 @@
 \usage{
 make_umap_scatterplot(
   df,
+  truth_column = "lymphgen",
   drop_composite = TRUE,
-  colour_by = "lymphgen",
   drop_other = FALSE,
   high_confidence = FALSE,
   custom_colours,
@@ -18,9 +18,9 @@ make_umap_scatterplot(
 \arguments{
 \item{df}{Data frame containing the UMAP coordinates and annotations.}
 
-\item{drop_composite}{If TRUE: removes composite labels from the lymphgen column.}
+\item{truth_column}{Name of the column containing the labels to be plotted (default: "lymphgen").}
 
-\item{colour_by}{Column name to color the points by. Default: "lymphgen".}
+\item{drop_composite}{If TRUE: removes composite labels from the lymphgen column.}
 
 \item{drop_other}{If TRUE: removes "Other" and "NOS" labels from the lymphgen column.}
 

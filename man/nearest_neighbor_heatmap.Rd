@@ -18,13 +18,13 @@ nearest_neighbor_heatmap(
 
 \item{DLBCLone_model}{A DLBCLone model object, which can be the output of \code{DLBCLone_optimize_params}, \code{DLBCLone_KNN}, or \code{predict_single_sample_DLBCLone}.}
 
-\item{truth_column}{Character. The column name in the predictions data frame that contains the ground truth labels (default: "lymphgen").}
+\item{truth_column}{The column name in the predictions data frame that contains the ground truth labels (default: "lymphgen").}
 
 \item{metadata_cols}{Optional character vector of additional metadata columns to include in the heatmap annotations.}
 
-\item{clustering_distance}{Character. The distance metric to use for clustering rows. Default is "binary".}
+\item{clustering_distance}{The distance metric to use for clustering rows. Default is "binary".}
 
-\item{font_size}{Numeric. Font size for heatmap text (default: 14).}
+\item{font_size}{Font size for heatmap text (default: 14).}
 }
 \value{
 A ComplexHeatmap object showing the feature matrix for the nearest neighbors of the sample.
