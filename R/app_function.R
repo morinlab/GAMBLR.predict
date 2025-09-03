@@ -100,17 +100,17 @@ prototypes["Other_2", c("RRAGC", "P2RY8", "CDKN2A", "MS4A1", "B2M")] <- maxval
 
 
 
-load_gene_panels = function(){
+load_gene_panels = function(full_status){
 
 impact_genes <- c(
-  "MYD88HOTSPOT", "ABL1", "BCL2", "CEBPA", "ETV6", "HGF", "JUN", "MSH2", "PHF6", "RPTOR",
+  "MYD88HOTSPOT", "MYD88", "ABL1", "BCL2", "CEBPA", "ETV6", "HGF", "JUN", "MSH2", "PHF6", "RPTOR",
   "SRSF2", "ZRSR2", "ACTG1", "BCL6", "CHEK1", "EZH2", "HIF1A", "KDM5A", "MSH6", "PIGA", "RRAGC", "STAG1", "H1B",
   "AKT1", "BCOR", "CHEK2", "FAM46C", "HIST1H1B", "KDM5C", "MTOR", "PIK3C2G", "RTEL1", "STAG2", "H1-2", "AKT2",
   "BCORL1", "CIC", "FANCA", "HIST1H1C", "KDM6A", "MUTYH", "PIK3C3", "RUNX1", "STAT3", "H1D", "AKT3", "BCR",
   "CIITA", "FANCC", "HIST1H1D", "KDR", "MYC", "PIK3CA", "RUNX1T1", "STAT5A", "H1E", "ALK", "BIRC3", "CRBN",
   "FANCD2", "HIST1H1E", "KEAP1", "MYCL1", "PIK3CG", "SAMHD1", "STAT5B", "H2AC", "ALOX12B", "BLM", "CREBBP",
   "FAS", "HIST1H2AC", "KIT", "MYCN", "PIK3R1", "SDHA", "STAT6", "H2AG", "AMER1", "BRAF", "CRKL", "FAT1", "HIST1H2AG",
-  "KMT2A", "MYD88", "PIK3R2", "SDHB", "STK11", "H2AL", "APC", "BRCA1", "CRLF2", "FBXO11", "HIST1H2AL", "KMT2B", "NBN",
+  "KMT2A", "PIK3R2", "SDHB", "STK11", "H2AL", "APC", "BRCA1", "CRLF2", "FBXO11", "HIST1H2AL", "KMT2B", "NBN",
   "PIM1", "SDHC", "SUFU", "H2AM", "AR", "BRCA2", "CSF1R", "FBXW7", "HIST1H2AM", "KMT2C", "NCOR1", "PLCG1", "SDHD",
   "SUZ12", "H2BC", "ARAF", "BRD4", "CSF3R", "FGF19", "HIST1H2BC", "KMT2D", "NCOR2", "PLCG2", "SETBP1", "SYK",
   "H2BC5", "ARHGEF28", "BRIP1", "CTCF", "FGF3", "HIST1H2BD", "KRAS", "NCSTN", "PMS2", "SETD1A", "TBL1XR1",
@@ -141,31 +141,30 @@ impact_genes <- c(
 )
 
 # This is for the model that does not consider A53 so no TP53 and no CNV features
-lymphgen_genes <- c(
-  "ACTB", "ACTG1", "BCL10", "BCL2",
-  "BCL2L1", "BCL6", "BTG1", "BTG2",
-  "CD70", "CD79B", "CD83", "CREBBP",
-  "DDX3X", "DTX1", "DUSP2", "EDRF1",
-  "EIF4A2", "EP300", "ETS1", "ETV6",
-  "EZH2", "FOXC1", "GRHPR", "HIST1H1B",
-  "HIST1H2BC", "HLA-A", "HLA-B", "ID3",
-  "IRF8", "ITPKB", "JUNB", "KLF2",
-  "KLHL14", "KMT2D", "MBTPS1", "MED16",
-  "MEF2B", "MPEG1", "MYD88HOTSPOT", "NFKBIA",
-  "NOL9", "NOTCH1", "NOTCH2", "OSBPL10",
-  "PIM1", "PIM2", "PRDM1", "PRRC2A",
-  "PPRC2C", "RFTN1", "SEC24C", "SETD1B",
-  "SGK1", "SOCS1", "SPEN", "STAT3",
-  "TBL1XR1", "TET2", "TNFAIP3", "TNFRSF14",
-  "UBE2A", "WEE1", "ZFP36L1", "BCL2_SV", "BCL6_SV"
-)
+
+lymphgen_genes = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "DLBCLass_and_Lymphgen_genes.tsv"))  %>%
+ filter(Lymphgen_no_CNV==1) %>%
+    pull(gene)
+
+lymphgen_genes <- sort(intersect(lymphgen_genes,colnames(full_status)))
 lyseq_genes <- sort(lyseq_genes[lyseq_genes %in% colnames(full_status)])
+
+dlbclass_genes = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "DLBCLass_and_Lymphgen_genes.tsv"))  %>%
+ filter(DLBCLass_no_CNV==1) %>%
+    pull(gene)
+dlbclass_absent = setdiff(dlbclass_genes,colnames(full_status))
+print("missing")
+print(paste(dlbclass_absent,collapse=","))
+dlbclass_genes = intersect(dlbclass_genes,colnames(full_status))
+lymphgen_genes <- sort(intersect(lymphgen_genes,colnames(full_status)))
+
 
 
 panels <- list(
   Coyle = tier1_genes,
+  `DLBClass (no CNV)` = dlbclass_genes,
   Lacy = lacy_genes,
-  Lymphgen = lymphgen_genes[lymphgen_genes %in% colnames(full_status)],
+  Lymphgen = lymphgen_genes,
   Lymphplex = c(
     "BCL2", "BCL6", "ARID1A", "B2M", "BTG1", "BTG2", "CCND3",
     "CD70", "CD79B", "CIITA", "CREBBP", "DDX3X", "DTX1",
@@ -181,7 +180,8 @@ panels <- list(
 )
 return(panels)
 }
-panels = load_gene_panels()
+
+panels = load_gene_panels(full_status)
 
 demo_samples <- rownames(prototypes)
 

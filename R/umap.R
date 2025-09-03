@@ -2510,6 +2510,26 @@ weighted_knn_predict_with_conf <- function(train_coords,
   return(to_return)
 }
 
+#' @export
+prepare_single_sample_DLBCLone <- function(optimized_model,seed=12345){
+  if(!optimized_model$type == "DLBCLone_optimize_params"){
+    stop("Input must be the output of predict_single_sample_DLBCLone")
+  }
+  if(!  "projection" %in% names(optimized_model)){
+      projection <- make_and_annotate_umap(
+        df = optimized_model$features,
+        umap_out = optimized_model,
+        ret_model = FALSE,
+        seed = seed,
+        join_column = "sample_id",
+        na_vals = optimized_model$best_params$na_option
+      )
+    }else{
+      stop("Model already contains a projection. Nothing to do!")
+    }
+  optimized_model$projection = projection
+  return(optimized_model)
+}
 
 #' Predict class for a single sample without using umap_transform and plot result of classification
 #'
@@ -2753,10 +2773,11 @@ predict_single_sample_DLBCLone <- function(
         projection = projection$df,
         umap_input = umap_out$features, 
         model=umap_out$model,
-        
+        features_df = combined_df %>% column_to_rownames("sample_id"),
         df = predictions_df,
         anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id"),
-        anno_out = anno_out
+        anno_out = anno_out,
+        type = "predict_single_sample_DLBCLone"
       )
 
     return(to_return)

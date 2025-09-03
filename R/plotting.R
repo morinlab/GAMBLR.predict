@@ -1,6 +1,268 @@
 #' Heatmap visualization of mutations in nearest neighbors for a sample
 #'
 #' Generates a heatmap of feature values for the nearest neighbors of a specified sample,
+#' based on a DLBCLone model object. Supports outputs from:
+#' - DLBCLone_KNN (with predict_unlabeled = TRUE)
+#' - DLBCLone_optimize_params
+#' - predict_single_sample_DLBCLone
+#'
+#' @param this_sample_id Character. The sample ID for which to plot the nearest neighbor heatmap.
+#' @param DLBCLone_model List. A DLBCLone model object as described above.
+#' @param truth_column Character. Column name in predictions/metadata to use as truth (default "lymphgen").
+#' @param metadata_cols Optional character vector of additional metadata columns to annotate on rows.
+#' @param clustering_distance Distance for row clustering (default "binary").
+#' @param font_size Numeric. Font size for labels (default 14).
+#'
+#' @return A ComplexHeatmap object (drawn).
+#' @importFrom dplyr filter select left_join mutate pull
+#' @importFrom tidyr separate pivot_longer
+#' @importFrom tibble rownames_to_column column_to_rownames
+#' @import ComplexHeatmap
+#' @importFrom grid gpar
+#' @importFrom circlize colorRamp2
+#' @examples
+#' # Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict 
+#' 
+#' @export
+nearest_neighbor_heatmap <- function(
+  this_sample_id,
+  DLBCLone_model,
+  truth_column = "lymphgen",
+  metadata_cols = NULL,
+  clustering_distance = "binary",
+  font_size = 14
+){
+  stopifnot(is.list(DLBCLone_model), "type" %in% names(DLBCLone_model))
+
+  # Helper: get neighbor vector for a sample, handling both encodings
+  .neighbors_for <- function(df_neighbors, sid) {
+    if (!"sample_id" %in% names(df_neighbors)) return(character(0))
+    row <- dplyr::filter(df_neighbors, .data$sample_id == sid)
+    if (nrow(row) == 0) return(character(0))
+
+    # Case A: already separated into N1..Nk columns
+    n_cols <- grep("^N[0-9]+$", names(row), value = TRUE)
+    if (length(n_cols) > 0) {
+      vals <- unname(unlist(row[1, n_cols, drop = TRUE]))
+      return(as.character(na.omit(vals)))
+    }
+
+    # Case B: single neighbor_id column "id1,id2,..."
+    if ("neighbor_id" %in% names(row)) {
+      vals <- strsplit(row$neighbor_id[1], ",", fixed = TRUE)[[1]]
+      return(as.character(na.omit(vals)))
+    }
+
+    character(0)
+  }
+
+  # Decide model type + predicted label column + feature matrix source
+  model_type <- DLBCLone_model$type
+  pred_col   <- NULL
+  feats_mat  <- NULL
+  neighbors  <- character(0)
+
+  if (model_type %in% c("DLBCLone_KNN", "predict_single_sample_DLBCLone")) {
+    # Needs unlabeled_neighbors present (for KNN path)
+    if (model_type == "DLBCLone_KNN") {
+      if (!"unlabeled_neighbors" %in% names(DLBCLone_model) || is.null(DLBCLone_model$unlabeled_neighbors)) {
+        message("No neighbors found (unlabeled_neighbors missing or NULL). Returning NULL.")
+        return(NULL)
+      }
+      neighbors <- .neighbors_for(DLBCLone_model$unlabeled_neighbors, this_sample_id)
+      pred_col  <- "DLBCLone_ko"
+    } else {
+      # predict_single_sample_DLBCLone stores neighbor_ids in prediction$neighbor_id
+      # Reconstruct a tiny neighbors df on the fly to reuse helper
+      
+      DLBCLone_model$predictions = DLBCLone_model$prediction
+      pred_row <- DLBCLone_model$prediction %>%
+        dplyr::filter(.data$sample_id == .env$this_sample_id)
+      if (nrow(pred_row) == 0 || !"neighbor_id" %in% names(pred_row)) {
+        message("No neighbors found for sample ", this_sample_id, ". Returning NULL.")
+        return(NULL)
+      }
+      neighbors <- strsplit(pred_row$neighbor_id[1], ",", fixed = TRUE)[[1]]
+      neighbors <- as.character(na.omit(neighbors))
+      pred_col <- "DLBCLone_io" #eventually needs to support io or wo
+      print(neighbors)
+    }
+
+    feats_mat <- DLBCLone_model$features_df
+    if (is.null(feats_mat)) {
+      stop("features_df is missing in the provided model object.")
+    }
+
+  } else if (model_type == "DLBCLone_optimize_params") {
+    # neighbors via predictions$neighbor_id for the sample
+    if (!"predictions" %in% names(DLBCLone_model)) {
+      stop("DLBCLone_optimize_params model missing $predictions")
+    }
+    
+    pred_row <- DLBCLone_model$predictions %>%
+      dplyr::filter(.data$sample_id == .env$this_sample_id)
+    if (nrow(pred_row) == 0 || !"neighbor_id" %in% names(pred_row)) {
+      message("No neighbors found for sample ", this_sample_id, ". Returning NULL.")
+      return(NULL)
+    }
+    neighbors <- strsplit(pred_row$neighbor_id[1], ",", fixed = TRUE)[[1]]
+    neighbors <- as.character(na.omit(neighbors))
+
+    feats_mat <- DLBCLone_model$features
+    if (is.null(feats_mat)) {
+      stop("features is missing in the optimize_params model object.")
+    }
+    pred_col <- "predicted_label_optimized"
+
+  } else {
+    stop("DLBCLone_model$type must be one of: DLBCLone_KNN, predict_single_sample_DLBCLone, DLBCLone_optimize_params")
+  }
+
+  # Make sure the focal sample itself is included (to show in heatmap/annotation)
+  neighbors <- unique(c(this_sample_id, neighbors))
+  if (length(neighbors) == 0) {
+    message("No neighbors to display. Returning NULL.")
+    return(NULL)
+  }
+
+  # Subset feature matrix; require that all neighbor rows exist
+  xx <- feats_mat[neighbors, , drop = FALSE]
+  
+  if (any(is.na(rownames(xx)))) {
+    print(neighbors)
+    stop("Some neighbor samples are missing from
+      the feature matrix (features_df/features).")
+  }
+  # Keep only non-zero (informative) features
+  xx <- xx[, colSums(xx) > 0, drop = FALSE]
+  if (ncol(xx) == 0) {
+    message("All selected features are zero across
+      neighbors; nothing to plot. Returning NULL.")
+    return(NULL)
+  }
+
+  # Colors for heatmap
+  top <- max(xx, na.rm = TRUE)
+  mid <- top / 2
+  col_fun <- circlize::colorRamp2(c(0, mid, top), c("white", "#FFB3B3", "red"))
+
+  # ----- Build row annotation data -----
+  # Start from predictions; join metadata if present
+  preds <- DLBCLone_model$predictions
+  print(head(preds))
+  if (is.null(preds) || !"sample_id" %in% names(preds)) {
+    stop("Model object missing predictions with 'sample_id'.")
+  }
+
+  # If metadata present, join so we can pull truth_column from there if needed
+  if ("metadata" %in% names(DLBCLone_model) && !is.null(DLBCLone_model$metadata)) {
+    preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
+  }
+
+  # Columns to annotate
+  cols_to_select <- unique(c("sample_id", truth_column, pred_col, metadata_cols))
+  print(cols_to_select)
+  cols_to_select <- cols_to_select[cols_to_select %in% names(preds)]
+  
+  row_df <- preds %>%
+    dplyr::select(dplyr::all_of(cols_to_select)) %>%
+    dplyr::filter(.data$sample_id %in% rownames(xx))
+
+  # If the focal sample is missing from predictions (common for "unlabeled"),
+  # try unlabeled_predictions
+  sample_class <- NA_character_
+  if (!this_sample_id %in% row_df$sample_id) {
+    if("prediction" %in% names(DLBCLone_model) && 
+      DLBCLone_model$type == "predict_single_sample_DLBCLone"){
+      stop(paste(this_sample_id,
+        "not found in predictions; cannot look up class for predict_single_sample_DLBCLone"))
+    }
+    if ("unlabeled_predictions" %in% names(DLBCLone_model) && 
+        !is.null(DLBCLone_model$unlabeled_predictions)) {
+      extra <- DLBCLone_model$unlabeled_predictions %>%
+        dplyr::select(dplyr::any_of(cols_to_select)) %>%
+        dplyr::filter(.data$sample_id %in% rownames(xx))
+      row_df <- dplyr::bind_rows(row_df, extra)
+
+      if (this_sample_id %in% extra$sample_id && pred_col %in% names(extra)) {
+        sample_class <- extra %>%
+          dplyr::filter(.data$sample_id == .env$this_sample_id) %>%
+          dplyr::pull(.data[[pred_col]]) %>% as.character()
+      }
+    } else {
+      # Create a placeholder row with NAs for missing fields
+      missing_row <- as.data.frame(setNames(rep(NA,
+        length(cols_to_select)), cols_to_select))
+      missing_row$sample_id <- this_sample_id
+      row_df <- dplyr::bind_rows(row_df, missing_row)
+    }
+  } else {
+    # Present in predictions; try to get predicted class cleanly
+    if (pred_col %in% names(row_df)) {
+      sample_class <- row_df %>%
+        dplyr::filter(.data$sample_id == .env$this_sample_id) %>%
+        dplyr::pull(.data[[pred_col]]) %>% as.character()
+    }
+    # For optimize_params, original code looked up
+    # predicted_label_optimized explicitly
+    if (model_type == "DLBCLone_optimize_params" &&
+        "predicted_label_optimized" %in% names(DLBCLone_model$predictions)) {
+      sample_class <- DLBCLone_model$predictions %>%
+        dplyr::filter(.data$sample_id == .env$this_sample_id) %>%
+        dplyr::pull(.data$predicted_label_optimized) %>% as.character()
+    }
+  }
+  print(row_df)
+  # Align rows to feature matrix order for annotation
+  row_df <- row_df %>% tibble::column_to_rownames("sample_id")
+  row_df <- row_df[rownames(xx), , drop = FALSE]
+
+  # Build annotation colour map (reuse one palette; unknowns will recycle)
+  anno_colours <- get_gambl_colours()
+  anno_list <- list()
+  if (truth_column %in% colnames(row_df)) anno_list[[truth_column]] <- anno_colours
+  if (!is.null(pred_col) && pred_col %in% colnames(row_df)) anno_list[[pred_col]] <- anno_colours
+  if (!is.null(metadata_cols)) {
+    for (mc in metadata_cols) {
+      if (mc %in% colnames(row_df)) anno_list[[mc]] <- anno_colours
+    }
+  }
+  print(head(row_df))
+  row_anno <- ComplexHeatmap::rowAnnotation(
+    df  = row_df,
+    col = anno_list,
+    annotation_name_gp = grid::gpar(fontsize = font_size),
+    show_legend = TRUE
+  )
+
+  # Title
+  title_text <- paste("Sample", this_sample_id, "classified as",
+    ifelse(is.na(sample_class), "<NA>", sample_class))
+
+  # Draw heatmap
+  ht <- ComplexHeatmap::Heatmap(
+    xx,
+    col = col_fun,
+    right_annotation = row_anno,
+    clustering_distance_rows = clustering_distance,
+    show_heatmap_legend = FALSE,
+    column_title = title_text,
+    column_title_gp = grid::gpar(fontsize = font_size),
+    column_names_gp = grid::gpar(fontsize = font_size)
+  )
+
+  ComplexHeatmap::draw(
+    ht,
+    heatmap_legend_side = "bottom",
+    annotation_legend_side = "bottom"
+  )
+}
+
+
+
+#' Heatmap visualization of mutations in nearest neighbors for a sample
+#'
+#' Generates a heatmap of feature values for the nearest neighbors of a specified sample,
 #' based on a DLBCLone model object. This visualization helps to inspect the feature profiles
 #' of samples most similar to the query sample.
 #'
@@ -27,7 +289,219 @@
 #' \dontrun{
 #' nearest_neighbor_heatmap("SomeSample_ID", predicted_out)
 #'}
-nearest_neighbor_heatmap <- function(this_sample_id,
+#' 
+
+
+depr_nearest_neighbor_heatmap <- function(
+  this_sample_id,
+  DLBCLone_model,
+  truth_column = "lymphgen",
+  metadata_cols = NULL,
+  clustering_distance = "binary",
+  font_size = 14
+){
+
+  if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model)){
+    if(DLBCLone_model$type == "DLBCLone_KNN"){
+
+      if(!"unlabeled_neighbors" %in% names(DLBCLone_model)){
+        print(names(DLBCLone_model))
+        stop("DLBCLone_model must be the output of DLBCLone_KNN with predict_unlabeled = TRUE")
+      }else if(is.null(DLBCLone_model$unlabeled_neighbors)){
+        #no neighbors found for any of the incoming samples
+        message("No neighbors found for any sample. Returning NULL.")
+        return(NULL)
+      }
+      neighbor_df = DLBCLone_model$unlabeled_neighbors
+      neighbor_transpose = filter(neighbor_df,sample_id==this_sample_id) 
+      if(nrow(neighbor_transpose) == 0){
+        message("No neighbors found for sample ", this_sample_id, ". Returning NULL.")
+        return(NULL)
+      }
+      neighbor_transpose = neighbor_transpose %>% t()
+      #deal with fewer than K neighbours
+      neighbor_transpose = neighbor_transpose[!is.na(neighbor_transpose)]
+      pred_column = "DLBCLone_ko"
+    
+    }else if(DLBCLone_model$type %in% c("predict_single_sample_DLBCLone","DLBCLone_optimize_params")){
+      DLBCLone_model$predictions <- DLBCLone_model$predictions %>%
+        filter(sample_id %in% this_sample_id)
+      
+      neighbor_ids = DLBCLone_model$predictions %>%
+        pull(neighbor_id) %>%
+        strsplit(",") %>%
+        unlist()
+      if(DLBCLone_model$type=="DLBCLone_optimize_params"){
+        neighbor_df <- DLBCLone_model$features %>% 
+        rownames_to_column("sample_id") %>%
+        filter(sample_id %in% c(neighbor_ids,this_sample_id)) %>%
+        column_to_rownames("sample_id")
+        neighbor_transpose = neighbor_df[this_sample_id,]
+        
+
+      }else{
+        neighbor_df <- DLBCLone_model$features_df %>% 
+          rownames_to_column("sample_id") %>%
+          filter(sample_id %in% c(neighbor_ids,this_sample_id)) %>%
+          column_to_rownames("sample_id")
+        neighbor_transpose = neighbor_df[this_sample_id,]
+      }
+      if(nrow(neighbor_transpose) == 0){
+        message("No features found for sample ", this_sample_id, ". Returning NULL.")
+        return(NULL)
+      }
+      print(head(neighbor_transpose))
+      
+      neighbor_transpose = neighbor_transpose %>% t()
+      #deal with fewer than K neighbours
+      
+      #neighbor_transpose = neighbor_transpose[!is.na(neighbor_transpose)]
+      #return(neighbor_transpose)
+      pred_column = "predicted_label_optimized"
+    }
+  }else{
+    stop("DLBCLone_model must be the output of DLBCLone_optimize_params, DLBCLone_KNN or predict_single_sample_DLBCLone")
+  }
+  print(head(neighbor_transpose))
+  # Gather the base columns
+  cols_to_select <- c("sample_id", truth_column)
+
+  # Add any non-null metadata columns
+  extra_cols <- c(pred_column,metadata_cols)
+  extra_cols <- extra_cols[!is.null(extra_cols)]
+  cols_to_select <- c(cols_to_select, extra_cols)
+
+  xx = DLBCLone_model$features_df[neighbor_transpose,]
+  
+  if(any(is.na(rownames(xx)))){
+    print(neighbor_transpose)
+    stop("something went wrong. Some samples are missing from features_df")
+  }
+
+  top = max(xx)
+  mid = top/2
+  col_fun = circlize::colorRamp2(c(0, mid, top), c("white", "#FFB3B3", "red"))
+
+  if(DLBCLone_model$type == "predict_single_sample_DLBCLone"){
+
+  row_df = DLBCLone_model$optimized_predictions %>%
+    select(all_of(cols_to_select)) %>%
+    filter(sample_id %in% rownames(neighbor_df)) 
+
+  if(!this_sample_id %in% row_df$sample_id){
+    new_row <- DLBCLone_model$predictions %>%
+      filter(sample_id %in% this_sample_id) %>%
+      mutate(
+        !!sym(truth_column) := NA,
+        !!sym(pred_column) := DLBCLone_model$predictions$predicted_label
+      )
+    
+    # ensure extra metadata columns exist in the new row
+    for(col in extra_cols){
+      if(!col %in% names(new_row)){
+        new_row[[col]] <- NA
+      }
+    }
+
+    new_row <- new_row %>%
+      select(all_of(cols_to_select))
+    row_df <- bind_rows(row_df, new_row)
+
+  }else{
+    # create an NA row with all needed columns
+    missing_row <- as.data.frame(setNames(rep(NA, length(cols_to_select)), cols_to_select))
+    missing_row$sample_id <- this_sample_id
+    row_df <- bind_rows(row_df, missing_row)
+  }
+
+  }else{
+
+    #row_df = DLBCLone_model$predictions %>%
+    row_df = left_join(DLBCLone_model$predictions, DLBCLone_model$metadata) %>%
+      select(all_of(cols_to_select)) %>% 
+      filter(sample_id %in% rownames(xx)) 
+
+    if(!this_sample_id %in% row_df$sample_id){
+      if("unlabeled_predictions" %in% names(DLBCLone_model)){
+        print("=====")
+        row_df = bind_rows(
+          row_df,
+          select(
+            DLBCLone_model$unlabeled_predictions, 
+            sample_id, 
+            !!sym(truth_column), 
+            !!sym(pred_column)
+          ) %>% 
+            filter(sample_id %in% rownames(xx))
+        )
+        print(row_df)
+        sample_class = filter(DLBCLone_model$unlabeled_predictions, sample_id == this_sample_id) %>%
+        pull(!!sym(pred_column))
+        print(sample_class)
+             
+      }else{
+        sample_class = NULL
+        row_df = bind_rows(
+          row_df,
+          tibble(
+            sample_id = this_sample_id,
+            !!rlang::sym(truth_column) := NA_character_,
+            !!rlang::sym(pred_column) := NA_character_)
+          ) 
+      }
+    }
+  } 
+
+  feats_df <- DLBCLone_model$features_df %>%
+    rownames_to_column("sample_id") %>%
+    filter(sample_id %in% row_df$sample_id) %>%
+    column_to_rownames("sample_id")
+  
+  row_df = row_df %>% 
+    column_to_rownames("sample_id")
+    
+  anno_colours = get_gambl_colours()
+
+  anno_list = list() 
+
+  anno_list[[truth_column]] <- anno_colours
+
+  for(col in extra_cols){
+    anno_list[[col]] <- anno_colours
+  }
+
+  row_anno = rowAnnotation(
+    df = row_df[rownames(feats_df),,drop=FALSE],
+    col = anno_list,
+    annotation_name_gp = gpar(fontsize = font_size),
+    show_legend = TRUE
+  )
+
+  title_text = paste(
+    "Sample", 
+    this_sample_id, 
+    "classified as", 
+    pred_column
+  )
+
+  ht <- Heatmap(
+    feats_df[,colSums(feats_df)>0],
+    col = col_fun,
+    column_names_gp = gpar(fontsize = font_size),
+    right_annotation = row_anno,
+    clustering_distance_rows = clustering_distance,
+    show_heatmap_legend = FALSE,
+    column_title = title_text
+  )
+
+  draw(
+    ht,
+    heatmap_legend_side = "bottom",
+    annotation_legend_side = "bottom"
+  )
+}
+#' @export
+og_nearest_neighbor_heatmap <- function(this_sample_id,
                                      DLBCLone_model,
                                      truth_column = "lymphgen",
                                      clustering_distance = "binary",
@@ -35,8 +509,18 @@ nearest_neighbor_heatmap <- function(this_sample_id,
   pred_name = NULL
   if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model)){
     if(DLBCLone_model$type == "DLBCLone_optimize_params"){
-      neighbor_df = DLBCLone_model$neighbors
-      lyseq_status = DLBCLone_model$lyseq_status
+      neighbor_df = DLBCLone_model$predictions %>%
+        filter(sample_id == this_sample_id) %>%
+        select(sample_id, neighbor_id) %>% 
+        separate(neighbor_id, into = paste0("V",1:DLBCLone_model$best_params$k), sep = ",")
+      neighbor_transpose = neighbor_df %>% t()
+      print(neighbor_transpose)
+      
+      xx=DLBCLone_model$features[neighbor_transpose[,1],]
+      print(xx)
+      print(max(xx))
+      print("here")
+      pred_name = "predicted_label_optimized"
     }else if(DLBCLone_model$type == "DLBCLone_KNN"){
       if(!"unlabeled_neighbors" %in% names(DLBCLone_model)){
         print(names(DLBCLone_model))
@@ -56,13 +540,14 @@ nearest_neighbor_heatmap <- function(this_sample_id,
       #deal with fewer than K neighbours
       neighbor_transpose = neighbor_transpose[!is.na(neighbor_transpose)]
       pred_name = "DLBCLone_ko"
+      xx=DLBCLone_model$features_df[neighbor_transpose,]
     }
 
   }else{
     stop("DLBCLone_model must be the output of DLBCLone_optimize_params or DLBCLone_KNN")
   }
   
-  xx=DLBCLone_model$features_df[neighbor_transpose,]
+  
   if(any(is.na(rownames(xx)))){
     print(neighbor_transpose)
     stop("something went wrong. Some samples are missing from features_df")
@@ -74,8 +559,10 @@ nearest_neighbor_heatmap <- function(this_sample_id,
     print(head(DLBCLone_model$predictions))
     stop("missing",truth_column)
   }
+  print("297")
   row_df = select(DLBCLone_model$predictions, sample_id, !!sym(truth_column), !!sym(pred_name)) %>% 
     filter(sample_id %in% rownames(xx)) 
+  print("299")
   if(!this_sample_id %in% row_df$sample_id){
     if("unlabeled_predictions" %in% names(DLBCLone_model)){
       print("=====")
@@ -89,12 +576,24 @@ nearest_neighbor_heatmap <- function(this_sample_id,
       print(sample_class)
              
     }else{
-      sample_class = NULL
-      row_df = bind_rows(row_df,
+      print("315")
+      if(DLBCLone_model$type == "DLBCLone_optimize_params"){
+        print("317")
+        sample_class = filter(DLBCLone_model$predictions, sample_id == this_sample_id) %>%
+          pull(predicted_label_optimized)
+        print("SAMPLE CLASS:", sample_class)
+      }else{
+        sample_class = NULL
+        row_df = bind_rows(row_df,
                        tibble(sample_id = this_sample_id,
                        !!rlang::sym(truth_column) := NA_character_,
                        !!rlang::sym(pred_name) := NA_character_)) 
-    }
+
+      }
+          }
+  }else{
+    sample_class = filter(DLBCLone_model$predictions, sample_id == this_sample_id) %>%
+          pull(predicted_label_optimized)
   }
   row_df = row_df %>% 
     column_to_rownames("sample_id") 
@@ -681,22 +1180,22 @@ make_alluvial <- function(
     hide_legend = TRUE
 ) {
   predictions = optimized$predictions
-  if(is.null(group_order)){
-    group_order = optimized$truth_classes
-    #print("setting group order:")
+  if(!truth_column %in% colnames(predictions)){
+    stop(paste("truth_column",truth_column,"not found in predictions"))
   }
-  
+  if(!pred_column %in% colnames(predictions)){
+    stop(paste("pred_column",pred_column,"not found in predictions"))
+  }
 
-  if(!is.null(optimized$truth_column)){
-    truth_column = optimized$truth_column
-    truth_name = truth_column
+  if(is.null(group_order)){
+
+    group_order = unique(c(predictions[[truth_column]],predictions[[pred_column]]))
+    #print("setting group order:")
+    #print(group_order)
   }
-  if(!is.null(optimized$pred_column)){
-    pred_column = optimized$pred_column
-     pred_name = pred_column
-  }
-  
- 
+
+
+
 
   if (accuracy_per_group) {
     accuracies <- report_accuracy(predictions, 
@@ -714,12 +1213,17 @@ make_alluvial <- function(
   }else{
     full_denominator = nrow(predictions)
   }
-
+ print(head(predictions))
   xx <- predictions %>%
     rename(
-      !!truth_name := !!sym(truth_column),
-      !!pred_name := !!sym(pred_column)
+      !!truth_name := !!sym(truth_column)
+ 
     ) 
+print(pred_column)
+  print(head(xx))
+  xx <- xx %>% rename (
+    !!pred_name := !!sym(pred_column))
+  print(head(xx))
   xx <- xx %>%
     group_by(!!sym(truth_name), !!sym(pred_name)) %>%
     summarize(num = n(), .groups = "drop")
@@ -920,6 +1424,7 @@ if(add_percent){
     if(length(custom_colours) < length(group_order)){
       missing = group_order[!group_order %in% names(custom_colours)]
       message(paste("Missing colours for:",paste(missing,collapse=",")))
+      print(names(custom_colours))
       stop("No custom colour provided for some of groups in group_order")
     }
     group_colours = custom_colours
@@ -992,6 +1497,8 @@ if(add_percent){
     scale_fill_manual(values = group_colours) +
     scale_colour_manual(values = group_colours,
                         aesthetics = c("color", "segment.color")) +
+    
+    #guides(color = "none",segment_color = "none") +
     labs(
       y = "Number of Samples",
       x = NULL
@@ -1014,5 +1521,9 @@ if(add_percent){
                        x=2,y=20,
                  aes(fill=!!sym(pred_name),label=label))
   }
-  pp
+  pp + guides(
+    fill = guide_legend(override.aes = list(label = "", colour = NA)),
+  color = "none",
+  segment.colour = "none",
+  fill = guide_legend(title = "Class")) 
 }
