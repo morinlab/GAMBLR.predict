@@ -26,7 +26,13 @@
 #'
 #' @examples
 #' # Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
-#' nearest_neighbor_heatmap(sample_id, model)
+#' \dontrun{
+#' nearest_neighbor_heatmap(
+#'   this_sample_id = "CCS_0680_lst",
+#'   DLBCLone_model = predict_single,
+#'   font_size = 10
+#' )
+#' }
 #'
 nearest_neighbor_heatmap <- function(
   this_sample_id,
@@ -252,11 +258,15 @@ nearest_neighbor_heatmap <- function(
 #' @examples 
 #' 
 #' \dontrun{
-#' my_umap = make_and_annotate_umap(my_data, my_metadata)
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
 #' 
-#' basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
-#'                        plot_samples = "some_sample_ID",
-#'                        colour_by = "DLBCLone_ko")
+#' basic_umap_scatterplot(
+#'   make_umap$df, #the data frame containing V1 and V2 from UMAP
+#'   plot_samples = "some_sample_ID",
+#'   colour_by = "DLBCLone_ko")
 #' }
 basic_umap_scatterplot <- function(optimized,
                                    plot_samples = NULL,
@@ -355,8 +365,10 @@ basic_umap_scatterplot <- function(optimized,
 #' @return No return value. Side effect: writes multiple PDF files to disk.
 #'
 #' @examples
+#' \dontrun{
 #' DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
-#'
+#'}
+#' 
 #' @export
 DLBCLone_summarize_model = function(
   base_name,
@@ -461,7 +473,22 @@ DLBCLone_summarize_model = function(
 #' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
 #' # and 'output' is the result of DLBCLone_predict_single_sample
 #' # on sample_id "SAMPLE123":
-#' make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+#' \dontrun{
+#' predict_single <- predict_single_sample_DLBCLone(
+#'   test_df = optimize_params$features[1,],
+#'   train_metadata = dlbcl_meta, 
+#'   optimized_model = optimize_params
+#' )
+#' 
+#' make_neighborhood_plot(
+#'   single_sample_prediction_output = predict_single,
+#'   training_predictions = optimize_params$df,
+#'   this_sample_id = "SAMPLE123",
+#'   prediction_in_title = TRUE,
+#'   add_circle = TRUE
+#' )
+#' }
+#' 
 make_neighborhood_plot <- function(
   single_sample_prediction_output,
   training_predictions,
@@ -552,6 +579,17 @@ make_neighborhood_plot <- function(
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#' 
+#' make_umap_scatterplot(
+#'   make_umap$df,
+#'   drop_other = F
+#' )
+#' }
 #' 
 make_umap_scatterplot = function(
   df,
@@ -630,9 +668,11 @@ make_umap_scatterplot = function(
 #' - Returns per-class metrics for further analysis.
 #'
 #' @examples
+#' \dontrun{
 #' result <- report_accuracy(predictions_df)
 #' result$overall
 #' result$per_class
+#' }
 #'
 #' @export
 report_accuracy = function(
@@ -728,8 +768,9 @@ report_accuracy = function(
 #' - Supports flexible labeling, coloring, and axis ordering for publication-quality plots.
 #'
 #' @examples
-#' # Example usage:
-#' # make_alluvial(optimized_result)
+#' \dontrun{
+#' make_alluvial(optimize_params)
+#' }
 #'
 #' @export
 make_alluvial <- function(
@@ -1085,14 +1126,15 @@ make_alluvial <- function(
 #' @return A ggplot2 object representing the stacked bar plot.
 #'
 #' @examples
+#' \dontrun{
 #' stacked_bar_plot(
-#'  all_features_optimized,
+#'  optimize_params,
 #'  method = "chi_square",
 #'  num_feats = 10,
 #'  title = "LymphGen"
 #' ) 
+#' }
 #'
-
 stacked_bar_plot <- function(
   DLBCLone_model,
   truth_column = "lymphgen",

@@ -53,9 +53,11 @@ for more stable results when predicting multiple samples.
 # model_out <- DLBCLone_KNN(train_features, train_metadata, ...)
 # Predict on new samples:
 predictions <- DLBCLone_KNN_predict(
-  train_df = train_features,
-  test_df = new_samples,
-  metadata = sample_metadata,
-  DLBCLone_KNN_out = model_out
+  train_df = all_full_status,
+  test_df = lyseq_validation_data,
+  metadata = dlbcl_meta,
+  DLBCLone_KNN_out = dlbcl_knn,
+  mode = "batch"
+)
 
 }

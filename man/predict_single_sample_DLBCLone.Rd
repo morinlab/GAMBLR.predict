@@ -34,11 +34,10 @@ a list of data frames with the predictions, the UMAP input, the model, and a ggp
 Predict class for a single sample without using umap_transform and plot result of classification
 }
 \examples{
-predict_single_sample_DLBCLone(
-   test_df = test_df,
-   train_metadata = dlbcl_meta_clean, 
-   optimized_model = weighted_lyseq_opt,
-   seed = 1234
+predict_single <- predict_single_sample_DLBCLone(
+  test_df = optimize_params$features[1,],
+  train_metadata = dlbcl_meta, 
+  optimized_model = optimize_params_T
 )
 
 }

@@ -92,7 +92,8 @@ It supports annotation of concordance rates, per-group accuracy, unclassified ra
 }
 }
 \examples{
-# Example usage:
-# make_alluvial(optimized_result)
+\dontrun{
+make_alluvial(optimize_params)
+}
 
 }

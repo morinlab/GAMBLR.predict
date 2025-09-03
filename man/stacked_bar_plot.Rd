@@ -33,11 +33,13 @@ A ggplot2 object representing the stacked bar plot.
 This function generates a stacked bar plot showing the top features (genes) for each subtype based on their prevalence in the dataset.
 }
 \examples{
+\dontrun{
 stacked_bar_plot(
- all_features_optimized,
+ optimize_params,
  method = "chi_square",
  num_feats = 10,
  title = "LymphGen"
 ) 
+}
 
 }

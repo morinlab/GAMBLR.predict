@@ -174,6 +174,33 @@ summarize_all_ssm_status <- function(
 #' @param verbose Defaults to FALSE
 #'
 #' @return Matrix of assembled features for each sample.
+#' 
+#' @examples 
+#' \dontrun{
+#' ordered_genes = filter(lymphoma_genes,DLBCL_Tier==1 | FL_Tier==1|BL_Tier==1)  %>% pull(Gene)
+#' synon_genes = unique(grch37_ashm_regions$gene)
+#' synon_genes = synon_genes[synon_genes %in% ordered_genes]
+#'
+#' all_sv_anno = get_combined_sv(these_samples_metadata = dlbcl_meta)
+#'
+#' all_sv_anno = annotate_sv(all_sv_anno)
+#'
+#' all_full_status = assemble_genetic_features(
+#'   these_samples_metadata = dlbcl_meta,
+#'   metadata_columns = c("BCL2_SV","BCL6_SV"),
+#'   synon_genes = synon_genes,
+#'   synon_value = 1,
+#'   coding_value = 2,
+#'   genes = ordered_genes,
+#'   hotspot_genes = c("MYD88"),
+#'   maf_with_synon = all_maf_with_s,
+#'   include_ashm = F,
+#'   sv_value = 2,
+#'   verbose=F,
+#'   annotated_sv = all_sv_anno
+#' )
+#' }
+#' 
 #' @export
 #' 
 assemble_genetic_features <- function(
@@ -661,15 +688,10 @@ DLBCLone_train_test_plot = function(test_df,
 #'
 #' @examples
 #'
-#' umap_outs = make_and_annotate_umap(df=gambl_train_lymphgen,
-#'                            min_dist = 0,
-#'                            n_neighbors = 55,
-#'                            init="spectral",
-#'                            n_epochs = 1500,
-#'                            #seed=best_params$seed,
-#'                            metadata=gambl_train_meta_dlbclass,
-#'                            ret_model=T,
-#'                            metric="cosine")
+#' make_umap <- make_and_annotate_umap(
+#'  df=all_full_status,
+#'  metadata=dlbcl_meta
+#')
 #'
 make_and_annotate_umap = function(
   df,
@@ -1252,10 +1274,12 @@ optimize_purity <- function(
 #' # model_out <- DLBCLone_KNN(train_features, train_metadata, ...)
 #' # Predict on new samples:
 #' predictions <- DLBCLone_KNN_predict(
-#'   train_df = train_features,
-#'   test_df = new_samples,
-#'   metadata = sample_metadata,
-#'   DLBCLone_KNN_out = model_out
+#'   train_df = all_full_status,
+#'   test_df = lyseq_validation_data,
+#'   metadata = dlbcl_meta,
+#'   DLBCLone_KNN_out = dlbcl_knn,
+#'   mode = "batch"
+#' )
 #' 
 #' @export
 #'
@@ -1364,6 +1388,15 @@ DLBCLone_KNN_predict <- function(train_df,
 #'   \item{unlabeled_predictions}{Predictions for unlabeled samples (if requested)}
 #'   \item{df}{Annotated layout for plotting (when built in this run)}
 #'   \item{plot_truth, plot_predicted}{ggplots when built in this run}
+#' 
+#' @examples 
+#' dlbcl_knn <- DLBCLone_KNN(  
+#'   features_df = all_full_status,
+#'   metadata = dlbcl_meta,
+#'   min_k = 5,
+#'   max_k = 21,
+#'   optimize_for_other = TRUE
+#' )
 #'
 #' @export
 DLBCLone_KNN <- function(features_df,
@@ -2011,24 +2044,28 @@ DLBCLone_KNN <- function(features_df,
 #'
 #'
 #' # Aim to maximize classification of samples into non-Other class
-#' lymphgen_lyseq_no_other =  
-#' GAMBLR.predict::DLBCLone_optimize_params(  
-#'  dlbcl_status_combined_lyseq,
-#'  dlbcl_meta_lyseq_train,
-#'  min_k = 5,max_k=23,
-#'  optimize_for_other = F,
-#'  truth_classes = c("MCD","EZB","ST2","BN2"))
+#' optimize_params_F <- DLBCLone_optimize_params(  
+#'   make_umap$features, 
+#'   dlbcl_meta,
+#'   umap_out = make_umap,
+#'   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+#'   optimize_for_other = F,
+#'   min_k=5,
+#'   max_k=23
+#' )
 #'
 #' # Aim to maximize balanced accuracy while allowing samples to be
 #' # unclassified (assigned to "Other")
 #' 
-#' DLBCLone_lymphgen_lyseq_prime_opt =  
-#' GAMBLR.predict::DLBCLone_optimize_params(  
-#'  dlbcl_status_combined_lyseq_prime,
-#'  dlbcl_meta_lyseq_train,
-#'  min_k = 5,max_k=23,
-#'  optimize_for_other = T,
-#'  truth_classes = c("MCD","EZB","ST2","BN2","Other"))
+#' optimize_params_T <- DLBCLone_optimize_params(  
+#'   make_umap$features, 
+#'   dlbcl_meta,
+#'   umap_out = make_umap,
+#'   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+#'   optimize_for_other = T,
+#'   min_k=5,
+#'   max_k=23
+#' )
 #'
 DLBCLone_optimize_params = function(
   combined_mutation_status_df,
@@ -2647,11 +2684,10 @@ weighted_knn_predict_with_conf <- function(
 #' @export
 #'
 #' @examples
-#' predict_single_sample_DLBCLone(
-#'    test_df = test_df,
-#'    train_metadata = dlbcl_meta_clean, 
-#'    optimized_model = weighted_lyseq_opt,
-#'    seed = 1234
+#' predict_single <- predict_single_sample_DLBCLone(
+#'   test_df = optimize_params$features[1,],
+#'   train_metadata = dlbcl_meta, 
+#'   optimized_model = optimize_params_T
 #' )
 #'
 predict_single_sample_DLBCLone <- function(

@@ -35,3 +35,17 @@ make_umap_scatterplot(
 \description{
 Make UMAP scatterplot
 }
+\examples{
+\dontrun{
+make_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
+
+make_umap_scatterplot(
+  make_umap$df,
+  drop_other = F
+)
+}
+
+}

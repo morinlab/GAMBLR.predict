@@ -85,14 +85,9 @@ Run UMAP and attach result to metadata
 }
 \examples{
 
-umap_outs = make_and_annotate_umap(df=gambl_train_lymphgen,
-                           min_dist = 0,
-                           n_neighbors = 55,
-                           init="spectral",
-                           n_epochs = 1500,
-                           #seed=best_params$seed,
-                           metadata=gambl_train_meta_dlbclass,
-                           ret_model=T,
-                           metric="cosine")
+make_umap <- make_and_annotate_umap(
+ df=all_full_status,
+ metadata=dlbcl_meta
+)
 
 }

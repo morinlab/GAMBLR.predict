@@ -89,3 +89,13 @@ in-group classes and the outgroup column name from the arguments
 \code{truth_classes} and \code{other_class}. It keeps backward compatibility
 for the default LymphGen-like usage.
 }
+\examples{
+dlbcl_knn <- DLBCLone_KNN(  
+  features_df = all_full_status,
+  metadata = dlbcl_meta,
+  min_k = 5,
+  max_k = 21,
+  optimize_for_other = TRUE
+)
+
+}

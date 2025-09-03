@@ -44,10 +44,14 @@ Generates a simple UMAP scatterplot for visualizing sample clustering or separat
 \examples{
 
 \dontrun{
-my_umap = make_and_annotate_umap(my_data, my_metadata)
+make_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
 
-basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
-                       plot_samples = "some_sample_ID",
-                       colour_by = "DLBCLone_ko")
+basic_umap_scatterplot(
+  make_umap$df, #the data frame containing V1 and V2 from UMAP
+  plot_samples = "some_sample_ID",
+  colour_by = "DLBCLone_ko")
 }
 }
