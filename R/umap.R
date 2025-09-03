@@ -949,16 +949,15 @@ process_votes <- function(df,
 optimize_purity <- function(optimized_model_object,
                             vote_df, 
                             mode, 
-                            optimize_by = "balanced_accuracy", #or overall_accuracy
+                            optimize_by = "balanced_accuracy", #allowed: harmonic_mean, overall_accuracy
                             truth_column, 
                             all_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
                             k,
                             exclude_other_for_accuracy = FALSE,
                             other_class = "Other") {  # <--- NEW ARG
-  if(mode == "DLBCLone_w"){
-    in_column = "by_score"
-    out_column = mode
-  }
+
+  out_column = "DLBCLone_wo"
+
   if(!missing(optimized_model_object)){
     if(!is.null(optimized_model_object$best_params)){
       if(!missing(k)){
@@ -1040,9 +1039,21 @@ optimize_purity <- function(optimized_model_object,
       conf_matrix <- confusionMatrix(updated_no_other_df[[out_column]], updated_no_other_df[[truth_column]])
     }
 
-    oa <- conf_matrix$overall[["Accuracy"]]
+ 
+    acc_details <- report_accuracy(updated_votes,
+      truth = truth_column,
+      pred = out_column)
+    
     bal_acc <- mean(conf_matrix$byClass[, "Balanced Accuracy"], na.rm = TRUE)
-    accuracy <- if (optimize_by == "balanced_accuracy") bal_acc else oa
+    if(optimize_by == "harmonic_mean"){
+      accuracy = acc_details$harmonic_mean
+    }else if( optimize_by == "overall_accuracy"){
+      accuracy = conf_matrix$overall[["Accuracy"]]
+
+    }else{
+      accuracy = bal_acc
+    }
+
 
     if(accuracy > best_accuracy){
       best_accuracy <- accuracy
@@ -1074,6 +1085,7 @@ optimize_purity <- function(optimized_model_object,
   optimized_model_object$maximize <- optimize_by
   optimized_model_object$score_thresh <- score_thresh
   optimized_model_object$exclude_other_for_accuracy <- exclude_other_for_accuracy
+
   return(optimized_model_object)
 }
 
@@ -1900,10 +1912,37 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            max_k=23,
                            verbose = FALSE,
                            seed = 12345,
-                           maximize = "balanced_accuracy",
+                           maximize = "balanced_accuracy", #or "harmonic_mean" or "accuracy"
                            exclude_other_for_accuracy = FALSE,
                            weights_opt = c(TRUE)
                            ) {
+  macro_f1 <- function(truth, pred, drop_other = TRUE, other_label = "Other", na_rm = TRUE) {
+    stopifnot(length(truth) == length(pred))
+    truth <- factor(truth)
+    pred  <- factor(pred, levels = levels(truth))  # align levels
+    
+    classes <- levels(truth)
+    if (drop_other && other_label %in% classes) {
+      classes <- setdiff(classes, other_label)
+    }
+    
+    f1_per_class <- sapply(classes, function(cls) {
+      tp <- sum(truth == cls & pred == cls)
+      fp <- sum(truth != cls & pred == cls)
+      fn <- sum(truth == cls & pred != cls)
+      
+      prec <- if ((tp + fp) == 0) NA_real_ else tp / (tp + fp)
+      rec  <- if ((tp + fn) == 0) NA_real_ else tp / (tp + fn)
+      
+      if (is.na(prec) || is.na(rec) || (prec + rec) == 0) {
+        if (na_rm) return(NA_real_) else return(0)  # choose policy
+      }
+      2 * prec * rec / (prec + rec)
+    })
+    
+   mean(f1_per_class, na.rm = na_rm)
+   
+  }
 
   exclude_other_for_accuracy = TRUE
 
@@ -1928,7 +1967,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   other_pred = NULL
   best_w_score_thresh = NULL
   best_w_purity = NULL
-  
+  w_best_pred = NULL
   ignore_self = TRUE
 
   for(na_option in na_opt){
@@ -2012,19 +2051,48 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               optimize_by = maximize,
               k = k
              )
+             
             if(verbose){
               print("running optimize_purity for the first time at k:", k)
             }
           
             best_w_acc = pred_w$best_accuracy
             if(best_w_acc > best_acc_w){
-              message(paste("best accuracy DLBCLone_wo:",pred_w$best_accuracy, "purity threshold:", pred_w$best_purity_threshold))
+              
               best_acc_w = best_w_acc
               best_k_w = k
               best_fit = pred_with_truth
-              
+              best_pred_w = pred_w$predictions
               best_w_purity = pred_w$best_purity_threshold
               best_w_score_thresh = pred_w$score_thresh
+              #print(head(pred_w$predictions))
+              reported_accuracy = report_accuracy(pred_w$predictions,pred = "DLBCLone_wo")
+              conc = reported_accuracy$accuracy_no_other
+              f1 = macro_f1(pred_w$predictions[[truth_column]],
+                            pred_w$predictions$DLBCLone_wo,
+                            drop_other = T)
+              new_f1 = reported_accuracy$macro_f1
+              harmonic_mean = reported_accuracy$harmonic_mean
+              mba = reported_accuracy$mean_balanced_accuracy
+              cr = reported_accuracy$classification_rate
+                
+              message("new best DLBCLone_wo:")
+              message(paste(
+                "Concordance:",
+                round(conc,3),
+                "F1:",
+                round(f1,5),
+                "MBA:",
+                round(best_w_acc,3),
+                "Classification rate:",
+                round(cr,5),
+                "Harmonic mean:",
+                round(harmonic_mean,5),
+                "purity:",
+                pred_w$best_purity_threshold,
+                "Score:",
+                best_w_score_thresh
+              ))
             }
             best_pred_w = pred_w$predictions
             
@@ -2153,7 +2221,15 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           
             xx_d = mutate(xx_d, predicted_label_optimized = ifelse(other_score > out_opt_thresh, "Other", predicted_label))
             no_other_acc = report_accuracy(xx_d,pred = "predicted_label_optimized")$mean_balanced_accuracy
-            message(paste("best accuracy DLBCLone_io:",best_acc, "without other: ", no_other_acc, "threshold_outgroup:", row$threshold_outgroup))
+            message("new best accuracy DLBCLone_io:")
+            message(paste(
+                          best_acc, 
+                          "without other: ",
+                          no_other_acc, 
+                          "sensitivity:",
+                          overall_sensitivity,
+                          "threshold_outgroup:",
+                          row$threshold_outgroup))
 
             best_fit = outs
             best_pred = xx_d
@@ -2179,13 +2255,19 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   rownames(train_coords) = train_ids
   train_labels = outs$df %>% pull(!!sym(truth_column))
   rownames(test_coords) = outs$df %>% pull(sample_id)
+  
+
+  if(verbose){
+    print(paste("TOP score threshold:",best_w_score_thresh, "purity:", best_w_purity))  
+  }
+  
+
   pred = weighted_knn_predict_with_conf(
             train_coords = train_coords,
             train_labels = train_labels,
             test_coords = test_coords,
-            k=best_params$k,
-            conf_threshold =best_params$threshold,
-            #na_label="Other",
+            k=best_k_w,# re-run with best k for weighted voting
+            #conf_threshold =best_params$threshold,
             use_weights = best_params$use_weights,
             ignore_self = ignore_self,
             verbose = verbose,
@@ -2193,17 +2275,17 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   
   pred_with_truth_full = bind_cols(outs$df %>% select(sample_id, !!sym(truth_column)), pred)
 
-  if(verbose){
-    print(paste("TOP score threshold:",best_w_score_thresh, "purity:", best_w_purity))  
-  }
   best_pred_w = process_votes(df=pred_with_truth_full,
                               group_labels=truth_classes,
-                              k=k) %>%
-                mutate(DLBCLone_w = ifelse(score_ratio >= best_w_purity | top_group_score > best_w_score_thresh,
+                              k=best_k_w) 
+  
+  best_pred_w = best_pred_w %>%
+                mutate(DLBCLone_w = ifelse(score_ratio >= best_w_purity | 
+                    top_group_score > best_w_score_thresh,
                                            by_score,
                                            "Other")) 
 
-
+  
   if(optimize_for_other){
     
     pred = mutate(pred,predicted_label_optimized = ifelse(other_score > best_params$threshold_outgroup,
@@ -2212,12 +2294,24 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   }else{
     pred = mutate(pred,predicted_label_optimized = predicted_label)
   }
+
   #new naming convention
   pred = mutate(pred, DLBCLone_i = predicted_label, DLBCLone_io = predicted_label_optimized)
   best_pred_w = rename(best_pred_w, DLBCLone_wo = DLBCLone_w) #optimized
   best_pred_w = rename(best_pred_w, DLBCLone_w = by_score) #greedy
+  #check accuracy again
+  print(dim(pred))
   xx_d = bind_cols(outs$df,pred)
-  xx_d = left_join(xx_d, select(best_pred_w, sample_id, DLBCLone_w, DLBCLone_wo), by="sample_id")
+  print(dim(xx_d))
+  xx_d = left_join(xx_d, select(best_pred_w, sample_id, score_ratio, top_group_score, DLBCLone_w, DLBCLone_wo), by="sample_id")
+  acc_check_w = report_accuracy(xx_d,pred = "DLBCLone_w")
+  acc_check_wo = report_accuracy(xx_d,pred = "DLBCLone_wo")
+  message(paste("DLBCLone_w accuracy:",
+  round(acc_check_w$mean_balanced_accuracy,3), 
+  "DLBCLone_wo accuracy:",
+  round(acc_check_wo$mean_balanced_accuracy,3),
+  "DLBCLone_w Concordance:", round(acc_check_w$no_other,3),
+  "DLBCLone_wo Concordance:", round(acc_check_wo$no_other,3)))
   to_ret = list(params=results,
                 best_params = best_params,
                 model=umap_out$model,
@@ -2241,6 +2335,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
       to_ret[[mn]] = outs[[mn]] 
     }
   }
+  to_ret$best_pred_w = best_pred_w
   to_ret$truth_classes = truth_classes
   to_ret$optimize_for_other = optimize_for_other
   to_ret$truth_column = truth_column
@@ -2341,7 +2436,10 @@ weighted_knn_predict_with_conf <- function(train_coords,
       
       neighbors <- neighbors[neighbor_ids != self]
       distances <- distances[neighbor_ids != self]
-
+      neighbor_ids = neighbor_ids[neighbor_ids != self]
+      
+      neighbor_labels <- train_labels[neighbors]
+      
     }
     
     
@@ -2369,8 +2467,12 @@ weighted_knn_predict_with_conf <- function(train_coords,
     # Remove NAs (just in case)
     other_mask  <- (neighbor_labels == other_class)
     other_dists <- distances[other_mask]
+    other_ids <- neighbor_ids[other_mask]
+    other_labels <- neighbor_labels[other_mask]
     valid <- !is.na(neighbor_labels)
-
+    if(!all(other_labels == other_class)){
+      stop("logic error: not all other_labels are other_class")
+    }
     #num_other_neighbors = sum(neighbor_labels == "Other")
     #other_dists = distances[neighbor_labels == "Other"]
     if (separate_other) valid <- valid & !other_mask
@@ -2397,6 +2499,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
     others_closer = which(other_dists < max(distances))
     
     others_distances = other_dists[others_closer]
+    other_ids = other_ids[others_closer]
     if(use_weights){
       others_weights = 1 / others_distances
     }else{
@@ -2416,6 +2519,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
           other_score = rel_other,
           neighbor_id = paste(rownames(train_coords)[neighbors],collapse=","),
           neighbor = paste(neighbors,collapse=","),
+          other_neighbor = paste(other_ids,collapse=","),
           distance = paste(round(distances, 3),collapse=","),
           label = paste(neighbor_labels,collapse=","),
           weighted_votes = "",
@@ -2469,6 +2573,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
           neighbor = paste(neighbors,collapse=","),
           distance = paste(round(distances, 3),collapse=","),
           label = paste(neighbor_labels,collapse=","),
+        other_neighbor = paste(other_ids,collapse=","),
         vote_labels = paste(names(weighted_votes),collapse=","),
         weighted_votes = paste(weighted_votes,collapse=","),
         neighbors_other = neighbors_other,
@@ -3197,145 +3302,5 @@ ungroup()
                   by_score_opt=ifelse(score_ratio > score_purity_requirement | top_group_score > score_thresh,top_score_group,"Other"))
   
   return(df_out)
-}
-
-old_optimize_purity <- function(optimized_model_object,
-                            vote_df, 
-                            mode, 
-                            optimize_by = "balanced_accuracy", #or overall_accuracy
-                            truth_column, 
-                            all_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
-                            k,
-                            exclude_other_for_accuracy = FALSE) {
-  if(mode == "DLBCLone_w"){
-    in_column = "by_score"
-    out_column = mode
-  }
-  if(!missing(optimized_model_object)){
-    if(!is.null(optimized_model_object$best_params)){
-      if(!missing(k)){
-        message("k is provided in the optimized_model_object, ignoring the k parameter")
-      }
-      k = optimized_model_object$best_params$k
-    }else{
-      stop("optimized_model_object must contain best_params with k value")
-    }
-    vote_df = optimized_model_object$predictions
-  }
-
-  #all_classes = unique(vote_df[[truth_column]])
-  some_classes = all_classes[all_classes != "Other"]
-  score_thresh = 2 * k
-
-  processed_votes = process_votes(vote_df,
-                group_labels=all_classes,
-                k=k,
-                score_purity_requirement=0.5)
-  # Function to optimize purity based on processed votes and truth labels
-  if(!truth_column %in% colnames(processed_votes)){
-    stop("truth_column must be a column in processed_votes")
-  }
-  best_accuracy <- 0
-  best_purity_threshold <- 0
-
-  processed_votes = mutate(processed_votes,!!sym(truth_column):= as.character(!!sym(truth_column))) 
-  
-  no_other_df = processed_votes %>%
-    filter(!!sym(truth_column) != "Other")
-  for(purity_threshold in seq(3, 0, -0.05)){
-    updated_votes <- processed_votes %>%
-      mutate(!!sym(out_column) := ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
-    updated_no_other_df <- no_other_df %>%
-      mutate(!!sym(out_column) := ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, "Other"))
-
-    if(!exclude_other_for_accuracy){
-      
-      xx = select(updated_votes, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
-        mutate(match=ifelse(!!sym(truth_column) == !!sym(out_column),TRUE,FALSE)) %>%
-        group_by(match) %>%
-        #summarise(concordant) %>%
-        summarise(concordant=sum(match==TRUE), discordant = sum(match==FALSE)) %>%
-        ungroup() %>%
-        summarise(all_conc = sum(concordant), dis = sum(discordant), total=all_conc+dis, percent=100*sum(concordant)/total)
-        pc_conc = xx$percent %>% round(.,1)
-        num_conc = xx$all_conc
-        num_dis = xx$dis
-      
-      # calculate accuracy
-      updated_votes = mutate(updated_votes,!!sym(out_column) := factor(!!sym(out_column),levels=all_classes))
-      updated_votes = mutate(updated_votes,!!sym(truth_column) := factor(!!sym(truth_column),levels=all_classes))
-      confusion_matrix <- table(updated_votes[[truth_column]],updated_votes[[out_column]])
-      conf_matrix <- confusionMatrix(updated_votes[[out_column]], updated_votes[[truth_column]])
-
-
-    }else{
-      xx = select(updated_no_other_df, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
-        filter(!!sym(truth_column) != "Other") %>%
-        mutate(match=ifelse(!!sym(truth_column) == !!sym(out_column),TRUE,FALSE)) %>%
-        group_by(match) %>%
-        #summarise(concordant) %>%
-        summarise(concordant=sum(match==TRUE), discordant = sum(match==FALSE)) %>%
-        ungroup() %>%
-        summarise(all_conc = sum(concordant), dis = sum(discordant), total=all_conc+dis, percent=100*sum(concordant)/total)
-      updated_no_other_df = mutate(updated_no_other_df,
-        !!sym(out_column) := factor(!!sym(out_column),levels=all_classes),
-        !!sym(truth_column) := factor(!!sym(truth_column),levels=all_classes))
-      confusion_matrix <- table(updated_no_other_df[[truth_column]],updated_no_other_df[[out_column]])
-
-      conf_matrix <- confusionMatrix(updated_no_other_df[[out_column]], updated_no_other_df[[truth_column]])
-
-    }
-    accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-
-    bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]  # one per class
-    oa = conf_matrix$overall[["Accuracy"]]
-    pc_conc = xx$percent %>% round(.,1)
-    bal_acc = mean(bal_acc,na.rm=T)
-    
-    if(optimize_by == "balanced_accuracy"){
-      accuracy = bal_acc
-    }else if(optimize_by == "overall_accuracy"){
-      accuracy = oa
-    }
-    num_conc = xx$all_conc
-    num_dis = xx$dis
-    
-    #if(accuracy > best_accuracy){
-    if(accuracy > best_accuracy){
-      #print(confusion_matrix)
-      #print(bal_acc)
-      #print(paste("Percent: ",pc_conc,"Overall:",oa, "Balanced:",mean(bal_acc,na.rm=T)))
-      #print(conf_matrix)
-      #message(paste0("New best accuracy: ", round(accuracy, 3)))
-      #message(paste0("Matches:" ,num_conc, " %Concordance: ",pc_conc, " Mismatches: ",num_dis))
-      #message(paste0(" at purity threshold: ", round(purity_threshold, 2)))
-      best_accuracy <- accuracy
-      best_purity_threshold <- purity_threshold
-    }else{
-      #print(paste("No improvement", accuracy, "vs", best_accuracy, "at threshold", purity_threshold))
-    }
-
-    #print(confusion_matrix_ignore_other)
-  }
-  best_out = processed_votes %>%
-      mutate(!!sym(out_column) := ifelse(score_ratio >= best_purity_threshold | top_group_score > score_thresh, by_score, "Other")) 
-
-  
-  if(missing(optimized_model_object)){
-    optimized_model_object = list()
-    optimized_model_object$best_params = list(k=k,
-                                                purity_threshold=best_purity_threshold,
-                                                accuracy=best_accuracy,
-                                                num_classes=length(unique(best_out$predicted_label)),
-                                                num_features=ncol(best_out)-3, #minus V1,V2,sample_id
-                                                seed=12345)  
-  }
-  optimized_model_object$predictions = best_out
-  optimized_model_object$best_accuracy = best_accuracy  
-  optimized_model_object$best_purity_threshold = best_purity_threshold
-  optimized_model_object$maximize = optimize_by
-  optimized_model_object$score_thresh = score_thresh
-  optimized_model_object$exclude_other_for_accuracy = exclude_other_for_accuracy
-  return(optimized_model_object)
 }
 

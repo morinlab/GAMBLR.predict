@@ -107,7 +107,9 @@ nearest_neighbor_heatmap <- function(
     }
     neighbors <- strsplit(pred_row$neighbor_id[1], ",", fixed = TRUE)[[1]]
     neighbors <- as.character(na.omit(neighbors))
-
+    other_neighbors <- strsplit(pred_row$other_neighbor[1], ",", fixed = TRUE)[[1]]
+    other_neighbors <- as.character(na.omit(other_neighbors))
+    neighbors = unique(c(neighbors, other_neighbors))
     feats_mat <- DLBCLone_model$features
     if (is.null(feats_mat)) {
       stop("features is missing in the optimize_params model object.")
@@ -1059,18 +1061,52 @@ report_accuracy <- function(predictions,
                             per_group = FALSE,
                             metric = "accuracy",
                             verbose = FALSE) {
+  #Helper function to compute macro F1 score
+  macro_f1 <- function(truth, pred, drop_other = TRUE, other_label = "Other", na_rm = TRUE) {
+    stopifnot(length(truth) == length(pred))
+    truth <- factor(truth)
+    pred  <- factor(pred, levels = levels(truth))  # align levels
+    
+    classes <- levels(truth)
+    if (drop_other && other_label %in% classes) {
+      classes <- setdiff(classes, other_label)
+    }
+    
+    f1_per_class <- sapply(classes, function(cls) {
+      tp <- sum(truth == cls & pred == cls)
+      fp <- sum(truth != cls & pred == cls)
+      fn <- sum(truth == cls & pred != cls)
+      
+      prec <- if ((tp + fp) == 0) NA_real_ else tp / (tp + fp)
+      rec  <- if ((tp + fn) == 0) NA_real_ else tp / (tp + fn)
+      
+      if (is.na(prec) || is.na(rec) || (prec + rec) == 0) {
+        if (na_rm) return(NA_real_) else return(0)  # choose policy
+      }
+      2 * prec * rec / (prec + rec)
+    })
+    
+   mean(f1_per_class, na.rm = na_rm)
+   
+  }
   all_classes <- unique(predictions[[truth]])
-  no_other_pred <- filter(predictions, !!sym(truth) != "Other")
+  no_other_true <- filter(predictions, !!sym(truth) != "Other")
+  no_other_pred <- filter(predictions, !!sym(pred) != "Other")
+  
+  classification_rate = nrow(no_other_pred) / nrow(predictions)
+  #print(paste(classification_rate,"=", nrow(no_other_pred) ,"/" ,nrow(predictions)))
   if (verbose) {
-    print(paste(nrow(no_other_pred), "non-Other samples were assigned a label"))
+    print(paste(nrow(no_other_true), "non-Other samples were assigned a label"))
     print(paste(
       filter(no_other_pred, !!sym(pred) != "Other") %>% nrow(),
       "non-Other samples were assigned to a non-Other class"))
   }
 
+  f1 = macro_f1(predictions[[truth]], predictions[[pred]], drop_other = TRUE)
+
   conf_matrix_no <- confusionMatrix(
-    factor(no_other_pred[[pred]], levels = all_classes),
-    factor(no_other_pred[[truth]], levels = all_classes)
+    factor(no_other_true[[pred]], levels = all_classes),
+    factor(no_other_true[[truth]], levels = all_classes)
   )
 
   overall <- conf_matrix_no$overall[["Accuracy"]]
@@ -1091,16 +1127,22 @@ report_accuracy <- function(predictions,
   } else {
     stop("unsupported metric")
   }
+  mba <- mean(bal_acc, na.rm = TRUE)
   overall <- conf_matrix$overall[["Accuracy"]]
-
+  harm = 4 / ( 1/acc_no + 1/f1 + 1/mba + 1/classification_rate)
   return(list(
     no_other = acc_no,
+    accuracy_no_other = acc_no,
+    macro_f1 = f1,
+    harmonic_mean = harm,
     per_class = bal_acc,
-    mean_balanced_accuracy = mean(bal_acc, na.rm = TRUE),
+    mean_balanced_accuracy = mba,
+    classification_rate = classification_rate,
     per_class_sensitivity = sensitivity,
     overall = overall,
     confusion_matrix_no_other = conf_matrix_no,
-    confusion_matrix = conf_matrix
+    confusion_matrix = conf_matrix,
+    num_unclass = nrow(no_other_pred)
   ))
 }
 
@@ -1188,8 +1230,12 @@ make_alluvial <- function(
   }
 
   if(is.null(group_order)){
-
-    group_order = unique(c(predictions[[truth_column]],predictions[[pred_column]]))
+    if("truth_classes" %in% names(optimized)){
+      group_order = optimized$truth_classes
+    }else{
+      group_order = unique(c(predictions[[truth_column]],predictions[[pred_column]]))
+    }
+    
     #print("setting group order:")
     #print(group_order)
   }
@@ -1213,17 +1259,16 @@ make_alluvial <- function(
   }else{
     full_denominator = nrow(predictions)
   }
- print(head(predictions))
+
   xx <- predictions %>%
     rename(
       !!truth_name := !!sym(truth_column)
  
     ) 
-print(pred_column)
-  print(head(xx))
+
   xx <- xx %>% rename (
     !!pred_name := !!sym(pred_column))
-  print(head(xx))
+
   xx <- xx %>%
     group_by(!!sym(truth_name), !!sym(pred_name)) %>%
     summarize(num = n(), .groups = "drop")
