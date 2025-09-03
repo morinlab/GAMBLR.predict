@@ -8,35 +8,37 @@ nearest_neighbor_heatmap(
   this_sample_id,
   DLBCLone_model,
   truth_column = "lymphgen",
-  clustering_distance = "binary"
+  metadata_cols = NULL,
+  clustering_distance = "binary",
+  font_size = 14
 )
 }
 \arguments{
 \item{this_sample_id}{Character. The sample ID for which to plot the nearest neighbor heatmap.}
 
-\item{DLBCLone_model}{List. A DLBCLone model object, either from \code{DLBCLone_optimize_params}
-or \code{DLBCLone_KNN} (with \code{predict_unlabeled = TRUE}).}
+\item{DLBCLone_model}{List. A DLBCLone model object as described above.}
+
+\item{truth_column}{Character. Column name in predictions/metadata to use as truth (default "lymphgen").}
+
+\item{metadata_cols}{Optional character vector of additional metadata columns to annotate on rows.}
+
+\item{clustering_distance}{Distance for row clustering (default "binary").}
+
+\item{font_size}{Numeric. Font size for labels (default 14).}
 }
 \value{
-A ComplexHeatmap object showing the feature matrix for the nearest neighbors of the sample.
+A ComplexHeatmap object (drawn).
 }
 \description{
 Generates a heatmap of feature values for the nearest neighbors of a specified sample,
-based on a DLBCLone model object. This visualization helps to inspect the feature profiles
-of samples most similar to the query sample.
-}
-\details{
+based on a DLBCLone model object. Supports outputs from:
 \itemize{
-\item For models of type \code{DLBCLone_optimize_params}, uses the \code{neighbors} and \code{lyseq_status} fields.
-\item For models of type \code{DLBCLone_KNN}, uses the \code{unlabeled_neighbors} field.
-\item The function extracts the feature matrix rows corresponding to the nearest neighbors of the specified sample,
-and plots a heatmap of features with nonzero values.
+\item DLBCLone_KNN (with predict_unlabeled = TRUE)
+\item DLBCLone_optimize_params
+\item predict_single_sample_DLBCLone
 }
 }
 \examples{
-# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
-and "SomeSample_ID" is a valid sample ID from among the test (not training) samples
-\dontrun{
-nearest_neighbor_heatmap("SomeSample_ID", predicted_out)
-}
+# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict 
+
 }

@@ -55,7 +55,7 @@
 #' )
 #' }
 #'
-#' @import dplyr tidyr tibble
+#' @import dplyr tidyr tibble readr
 #' @export
 summarize_all_ssm_status <- function(maf_df,
                                      these_samples_metadata,
@@ -536,21 +536,20 @@ DLBCLone_train_test_plot = function(test_df,
 #' @param seed Passed to UMAP2. The random seed for reproducibility.
 #' @param ret_model additional argument
 #'
-#' @import uwot
+#' @import uwot dplyr tidyr tibble readr
 #' @export
 #'
 #' @examples
+#' 
+#' #library(GAMBLR.predict)
 #'
-#' umap_outs = make_and_annotate_umap(df=gambl_train_lymphgen,
-#'                            min_dist = 0,
-#'                            n_neighbors = 55,
-#'                            init="spectral",
-#'                            n_epochs = 1500,
-#'                            #seed=best_params$seed,
-#'                            metadata=gambl_train_meta_dlbclass,
-#'                            ret_model=T,
-#'                            metric="cosine")
-#'
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' my_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
 #'
 make_and_annotate_umap = function(df,
                               metadata,
