@@ -358,6 +358,7 @@ optimize_outgroup <- function(predicted_labels,
                                             "Other"),
                             maximize ="balanced_accuracy",
                             exclude_other_for_accuracy = FALSE,
+                            cap_classification_rate = 1,
                             verbose = FALSE,
                             other_class = "Other"){
   rel_thresholds = seq(1,10,0.1)
@@ -371,7 +372,10 @@ optimize_outgroup <- function(predicted_labels,
                                predicted_label = ifelse(other_score < threshold,
                                                         predicted_label,
                                                         other_class))
-
+      all_acc = report_accuracy(predictions_new,
+        truth="true_label",
+        pred="predicted_label",
+        drop_other=FALSE)
       pred = factor(predictions_new[["predicted_label"]],levels=all_classes)
       truth = factor(predictions_new[["true_label"]],levels=all_classes)
       conf_matrix <- confusionMatrix(pred, truth)
@@ -383,15 +387,24 @@ optimize_outgroup <- function(predicted_labels,
         bal_acc$average_accuracy = conf_matrix$overall[["Accuracy"]]
       }
       bal_acc$threshold = threshold
+      bal_acc$harmonic_mean = all_acc$harmonic_mean
+      bal_acc$classification_rate = all_acc$classification_rate
       acc_df = bind_rows(acc_df,bal_acc)
       sn <- conf_matrix$byClass[, "Sensitivity"]  
       sn$average_sensitivity = mean(sn)
       sn$threshold = threshold
+      sn$harmonic_mean = all_acc$harmonic_mean
+      sn$classification_rate = all_acc$classification_rate  
       sens_df = bind_rows(sens_df,sn)
   }
   
+  
   if(maximize %in% c("balanced_accuracy","accuracy")){
+    acc_df = filter(acc_df, classification_rate <= cap_classification_rate)
     best = slice_head(arrange(acc_df,desc(average_accuracy)),n=1)
+  }else if(maximize == "harmonic_mean"){
+    acc_df = filter(sens_df, classification_rate <= cap_classification_rate)
+    best = slice_head(arrange(sens_df,desc(harmonic_mean)),n=1)
   }else{
     best = slice_head(arrange(sens_df,desc(average_sensitivity)),n=1)
 
@@ -953,6 +966,7 @@ optimize_purity <- function(optimized_model_object,
                             truth_column, 
                             all_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
                             k,
+                            cap_classification_rate = 1,
                             exclude_other_for_accuracy = FALSE,
                             other_class = "Other") {  # <--- NEW ARG
 
@@ -1045,19 +1059,25 @@ optimize_purity <- function(optimized_model_object,
       pred = out_column)
     
     bal_acc <- mean(conf_matrix$byClass[, "Balanced Accuracy"], na.rm = TRUE)
-    if(optimize_by == "harmonic_mean"){
-      accuracy = acc_details$harmonic_mean
-    }else if( optimize_by == "overall_accuracy"){
-      accuracy = conf_matrix$overall[["Accuracy"]]
+    classification_rate = acc_details$classification_rate
+    if(classification_rate <= cap_classification_rate){    
+      if(optimize_by == "harmonic_mean"){
+        accuracy = acc_details$harmonic_mean
+      }else if( optimize_by == "overall_accuracy"){
+        accuracy = conf_matrix$overall[["Accuracy"]]
 
+      }else{
+        accuracy = bal_acc
+      }
+
+
+      if(accuracy > best_accuracy){
+        best_accuracy <- accuracy
+        best_purity_threshold <- purity_threshold
+      }
     }else{
-      accuracy = bal_acc
-    }
-
-
-    if(accuracy > best_accuracy){
-      best_accuracy <- accuracy
-      best_purity_threshold <- purity_threshold
+      message(paste0("skipping purity threshold ",purity_threshold," because classification rate ",round(classification_rate,3),
+                     " exceeds cap of ",cap_classification_rate))
     }
   }
 
@@ -1913,6 +1933,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            verbose = FALSE,
                            seed = 12345,
                            maximize = "balanced_accuracy", #or "harmonic_mean" or "accuracy"
+                           cap_classification_rate = 0.9,
                            exclude_other_for_accuracy = FALSE,
                            weights_opt = c(TRUE)
                            ) {
@@ -2049,13 +2070,14 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               truth_column = truth_column,
               all_classes = truth_classes,
               optimize_by = maximize,
+              cap_classification_rate = cap_classification_rate,
               k = k
              )
              
             if(verbose){
               print("running optimize_purity for the first time at k:", k)
             }
-          
+            reported_accuracy = report_accuracy(pred_w$predictions,pred = "DLBCLone_wo")
             best_w_acc = pred_w$best_accuracy
             if(best_w_acc > best_acc_w){
               
@@ -2066,7 +2088,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               best_w_purity = pred_w$best_purity_threshold
               best_w_score_thresh = pred_w$score_thresh
               #print(head(pred_w$predictions))
-              reported_accuracy = report_accuracy(pred_w$predictions,pred = "DLBCLone_wo")
+              
               conc = reported_accuracy$accuracy_no_other
               f1 = macro_f1(pred_w$predictions[[truth_column]],
                             pred_w$predictions$DLBCLone_wo,
@@ -2161,10 +2183,15 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                              xx_d$other_score,
                                              all_classes = truth_classes,
                                              maximize = maximize,
+                                             cap_classification_rate = cap_classification_rate,
                                              exclude_other_for_accuracy = exclude_other_for_accuracy)
             
             out_opt_thresh = optimized_accuracy_and_thresh$threshold
-            out_opt_acc = optimized_accuracy_and_thresh$average_accuracy
+            if(maximize=="harmonic_mean"){
+              out_opt_acc = optimized_accuracy_and_thresh$harmonic_mean
+            }else{
+              out_opt_acc = optimized_accuracy_and_thresh$average_accuracy
+            }
             
 
           }else{

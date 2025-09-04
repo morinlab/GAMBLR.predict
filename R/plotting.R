@@ -1060,9 +1060,10 @@ report_accuracy <- function(predictions,
                             pred = "DLBCLone_io",
                             per_group = FALSE,
                             metric = "accuracy",
-                            verbose = FALSE) {
+                            verbose = FALSE,
+                            drop_other = TRUE) {
   #Helper function to compute macro F1 score
-  macro_f1 <- function(truth, pred, drop_other = TRUE, other_label = "Other", na_rm = TRUE) {
+  macro_f1 <- function(truth, pred, drop_other = drop_other, other_label = "Other", na_rm = TRUE) {
     stopifnot(length(truth) == length(pred))
     truth <- factor(truth)
     pred  <- factor(pred, levels = levels(truth))  # align levels
