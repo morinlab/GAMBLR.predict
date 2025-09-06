@@ -45,6 +45,8 @@ The function extracts the nearest neighbors of the specified sample, draws segme
 # and 'output' is the result of DLBCLone_predict_single_sample
 # on sample_id "SAMPLE123":
 \dontrun{
+library(GAMBLR.predict)
+
 predict_single <- predict_single_sample_DLBCLone(
   test_df = optimize_params$features[1,],
   train_metadata = dlbcl_meta, 

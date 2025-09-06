@@ -34,6 +34,8 @@ This function generates a stacked bar plot showing the top features (genes) for 
 }
 \examples{
 \dontrun{
+library(GAMBLR.predict)
+
 stacked_bar_plot(
  optimize_params,
  method = "chi_square",

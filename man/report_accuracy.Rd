@@ -46,6 +46,8 @@ Optionally excludes samples assigned to the "Other" class from accuracy calculat
 }
 \examples{
 \dontrun{
+library(GAMBLR.predict)
+
 result <- report_accuracy(predictions_df)
 result$overall
 result$per_class

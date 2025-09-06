@@ -12,7 +12,8 @@ process_votes(
   k,
   other_vote_multiplier = 2,
   score_purity_requirement = 1,
-  weighted_votes_col = "weighted_votes"
+  weighted_votes_col = "weighted_votes",
+  other_class = "Other"
 )
 }
 \arguments{
@@ -49,7 +50,10 @@ The function also supports custom logic for handling the "Other" class, includin
 }
 }
 \examples{
-# Example usage:
-# result <- process_votes(knn_output_df, k = 7)
+
+library(GAMBLR.predict)
+
+result <- process_votes(knn_output_df, k = 7)
+
 
 }

@@ -19,14 +19,13 @@
 #' - The function extracts the feature matrix rows corresponding to the nearest neighbors of the specified sample,
 #'   and plots a heatmap of features with nonzero values.
 #'
-#' @importFrom dplyr filter
-#' @importFrom ComplexHeatmap Heatmap
-#' @importFrom grid gpar
-#' @importFrom circlize colorRamp2
+#' @import dplyr tidyr ComplexHeatmap grid circlize tibble
 #'
 #' @examples
 #' # Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
-#' \dontrun{
+#' \dontrun{ 
+#' library(GAMBLR.predict)
+#' 
 #' nearest_neighbor_heatmap(
 #'   this_sample_id = "CCS_0680_lst",
 #'   DLBCLone_model = predict_single,
@@ -253,11 +252,15 @@ nearest_neighbor_heatmap <- function(
 #' @param custom_colours Optional named vector of colors for groups; falls back to `get_gambl_colours()`.
 #'
 #' @return A ggplot object.
+#' 
+#' @import dplyr ggplot2 ggExtra
 #' @export
 #' 
 #' @examples 
 #' 
 #' \dontrun{
+#' library(GAMBLR.predict)
+#' 
 #' make_umap <- make_and_annotate_umap(
 #'   df=all_full_status,
 #'   metadata=dlbcl_meta
@@ -268,6 +271,7 @@ nearest_neighbor_heatmap <- function(
 #'   plot_samples = "some_sample_ID",
 #'   colour_by = "DLBCLone_ko")
 #' }
+#' 
 basic_umap_scatterplot <- function(optimized,
                                    plot_samples = NULL,
                                    colour_by    = NULL,
@@ -364,12 +368,14 @@ basic_umap_scatterplot <- function(optimized,
 #'
 #' @return No return value. Side effect: writes multiple PDF files to disk.
 #'
+#' @import dplyr ggplot2 ComplexHeatmap rlang
+#' @export
+#' 
 #' @examples
 #' \dontrun{
 #' DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
 #'}
 #' 
-#' @export
 DLBCLone_summarize_model = function(
   base_name,
   optimized_model
@@ -463,17 +469,17 @@ DLBCLone_summarize_model = function(
 #' @details
 #' The function extracts the nearest neighbors of the specified sample, draws segments connecting the sample to its neighbors, and colors points by group (e.g., lymphgen subtype). The plot title can optionally include the predicted label.
 #'
-#' @import dplyr
-#' @import ggplot2
-#' @importFrom rlang sym
-#'
+#' @import dplyr ggplot2 rlang ggExtra
 #' @export
+#' 
 #' @examples
 #' 
 #' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
 #' # and 'output' is the result of DLBCLone_predict_single_sample
 #' # on sample_id "SAMPLE123":
 #' \dontrun{
+#' library(GAMBLR.predict)
+#' 
 #' predict_single <- predict_single_sample_DLBCLone(
 #'   test_df = optimize_params$features[1,],
 #'   train_metadata = dlbcl_meta, 
@@ -575,11 +581,15 @@ make_neighborhood_plot <- function(
 #' @param add_labels If TRUE: adds labels to the points based on the median coordinates of each group.
 #' @param title Title for the plot. Default: NULL. 
 #'
-#' @returns
+#' @returns A ggplot object representing the UMAP scatterplot with marginal histograms.
+#' 
+#' @import dplyr ggplot2 ggExtra ggside rlang
 #' @export
 #'
 #' @examples
 #' \dontrun{
+#' library(GAMBLR.predict)
+#' 
 #' make_umap <- make_and_annotate_umap(
 #'   df=all_full_status,
 #'   metadata=dlbcl_meta
@@ -666,15 +676,19 @@ make_umap_scatterplot = function(
 #' - Uses confusion matrices to compute accuracy metrics.
 #' - Excludes "Other" class for no_other accuracy.
 #' - Returns per-class metrics for further analysis.
+#' 
+#' @import dplyr caret rlang
+#' @export
 #'
 #' @examples
 #' \dontrun{
+#' library(GAMBLR.predict)
+#' 
 #' result <- report_accuracy(predictions_df)
 #' result$overall
 #' result$per_class
 #' }
 #'
-#' @export
 report_accuracy = function(
   predictions,
   truth="lymphgen",
@@ -767,12 +781,16 @@ report_accuracy = function(
 #' - Annotates concordance rate, per-group accuracy, and unclassified rate as specified.
 #' - Supports flexible labeling, coloring, and axis ordering for publication-quality plots.
 #'
+#' @import dplyr ggplot2 ggalluvial rlang tidyr
+#' @export
+#' 
 #' @examples
 #' \dontrun{
+#' library(GAMBLR.predict)
+#' 
 #' make_alluvial(optimize_params)
 #' }
 #'
-#' @export
 make_alluvial <- function(
   optimized,
   count_excluded_as_other = FALSE,
@@ -1124,9 +1142,14 @@ make_alluvial <- function(
 #' @param title Title for the plot (default: NULL).
 #'
 #' @return A ggplot2 object representing the stacked bar plot.
+#' 
+#' @import dplyr ggplot2 tidyr rlang
+#' @export
 #'
 #' @examples
 #' \dontrun{
+#' library(GAMBLR.predict)
+#' 
 #' stacked_bar_plot(
 #'  optimize_params,
 #'  method = "chi_square",

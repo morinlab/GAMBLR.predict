@@ -12,7 +12,9 @@ optimize_purity(
   truth_column,
   all_classes = c("MCD", "EZB", "BN2", "N1", "ST2", "Other"),
   k,
-  exclude_other_for_accuracy = FALSE
+  cap_classification_rate = 1,
+  exclude_other_for_accuracy = FALSE,
+  other_class = "Other"
 )
 }
 \arguments{
@@ -48,7 +50,9 @@ The function returns the best accuracy achieved and the corresponding purity thr
 }
 }
 \examples{
-# Example usage:
-# result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+
+library(GAMBLR.predict)
+
+result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
 
 }

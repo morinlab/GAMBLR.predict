@@ -24,6 +24,9 @@ saves the files to the specified path
 model storage for DLBCLone outputs
 }
 \examples{
+
+library(GAMBLR.predict)
+
 DLBCLone_save_optimized(
  optimzied_params = optimized_params,
  path="/save_optimized/trial_folder",

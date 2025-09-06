@@ -18,6 +18,9 @@ saves the files to the specified path
 load previously saved DLBCLone model and parameters
 }
 \examples{
+
+library(GAMBLR.predict)
+
 load_optimized <- DLBCLone_load_optimized(
   path="/save_optimized/trial_folder",
   name_prefix="test_A"

@@ -93,6 +93,8 @@ It supports annotation of concordance rates, per-group accuracy, unclassified ra
 }
 \examples{
 \dontrun{
+library(GAMBLR.predict)
+
 make_alluvial(optimize_params)
 }
 

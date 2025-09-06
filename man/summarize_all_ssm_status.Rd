@@ -65,7 +65,10 @@ class for genes specified in \code{separate_by_class_genes}
 # A basic example, using only the output of get_all_coding_ssm
 # Since the only non-coding class this function handles is Silent,
 # we will be missing most non-coding types such as Intron, UTR, Flank
+
 \dontrun{
+library(GAMBLR.predict)
+
 sample_metadata = get_sample_metadata() \%>\% filter(seq_type!= "mrna")
 
 maf_data = get_all_coding_ssm(sample_metadata)

@@ -45,6 +45,10 @@ Assigns class predictions and optionally reclassifies samples as "Other" based o
 }
 }
 \examples{
+
+library(GAMBLR.predict)
+
 result <- DLBCLone_train_mixture_model(umap_out)
 head(result$predictions)
+
 }

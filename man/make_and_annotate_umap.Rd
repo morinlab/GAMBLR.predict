@@ -8,6 +8,7 @@ make_and_annotate_umap(
   df,
   metadata,
   umap_out,
+  truth_column = "lymphgen",
   core_features = NULL,
   core_feature_multiplier = 1.5,
   hidden_features = NULL,
@@ -85,9 +86,16 @@ Run UMAP and attach result to metadata
 }
 \examples{
 
-make_umap <- make_and_annotate_umap(
- df=all_full_status,
- metadata=dlbcl_meta
+library(GAMBLR.predict)
+
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) \%>\%
+ tibble::column_to_rownames("sample_id")
+
+dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+my_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
 )
 
 }

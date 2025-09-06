@@ -44,7 +44,9 @@ and plots a heatmap of features with nonzero values.
 }
 \examples{
 # Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
-\dontrun{
+\dontrun{ 
+library(GAMBLR.predict)
+
 nearest_neighbor_heatmap(
   this_sample_id = "CCS_0680_lst",
   DLBCLone_model = predict_single,

@@ -11,7 +11,9 @@ optimize_outgroup(
   all_classes = c("MCD", "EZB", "BN2", "N1", "ST2", "Other"),
   maximize = "balanced_accuracy",
   exclude_other_for_accuracy = FALSE,
-  verbose = FALSE
+  cap_classification_rate = 1,
+  verbose = FALSE,
+  other_class = "Other"
 )
 }
 \arguments{

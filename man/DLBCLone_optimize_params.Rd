@@ -17,6 +17,7 @@ DLBCLone_optimize_params(
   verbose = FALSE,
   seed = 12345,
   maximize = "balanced_accuracy",
+  cap_classification_rate = 0.9,
   exclude_other_for_accuracy = FALSE,
   weights_opt = c(TRUE)
 )
@@ -82,10 +83,16 @@ Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 }
 \examples{
 
+library(GAMBLR.predict)
+
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) \%>\%
+ tibble::column_to_rownames("sample_id")
+
+dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 
 # Aim to maximize classification of samples into non-Other class
 optimize_params_F <- DLBCLone_optimize_params(  
-  make_umap$features, 
+  all_full_status, 
   dlbcl_meta,
   umap_out = make_umap,
   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
@@ -98,7 +105,7 @@ optimize_params_F <- DLBCLone_optimize_params(
 # unclassified (assigned to "Other")
 
 optimize_params_T <- DLBCLone_optimize_params(  
-  make_umap$features, 
+  all_full_status, 
   dlbcl_meta,
   umap_out = make_umap,
   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),

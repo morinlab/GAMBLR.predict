@@ -44,6 +44,8 @@ Generates a simple UMAP scatterplot for visualizing sample clustering or separat
 \examples{
 
 \dontrun{
+library(GAMBLR.predict)
+
 make_umap <- make_and_annotate_umap(
   df=all_full_status,
   metadata=dlbcl_meta
@@ -54,4 +56,5 @@ basic_umap_scatterplot(
   plot_samples = "some_sample_ID",
   colour_by = "DLBCLone_ko")
 }
+
 }

@@ -32,11 +32,16 @@ make_umap_scatterplot(
 
 \item{title}{Title for the plot. Default: NULL.}
 }
+\value{
+A ggplot object representing the UMAP scatterplot with marginal histograms.
+}
 \description{
 Make UMAP scatterplot
 }
 \examples{
 \dontrun{
+library(GAMBLR.predict)
+
 make_umap <- make_and_annotate_umap(
   df=all_full_status,
   metadata=dlbcl_meta
