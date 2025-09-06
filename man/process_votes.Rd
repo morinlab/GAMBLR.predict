@@ -13,7 +13,8 @@ process_votes(
   other_vote_multiplier = 2,
   score_purity_requirement = 1,
   weighted_votes_col = "weighted_votes",
-  other_class = "Other"
+  other_class = "Other",
+  optimize_for_other = TRUE
 )
 }
 \arguments{

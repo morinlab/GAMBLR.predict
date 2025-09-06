@@ -10,7 +10,8 @@ nearest_neighbor_heatmap(
   truth_column = "lymphgen",
   metadata_cols = NULL,
   clustering_distance = "binary",
-  font_size = 14
+  font_size = 14,
+  gene_orientation = "column"
 )
 }
 \arguments{

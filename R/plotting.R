@@ -30,7 +30,8 @@ nearest_neighbor_heatmap <- function(
   truth_column = "lymphgen",
   metadata_cols = NULL,
   clustering_distance = "binary",
-  font_size = 14
+  font_size = 14,
+  gene_orientation = "column"
 ){
   stopifnot(is.list(DLBCLone_model), "type" %in% names(DLBCLone_model))
 
@@ -85,7 +86,7 @@ nearest_neighbor_heatmap <- function(
       neighbors <- strsplit(pred_row$neighbor_id[1], ",", fixed = TRUE)[[1]]
       neighbors <- as.character(na.omit(neighbors))
       pred_col <- "DLBCLone_io" #eventually needs to support io or wo
-      print(neighbors)
+
     }
 
     feats_mat <- DLBCLone_model$features_df
@@ -151,7 +152,7 @@ nearest_neighbor_heatmap <- function(
   # ----- Build row annotation data -----
   # Start from predictions; join metadata if present
   preds <- DLBCLone_model$predictions
-  print(head(preds))
+  
   if (is.null(preds) || !"sample_id" %in% names(preds)) {
     stop("Model object missing predictions with 'sample_id'.")
   }
@@ -163,7 +164,7 @@ nearest_neighbor_heatmap <- function(
 
   # Columns to annotate
   cols_to_select <- unique(c("sample_id", truth_column, pred_col, metadata_cols))
-  print(cols_to_select)
+  #print(cols_to_select)
   cols_to_select <- cols_to_select[cols_to_select %in% names(preds)]
   
   row_df <- preds %>%
@@ -214,7 +215,7 @@ nearest_neighbor_heatmap <- function(
         dplyr::pull(.data$predicted_label_optimized) %>% as.character()
     }
   }
-  print(row_df)
+  
   # Align rows to feature matrix order for annotation
   row_df <- row_df %>% tibble::column_to_rownames("sample_id")
   row_df <- row_df[rownames(xx), , drop = FALSE]
@@ -229,30 +230,60 @@ nearest_neighbor_heatmap <- function(
       if (mc %in% colnames(row_df)) anno_list[[mc]] <- anno_colours
     }
   }
-  print(head(row_df))
-  row_anno <- ComplexHeatmap::rowAnnotation(
-    df  = row_df,
-    col = anno_list,
-    annotation_name_gp = grid::gpar(fontsize = font_size),
-    show_legend = TRUE
-  )
-
   # Title
   title_text <- paste("Sample", this_sample_id, "classified as",
     ifelse(is.na(sample_class), "<NA>", sample_class))
+  print("HERE")
+  if(gene_orientation == "column"){
+    row_anno <- ComplexHeatmap::rowAnnotation(
+        df  = row_df,
+        col = anno_list,
+        annotation_name_gp = grid::gpar(fontsize = font_size),
+        show_legend = TRUE
+      )
+          # Draw heatmap
+      ht <- ComplexHeatmap::Heatmap(
+        xx,
+        col = col_fun,
+        right_annotation = row_anno,
+        clustering_distance_rows = clustering_distance,
+        show_heatmap_legend = FALSE,
+        column_title = title_text,
+        column_title_gp = grid::gpar(fontsize = font_size),
+        column_names_gp = grid::gpar(fontsize = font_size)
+      )
 
-  # Draw heatmap
-  ht <- ComplexHeatmap::Heatmap(
-    xx,
-    col = col_fun,
-    right_annotation = row_anno,
-    clustering_distance_rows = clustering_distance,
-    show_heatmap_legend = FALSE,
-    column_title = title_text,
-    column_title_gp = grid::gpar(fontsize = font_size),
-    column_names_gp = grid::gpar(fontsize = font_size)
-  )
+  }else{
+    for_heatmap <- t(xx)
+    annot_df <- row_df[colnames(for_heatmap), , drop = FALSE]
 
+    # build a *column* annotation (same colours list you used for rows)
+    col_anno <- ComplexHeatmap::HeatmapAnnotation(
+      df  = annot_df,
+      col = anno_list,  # keep if you want coloured discrete annotations
+      annotation_name_gp = grid::gpar(fontsize = font_size),
+      show_legend = TRUE,
+      which = "column"
+    )
+
+    ht <- ComplexHeatmap::Heatmap(
+      for_heatmap,
+      col = col_fun,
+      bottom_annotation = col_anno,                 # or top_annotation = col_anno
+      clustering_distance_columns = clustering_distance,
+      show_heatmap_legend = FALSE,
+      column_title = title_text,
+      column_title_gp = grid::gpar(fontsize = font_size),
+      row_names_gp = grid::gpar(fontsize = font_size),
+      column_names_gp = grid::gpar(fontsize = font_size)
+    )
+
+  }
+  
+
+  
+
+  
   ComplexHeatmap::draw(
     ht,
     heatmap_legend_side = "bottom",
@@ -1061,7 +1092,8 @@ report_accuracy <- function(predictions,
                             per_group = FALSE,
                             metric = "accuracy",
                             verbose = FALSE,
-                            drop_other = TRUE) {
+                            drop_other = TRUE,
+                            skip_F1 = FALSE) {
   #Helper function to compute macro F1 score
   macro_f1 <- function(truth, pred, drop_other = drop_other, other_label = "Other", na_rm = TRUE) {
     stopifnot(length(truth) == length(pred))
@@ -1103,8 +1135,7 @@ report_accuracy <- function(predictions,
       "non-Other samples were assigned to a non-Other class"))
   }
 
-  f1 = macro_f1(predictions[[truth]], predictions[[pred]], drop_other = TRUE)
-
+  
   conf_matrix_no <- confusionMatrix(
     factor(no_other_true[[pred]], levels = all_classes),
     factor(no_other_true[[truth]], levels = all_classes)
@@ -1129,8 +1160,16 @@ report_accuracy <- function(predictions,
     stop("unsupported metric")
   }
   mba <- mean(bal_acc, na.rm = TRUE)
+  if(!skip_F1){
+    f1 = macro_f1(predictions[[truth]], predictions[[pred]], drop_other = TRUE)
+    harm = 4 / ( 1/acc_no + 1/f1 + 1/mba + 1/classification_rate)
+  }else{
+    f1 = NA
+    harm = NA
+  }
+
+  
   overall <- conf_matrix$overall[["Accuracy"]]
-  harm = 4 / ( 1/acc_no + 1/f1 + 1/mba + 1/classification_rate)
   return(list(
     no_other = acc_no,
     accuracy_no_other = acc_no,
@@ -1234,11 +1273,11 @@ make_alluvial <- function(
     if("truth_classes" %in% names(optimized)){
       group_order = optimized$truth_classes
     }else{
-      group_order = unique(c(predictions[[truth_column]],predictions[[pred_column]]))
+      group_order = sort(unique(c(predictions[[pred_column]],predictions[[truth_column]])))
     }
     
-    #print("setting group order:")
-    #print(group_order)
+    print("setting group order:")
+    print(group_order)
   }
 
 
@@ -1248,7 +1287,8 @@ make_alluvial <- function(
     accuracies <- report_accuracy(predictions, 
         truth = truth_column,
         pred = pred_column,
-        per_group = accuracy_per_group)
+        per_group = accuracy_per_group,
+        skip_F1 = TRUE)
   }
   if(count_excluded_as_other){
     excluded_meta = optimized$sample_metadata_no_features %>%

@@ -14,9 +14,6 @@ weighted_knn_predict_with_conf(
   other_class = "Other",
   verbose = FALSE,
   use_weights = TRUE,
-  ignore_self = TRUE,
-  track_neighbors = TRUE,
-  separate_other = TRUE,
   max_neighbors = 500
 )
 }
@@ -46,6 +43,9 @@ class. If provided and confidence < threshold, sample is assigned
 \item{use_weights}{Logical; inverse-distance weights (1 / (d + epsilon)).
 If FALSE, neighbors contribute equally. Default: TRUE.}
 
+\item{max_neighbors}{Integer; maximum neighbors to retrieve from the
+search index before trimming to k. Default: 500.}
+
 \item{ignore_self}{Logical; drop a zero-distance self-neighbor. Default: TRUE.}
 
 \item{track_neighbors}{Logical; append neighbor diagnostics to output.
@@ -54,9 +54,6 @@ Default: TRUE.}
 \item{separate_other}{Logical; when TRUE, exclude neighbors labeled
 \code{other_class} from the main weighted vote and report their
 influence separately (as \code{other_*} columns). Default: TRUE.}
-
-\item{max_neighbors}{Integer; maximum neighbors to retrieve from the
-search index before trimming to k. Default: 500.}
 }
 \value{
 Data frame with rows = test samples and columns:

@@ -10,7 +10,9 @@ report_accuracy(
   pred = "DLBCLone_io",
   per_group = FALSE,
   metric = "accuracy",
-  verbose = FALSE
+  verbose = FALSE,
+  drop_other = TRUE,
+  skip_F1 = FALSE
 )
 }
 \arguments{

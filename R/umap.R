@@ -829,7 +829,8 @@ process_votes <- function(df,
                           other_vote_multiplier = 2,
                           score_purity_requirement = 1,
                           weighted_votes_col = "weighted_votes",
-                          other_class = "Other") {   # <--- NEW ARG
+                          other_class = "Other",
+                          optimize_for_other = TRUE) {  
   if(missing(k)){
     stop("k value is required")
   }
@@ -904,7 +905,11 @@ process_votes <- function(df,
     ungroup()
 
   # Optional adjustments based on external columns (if present)
-  if (!is.null(other_class) && other_class %in% group_labels) {   # <--- CONDITIONAL
+  if(!optimize_for_other){
+    #set other_vote_multiplier to a very high value to minimize reclassification to "Other"
+    other_vote_multiplier = 10
+  }
+  if (!is.null(other_class) && other_class %in% group_labels) {  
     if ("neighbors_other" %in% colnames(df)) {
       df_out <- df_out %>%
         mutate(!!sym(paste0(other_class, "_count")) := neighbors_other)
@@ -968,7 +973,8 @@ optimize_purity <- function(optimized_model_object,
                             k,
                             cap_classification_rate = 1,
                             exclude_other_for_accuracy = FALSE,
-                            other_class = "Other") {  # <--- NEW ARG
+                            other_class = "Other",
+                            optimize_for_other = TRUE) {  
 
   out_column = "DLBCLone_wo"
 
@@ -995,8 +1001,8 @@ optimize_purity <- function(optimized_model_object,
                                    group_labels = all_classes,
                                    k = k,
                                    score_purity_requirement = 0.5,
-                                   other_class = other_class)  # <--- pass it through
-  
+                                   other_class = other_class,
+                                   optimize_for_other = optimize_for_other)    
   if(!truth_column %in% colnames(processed_votes)){
     stop("truth_column must be a column in processed_votes")
   }
@@ -1036,7 +1042,7 @@ optimize_purity <- function(optimized_model_object,
       
       updated_votes <- mutate(updated_votes, !!sym(out_column) := factor(!!sym(out_column), levels = all_classes))
       updated_votes <- mutate(updated_votes, !!sym(truth_column) := factor(!!sym(truth_column), levels = all_classes))
-      confusion_matrix <- table(updated_votes[[truth_column]], updated_votes[[out_column]])
+      #confusion_matrix <- table(updated_votes[[truth_column]], updated_votes[[out_column]])
       conf_matrix <- confusionMatrix(updated_votes[[out_column]], updated_votes[[truth_column]])
     } else {
       xx <- select(updated_no_other_df, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
@@ -1926,14 +1932,13 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                              "Other"),
                            truth_column = "lymphgen",
                            optimize_for_other = FALSE,
-                           
                            eval_group = NULL,
                            min_k=3,
                            max_k=23,
                            verbose = FALSE,
                            seed = 12345,
                            maximize = "balanced_accuracy", #or "harmonic_mean" or "accuracy"
-                           cap_classification_rate = 0.9,
+                           cap_classification_rate = 1,
                            exclude_other_for_accuracy = FALSE,
                            weights_opt = c(TRUE)
                            ) {
@@ -1976,7 +1981,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   ks = seq(min_k,max_k,2)
   results <- data.frame()
   best_params <- data.frame()
-
+  all_predictions <- data.frame()
   use_w = TRUE
   best_acc = 0
   best_acc_w = 0
@@ -2044,7 +2049,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           conf_threshold =threshold,
           other_class="Other",
           use_weights = use_w,
-          ignore_self = ignore_self,
+          #ignore_self = ignore_self,
           verbose = verbose)
 
         for(threshold in threshs){
@@ -2071,13 +2076,15 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               all_classes = truth_classes,
               optimize_by = maximize,
               cap_classification_rate = cap_classification_rate,
-              k = k
+              k = k,
+              optimize_for_other = optimize_for_other
              )
              
             if(verbose){
               print("running optimize_purity for the first time at k:", k)
             }
             reported_accuracy = report_accuracy(pred_w$predictions,pred = "DLBCLone_wo")
+            all_predictions = bind_rows(all_predictions,pred_w$predictions %>% mutate(k=k))
             best_w_acc = pred_w$best_accuracy
             if(best_w_acc > best_acc_w){
               
@@ -2142,7 +2149,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 conf_threshold =threshold,
                 other_class="Other",
                 use_weights = use_w,
-                ignore_self = ignore_self,
+                #ignore_self = ignore_self,
                 verbose = verbose)
 
               xx_o = bind_cols(filter(outs$df,!!sym(truth_column) == "Other" | is.na(!!sym(truth_column))) ,pred_other)
@@ -2260,6 +2267,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
             best_fit = outs
             best_pred = xx_d
+            #all_predictions = bind_rows(all_predictions, xx_d %>% mutate(k=k))
             if(!"Other" %in% truth_classes  && n_other > 0){
               other_pred = pred_other
             }
@@ -2296,16 +2304,16 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             k=best_k_w,# re-run with best k for weighted voting
             #conf_threshold =best_params$threshold,
             use_weights = best_params$use_weights,
-            ignore_self = ignore_self,
-            verbose = verbose,
-            track_neighbors = TRUE)
-  
+            #ignore_self = ignore_self,
+            verbose = verbose)
+
   pred_with_truth_full = bind_cols(outs$df %>% select(sample_id, !!sym(truth_column)), pred)
 
   best_pred_w = process_votes(df=pred_with_truth_full,
                               group_labels=truth_classes,
-                              k=best_k_w) 
-  
+                              k=best_k_w,
+                              optimize_for_other = optimize_for_other) 
+
   best_pred_w = best_pred_w %>%
                 mutate(DLBCLone_w = ifelse(score_ratio >= best_w_purity | 
                     top_group_score > best_w_score_thresh,
@@ -2327,10 +2335,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   best_pred_w = rename(best_pred_w, DLBCLone_wo = DLBCLone_w) #optimized
   best_pred_w = rename(best_pred_w, DLBCLone_w = by_score) #greedy
   #check accuracy again
-  print(dim(pred))
+
   xx_d = bind_cols(outs$df,pred)
-  print(dim(xx_d))
-  xx_d = left_join(xx_d, select(best_pred_w, sample_id, score_ratio, top_group_score, DLBCLone_w, DLBCLone_wo), by="sample_id")
+ 
+  xx_d = left_join(xx_d, select(best_pred_w, sample_id, any_of(c("Local_Otherness")), score_ratio, top_group_score, DLBCLone_w, DLBCLone_wo), by="sample_id")
   acc_check_w = report_accuracy(xx_d,pred = "DLBCLone_w")
   acc_check_wo = report_accuracy(xx_d,pred = "DLBCLone_wo")
   message(paste("DLBCLone_w accuracy:",
@@ -2350,7 +2358,9 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 purity_DLBCLone_w = best_w_purity,
                 score_thresh_DLBCLone_w = best_w_score_thresh,
                 df=outs$df, 
-                predictions=xx_d)
+                predictions=xx_d,
+                all_k_predictions=all_predictions
+                )
   if(!"Other" %in% truth_classes && n_other > 0){
     to_ret[["predictions_other"]] = xx_o
     to_ret[["predictions_combined"]] = bind_rows(xx_o,best_pred)
@@ -2367,8 +2377,219 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   to_ret$optimize_for_other = optimize_for_other
   to_ret$truth_column = truth_column
   to_ret$type = "DLBCLone_optimize_params"
+
   return(to_ret)
 }
+
+#' Post-process KNN results across K to score consistency, 
+#' (optionally) refine classified/Other cutoffs per-class
+#' and (optionally) assign composite classes
+#'
+#' @param optimized_model Output of DLBCLone_optimize_params
+#' @param other_min        Integer; For comparing across a range of K values, this is the threshold for the number of K values a sample is classified as Other for it to be re-assigned as Other. Set this to a high value if you don't want samples to be reassigned at all.
+#' @param assign_composites Logical; if TRUE, samples with split votes across multiple in-group classes will be assigned a composite class (e.g. "EZB/MCD") instead of "Other".
+#' @param any_split        Logical; if TRUE, any split among in-group votes across the Ks tested will triggers reassignment (or composite).
+#' @param min_purity       Numeric [0,1]; top in-group vote share required to keep the top class instead of assigning a composite class.
+#' @param min_gap          Integer; top minus second in-group votes must be at least this gap to keep top class.
+#' @param optimize_per_class Logical; If TRUE, a range of thresholds will be tested per class to optimize the classification/Other cutoff. 
+#'  This is a more complex approach that may yield better results but is not yet fully validated.
+#' @return list with:
+#'   - predictions: updated predictions_df (DLBCLone_wo or DLBCLone_wc / DLBCLone_wc_simplified)
+#'   - consistency_report: per-sample counts and decision flags
+#'
+#' @import dplyr tidyr
+#' @export
+DLBCLone_ensemble_postprocess <- function(
+  #all_predictions,
+  #truth_classes,
+  #predictions_df,
+  #outs_df,
+  #truth_column,
+  optimized_model,
+  assign_composites = FALSE,
+  other_min          = 2,
+  any_split          = TRUE,
+  min_purity         = 0.75,
+  min_gap            = 2,
+  optimize_per_class = TRUE
+) {
+  if(!"type" %in% names(optimized_model) || optimized_model$type != "DLBCLone_optimize_params"){
+    stop("optimized_model must be the output of DLBCLone_optimize_params")
+  }
+  all_predictions = optimized_model$all_k_predictions
+  truth_classes   = optimized_model$truth_classes
+  predictions_df  = optimized_model$predictions
+  outs_df         = optimized_model$df
+  truth_column    = optimized_model$truth_column
+  # helper: apply consensus rules
+  apply_consensus_rules <- function(df,
+                                    group_levels,
+                                    other_col,
+                                    other_min,
+                                    any_split,
+                                    min_purity,
+                                    min_gap) {
+    in_cols <- paste0("num_", group_levels)
+
+    df %>%
+      rowwise() %>%
+      mutate(
+        votes        = list(c_across(all_of(in_cols))),
+        total_in     = sum(unlist(votes)),
+        top_idx      = if (total_in > 0) which.max(unlist(votes)) else NA_integer_,
+        top_count    = if (total_in > 0) unlist(votes)[top_idx] else 0,
+        n_nonzero    = sum(unlist(votes) > 0),
+        purity       = if (total_in > 0) top_count / total_in else 0,
+        second_count = if (total_in > 0 && n_nonzero >= 2) sort(unlist(votes), decreasing = TRUE)[2] else 0,
+        gap12        = top_count - second_count,
+
+        flag_other   = .data[[other_col]] >= other_min,
+        flag_split   = any_split && n_nonzero >= 2,
+        flag_weak    = (purity < min_purity) || (gap12 < min_gap),
+
+        # default: "Other" if any rule fires; else keep current label
+        DLBCLone_wo_updated = if (flag_other || flag_split || flag_weak) "Other" else DLBCLone_wo
+      ) %>%
+      ungroup()
+  }
+
+  # Build consistency table: counts of votes per class across K
+  group_levels      <- setdiff(truth_classes, "Other")
+  other_class       <- "Other"
+  other_count_col   <- paste0("num_", other_class)
+
+  consistency_df <- all_predictions %>%
+    select(sample_id, DLBCLone_wo) %>%
+    mutate(DLBCLone_wo = factor(DLBCLone_wo, levels = truth_classes)) %>%
+    count(sample_id, DLBCLone_wo, name = "n") %>%
+    tidyr::complete(sample_id, DLBCLone_wo, fill = list(n = 0)) %>%
+    tidyr::pivot_wider(
+      names_from   = DLBCLone_wo,
+      values_from  = n,
+      names_prefix = "num_"
+    )
+
+  # Add variance across K (optional diagnostic)
+  # If you prefer exactly the old num_EZB:num_Other range, keep that slice;
+  # otherwise build it from truth_classes:
+  count_cols <- paste0("num_", truth_classes)
+  consistency_df <- consistency_df %>%
+    rowwise() %>%
+    mutate(var_across_K = var(c_across(all_of(count_cols)))) %>%
+    ungroup()
+
+  # Join current "final" label for context
+  consistency_df <- consistency_df %>%
+    left_join(select(predictions_df, sample_id, DLBCLone_wo), by = "sample_id")
+
+  # Apply consensus rules -> _updated column
+  scored <- apply_consensus_rules(
+    consistency_df,
+    group_levels = group_levels,
+    other_col    = other_count_col,
+    other_min    = other_min,
+    any_split    = any_split,
+    min_purity   = min_purity,
+    min_gap      = min_gap
+  )
+
+  # Attach truth for reporting
+  scored <- scored %>%
+    left_join(select(outs_df, sample_id, !!rlang::sym(truth_column)), by = "sample_id")
+
+  # Optionally assign composite (top two in-group labels) instead of "Other" for splits
+  if (isTRUE(assign_composites)) {
+    group_cols <- paste0("num_", group_levels)
+
+    scored <- scored %>%
+      rowwise() %>%
+      mutate(
+        composite = {
+          counts <- c_across(all_of(group_cols))
+          labs   <- sub("^num_", "", group_cols)
+          ord          <- order(counts, decreasing = TRUE)
+          labs_nonzero <- labs[ord][counts[ord] > 0]
+          if (length(labs_nonzero) >= 2) paste(labs_nonzero[1:2], collapse = "/")
+          else NA_character_
+        },
+        flag_split = !is.na(composite)
+      ) %>%
+      ungroup()
+
+    # Update predictions: create wc & wc_simplified
+    pred_updated <- predictions_df %>%
+      left_join(select(scored, sample_id, DLBCLone_wo_updated, composite, flag_split),
+                by = "sample_id") %>%
+      mutate(
+        DLBCLone_wc = ifelse(flag_split & !is.na(composite), composite, DLBCLone_wo_updated),
+        DLBCLone_wc_simplified = ifelse(grepl("/", DLBCLone_wc),
+                                        gsub("/.*", "-COMP", DLBCLone_wc),
+                                        DLBCLone_wc)
+      )
+    changed <- filter(pred_updated,DLBCLone_wo != DLBCLone_wc)
+    n_changed <- nrow(changed)
+    message(paste("DLBCLone_wo: reassigned", n_changed, "samples to Other or composite class"))
+    to_return = list(
+      predictions        = pred_updated,
+      consistency_report = scored,
+      changed_samples    = changed
+    )
+  } else {
+    # Update DLBCLone_wo in place with _updated
+    pred_updated <- predictions_df %>%
+      left_join(select(scored, sample_id, DLBCLone_wo_updated), by = "sample_id") 
+    changed <- filter(pred_updated, DLBCLone_wo != DLBCLone_wo_updated) %>% 
+      rename(original_DLBCLone_wo = DLBCLone_wo) %>%
+      rename(DLBCLone_wo = DLBCLone_wo_updated) 
+    n_changed <- nrow(changed)
+    pred_updated = pred_updated %>% 
+      select(-DLBCLone_wo) %>%
+      rename(DLBCLone_wo = DLBCLone_wo_updated) 
+    message(paste("DLBCLone_wo: reassigned", n_changed, "samples to Other"))
+    to_return = list(
+      predictions        = pred_updated,
+      consistency_report = scored,
+      changed_samples    = changed
+    )
+
+  }
+  if(optimize_per_class){
+    thresholds = list()
+    test_pred  = to_return$predictions %>% 
+      mutate(DLBCLone=DLBCLone_wo)
+    for (group in group_levels){
+      max = 0
+      max_cut = 1000
+      for(cutoff in seq(0.1,10,0.1)){
+        test_pred = mutate(test_pred,
+                        DLBCLone=ifelse(DLBCLone_wo == group & neighborhood_otherness >cutoff,"Other",DLBCLone_wo ))
+        rep= report_accuracy(test_pred,pred = "DLBCLone")
+        ba = rep$mean_balanced_accuracy
+        
+        if(ba > max){
+          max = ba
+          max_cut = cutoff
+        }
+    }
+    thresholds[[group]] = max_cut
+  
+    }
+    test_pred  = to_return$predictions %>% 
+      mutate(DLBCLone=DLBCLone_wo)
+    for(group in names(thresholds)){
+      cutoff = thresholds[[group]]
+      test_pred = mutate(test_pred,
+                     DLBCLone=ifelse(
+                      DLBCLone_wo==group & neighborhood_otherness >cutoff,
+                        "Other",
+                        DLBCLone ))
+    }
+    to_return$predictions_optimized_per_class = test_pred
+    to_return$per_class_thresholds = thresholds
+  }
+  return(to_return)
+}
+
 
 
 
@@ -2428,11 +2649,10 @@ weighted_knn_predict_with_conf <- function(train_coords,
                                            other_class = "Other",
                                            verbose = FALSE,
                                            use_weights = TRUE,
-                                           ignore_self = TRUE,
-                                           track_neighbors = TRUE,
-                                           separate_other = TRUE,
                                            max_neighbors = 500) { 
-  
+   separate_other = TRUE
+   ignore_self = TRUE
+   track_neighbors = TRUE
   if (nrow(train_coords)==0 || nrow(test_coords) == 0) {
     print("train_coords:")
     print(nrow(train_coords))
@@ -2440,7 +2660,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
     print(nrow(test_coords))
     stop("train_coords and test_coords must be data frames with at least one row")
   }
-  # get the 100 nearest neighbors
+  # get the max_neighbors nearest neighbors
   nn <- get.knnx(train_coords, test_coords, max_neighbors)
   all_neighbors = data.frame()
   preds <- character(nrow(test_coords))
@@ -2515,7 +2735,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
       print(paste("num_neighbors:",length(neighbors)))
       print(table(valid))
     }
-    #now take the first k neighbors
+    #now take the first k neighbors that are not "Other"
     if(length(neighbor_labels) > k){
       neighbor_labels = neighbor_labels[1:k]
       weights = weights[1:k]
@@ -2533,6 +2753,8 @@ weighted_knn_predict_with_conf <- function(train_coords,
       others_weights = rep(1,length(others_closer))
     }
     neighbors_other = length(others_closer)
+    neighborhood_otherness = neighbors_other / k 
+    #ratio of other neighbors in the neighborhood to non-Other
     other_weighted_votes = sum(others_weights)
     mean_other_dist = mean(others_distances)
 
@@ -2551,6 +2773,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
           label = paste(neighbor_labels,collapse=","),
           weighted_votes = "",
           neighbors_other = neighbors_other,
+          neighborhood_otherness = neighborhood_otherness,
           other_weighted_votes = 0,
           mean_other_dist = mean_other_dist,
           total_w = 1,
@@ -2604,6 +2827,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
         vote_labels = paste(names(weighted_votes),collapse=","),
         weighted_votes = paste(weighted_votes,collapse=","),
         neighbors_other = neighbors_other,
+        neighborhood_otherness = neighborhood_otherness,
         other_weighted_votes = other_weighted_votes,
         total_w = total_weight,
         pred_w = pred_weight
@@ -2889,7 +3113,8 @@ predict_single_sample_DLBCLone <- function(
       predictions_test_df = process_votes(
         df=predictions_test_df,
         group_labels=optimized_model$truth_classes,
-        k=optimized_model$k_DLBCLone_w) 
+        k=optimized_model$k_DLBCLone_w,
+        optimize_for_other = optimized_model$optimize_for_other_DLBCLone_w) 
       
       predictions_test_df = predictions_test_df %>%
         mutate(DLBCLone_w = by_score,
@@ -3310,7 +3535,10 @@ ungroup()
     df_out <- df_out %>%
       mutate(Other_count = neighbors_other)
   }
-
+  if ("neighborhood_otherness" %in% colnames(df)) {
+    df_out <- df_out %>%
+      mutate(Local_Otherness = round(neighborhood_otherness, 3))
+  }
   if ("other_weighted_votes" %in% colnames(df)) {
     df_out <- df_out %>%
       mutate(Other_score = other_weighted_votes)
