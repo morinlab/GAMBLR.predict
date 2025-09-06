@@ -90,6 +90,11 @@ all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",pack
 
 dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 
+make_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
+
 # Aim to maximize classification of samples into non-Other class
 optimize_params_F <- DLBCLone_optimize_params(  
   all_full_status, 

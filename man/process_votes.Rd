@@ -50,10 +50,10 @@ The function also supports custom logic for handling the "Other" class, includin
 }
 }
 \examples{
-
+/dontrun{
 library(GAMBLR.predict)
 
 result <- process_votes(knn_output_df, k = 7)
-
+}
 
 }

@@ -477,6 +477,7 @@ optimize_outgroup <- function(predicted_labels,
 #' @examples
 #' #add the dataset name to the metadata if it's not already there (required for the plot work)
 #' 
+#' \dontrun{
 #' library(GAMBLR.predict)
 #' 
 #' lymphgen_A53_DLBCLone$df$dataset = "GAMBL"
@@ -489,6 +490,7 @@ optimize_outgroup <- function(predicted_labels,
 #'  details = lymphgen_A53_DLBCLone$best_params,
 #'  classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"),
 #'  annotate_accuracy=TRUE,label_offset = 1)
+#' }
 #'
 DLBCLone_train_test_plot = function(test_df,
                            train_df,
@@ -619,7 +621,7 @@ DLBCLone_train_test_plot = function(test_df,
 #' 
 #' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 #' 
-#' my_umap <- make_and_annotate_umap(
+#' make_umap <- make_and_annotate_umap(
 #'   df=all_full_status,
 #'   metadata=dlbcl_meta
 #' )
@@ -882,11 +884,11 @@ make_and_annotate_umap = function(df,
 #' @export
 #' 
 #' @examples
-#' 
+#' /dontrun{
 #' library(GAMBLR.predict)
 #' 
 #' result <- process_votes(knn_output_df, k = 7)
-#'
+#' }
 #' 
 process_votes <- function(df,
                           raw_col = "label",
@@ -1028,9 +1030,11 @@ process_votes <- function(df,
 #' 
 #' @examples
 #' 
+#' \dontrun{
 #' library(GAMBLR.predict)
 #' 
 #' result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+#' }
 #' 
 optimize_purity <- function(optimized_model_object,
                             vote_df, 
@@ -1220,6 +1224,11 @@ optimize_purity <- function(optimized_model_object,
 #'  tibble::column_to_rownames("sample_id")
 #' 
 #' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' dlbcl_knn <- DLBCLone_KNN(  
+#'   features_df = all_full_status,
+#'   metadata = dlbcl_meta
+#' )
 #'
 #' predictions <- DLBCLone_KNN_predict(
 #'   train_df = all_full_status,
@@ -1349,10 +1358,7 @@ DLBCLone_KNN_predict <- function(train_df,
 #' 
 #' dlbcl_knn <- DLBCLone_KNN(  
 #'   features_df = all_full_status,
-#'   metadata = dlbcl_meta,
-#'   min_k = 5,
-#'   max_k = 21,
-#'   optimize_for_other = TRUE
+#'   metadata = dlbcl_meta
 #' )
 #'
 DLBCLone_KNN <- function(features_df,
@@ -2004,6 +2010,11 @@ DLBCLone_KNN <- function(features_df,
 #'  tibble::column_to_rownames("sample_id")
 #' 
 #' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
 #'
 #' # Aim to maximize classification of samples into non-Other class
 #' optimize_params_F <- DLBCLone_optimize_params(  
@@ -2783,6 +2794,21 @@ prepare_single_sample_DLBCLone <- function(optimized_model,seed=12345){
 #' 
 #' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 #' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#'
+#' optimize_params <- DLBCLone_optimize_params(  
+#'   all_full_status, 
+#'   dlbcl_meta,
+#'   umap_out = make_umap,
+#'   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+#'   optimize_for_other = T,
+#'   min_k=5,
+#'   max_k=23
+#' )
+#' 
 #' predict_single <- predict_single_sample_DLBCLone(
 #'   test_df = optimize_params$features[1,],
 #'   train_metadata = dlbcl_meta, 
@@ -3018,6 +3044,7 @@ predict_single_sample_DLBCLone <- function(
 #'
 #' @examples
 #' 
+#' \dontrun{
 #' library(GAMBLR.predict)
 #' 
 #' DLBCLone_save_optimized(
@@ -3025,6 +3052,7 @@ predict_single_sample_DLBCLone <- function(
 #'  path="/save_optimized/trial_folder",
 #'  name_prefix="test_A"
 #' )
+#' }
 #'
 DLBCLone_save_optimized = function( 
     optimized_params=NULL,
@@ -3074,12 +3102,14 @@ DLBCLone_save_optimized = function(
 #'
 #' @examples
 #' 
+#' \dontrun{
 #' library(GAMBLR.predict)
 #' 
 #' load_optimized <- DLBCLone_load_optimized(
 #'   path="/save_optimized/trial_folder",
 #'   name_prefix="test_A"
 #' )
+#' }
 #'
 DLBCLone_load_optimized <- function(
   path="models/",
@@ -3160,7 +3190,17 @@ DLBCLone_load_optimized <- function(
 #' 
 #' library(GAMBLR.predict)
 #' 
-#' result <- DLBCLone_train_mixture_model(umap_out)
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#' 
+#' result <- DLBCLone_train_mixture_model(umap_out = make_umap)
 #' head(result$predictions)
 #' 
 DLBCLone_train_mixture_model = function(umap_out,
@@ -3267,7 +3307,22 @@ return(to_return)
 #' 
 #' library(GAMBLR.predict)
 #' 
-#' result <- DLBCLone_predict_mixture_model(model, umap_out)
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#' 
+#' mixture_model <- DLBCLone_train_mixture_model(umap_out = make_umap)
+#' 
+#' result <- DLBCLone_predict_mixture_model(
+#'   model=mixture_model,
+#'   umap_out=make_umap
+#' )
 #' head(result$predictions)
 #'
 #' 

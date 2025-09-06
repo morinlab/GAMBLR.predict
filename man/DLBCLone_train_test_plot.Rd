@@ -51,6 +51,7 @@ Plot the result of a DLBCLone classification
 \examples{
 #add the dataset name to the metadata if it's not already there (required for the plot work)
 
+\dontrun{
 library(GAMBLR.predict)
 
 lymphgen_A53_DLBCLone$df$dataset = "GAMBL"
@@ -63,5 +64,6 @@ DLBCLone_train_test_plot(
  details = lymphgen_A53_DLBCLone$best_params,
  classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"),
  annotate_accuracy=TRUE,label_offset = 1)
+}
 
 }

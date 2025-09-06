@@ -60,6 +60,11 @@ all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",pack
 
 dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 
+dlbcl_knn <- DLBCLone_KNN(  
+  features_df = all_full_status,
+  metadata = dlbcl_meta
+)
+
 predictions <- DLBCLone_KNN_predict(
   train_df = all_full_status,
   test_df = lyseq_validation_data,

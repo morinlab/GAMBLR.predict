@@ -25,6 +25,7 @@ model storage for DLBCLone outputs
 }
 \examples{
 
+\dontrun{
 library(GAMBLR.predict)
 
 DLBCLone_save_optimized(
@@ -32,5 +33,6 @@ DLBCLone_save_optimized(
  path="/save_optimized/trial_folder",
  name_prefix="test_A"
 )
+}
 
 }

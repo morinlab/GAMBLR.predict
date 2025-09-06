@@ -19,11 +19,13 @@ load previously saved DLBCLone model and parameters
 }
 \examples{
 
+\dontrun{
 library(GAMBLR.predict)
 
 load_optimized <- DLBCLone_load_optimized(
   path="/save_optimized/trial_folder",
   name_prefix="test_A"
 )
+}
 
 }

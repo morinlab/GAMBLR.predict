@@ -53,6 +53,21 @@ library(GAMBLR.predict)
 
 dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 
+make_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
+
+optimize_params <- DLBCLone_optimize_params(  
+  all_full_status, 
+  dlbcl_meta,
+  umap_out = make_umap,
+  truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+  optimize_for_other = T,
+  min_k=5,
+  max_k=23
+)
+
 predict_single <- predict_single_sample_DLBCLone(
   test_df = optimize_params$features[1,],
   train_metadata = dlbcl_meta, 

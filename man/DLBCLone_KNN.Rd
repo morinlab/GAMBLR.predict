@@ -100,10 +100,7 @@ dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",
 
 dlbcl_knn <- DLBCLone_KNN(  
   features_df = all_full_status,
-  metadata = dlbcl_meta,
-  min_k = 5,
-  max_k = 21,
-  optimize_for_other = TRUE
+  metadata = dlbcl_meta
 )
 
 }
