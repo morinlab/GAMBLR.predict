@@ -9,13 +9,15 @@ weighted_knn_predict_with_conf(
   train_labels,
   test_coords,
   k,
-  epsilon = 1e-05,
+  epsilon = 0.1,
   conf_threshold = NULL,
-  na_label = "Other",
+  other_class = "Other",
   verbose = FALSE,
   use_weights = TRUE,
-  ignore_top = FALSE,
-  track_neighbors = FALSE
+  ignore_self = TRUE,
+  track_neighbors = TRUE,
+  separate_other = TRUE,
+  max_neighbors = 500
 )
 }
 \arguments{
@@ -36,22 +38,37 @@ when use_weights is TRUE. Default: 1e-5}
 \item{conf_threshold}{Minimum confidence for classifying a sample based on
 it's neighbors. Below this value the sample will be assigned na_label instead}
 
-\item{na_label}{Class to assign all samples that are not confidently assigned.
-Default: Other}
-
 \item{verbose}{Whether to print verbose outputs to console}
 
 \item{use_weights}{Set to FALSE for all neigbors to have equal weight when
 calculating the confidence}
 
-\item{ignore_top}{Set to TRUE to avoid considering a nearest neighbor with
-distance = 0. This is usually only relevant when re-classifying labeled
-samples to estimate overall accuracy}
-
 \item{track_neighbors}{Set to TRUE to include details for the nearest neighbors of each sample}
+
+\item{separate_other}{Set to TRUE to treat the "Other" class separately
+when calculating the confidence.}
+
+\item{max_neighbors}{Maximum number of neighbors to consider for each sample. Default 500.}
+
+\item{na_label}{Class to assign all samples that are not confidently assigned.
+Default: Other}
 }
 \value{
-data frame with labels and confidence values for rows in test_coords
+Data frame with rows = test samples and columns:
+\item{predicted_label}{the predicted class}
+\item{confidence}{predicted class weight / total weight}
+If \code{track_neighbors = TRUE}, additional columns:
+\item{other_score}{relative weight of outgroup vs predicted class}
+\item{neighbor_id}{comma-separated neighbor sample IDs}
+\item{neighbor}{comma-separated neighbor indices (in train order)}
+\item{distance}{comma-separated neighbor distances}
+\item{label}{comma-separated neighbor labels (in-group only if separate_other=TRUE)}
+\item{vote_labels}{comma-separated unique labels contributing to weights}
+\item{weighted_votes}{comma-separated weights per \code{vote_labels}}
+\item{neighbors_other}{count of outgroup neighbors closer than the farthest in-group neighbor}
+\item{other_weighted_votes}{sum of outgroup weights closer than the farthest in-group neighbor}
+\item{total_w}{sum of weights for in-group neighbors used}
+\item{pred_w}{weight supporting the predicted class}
 }
 \description{
 Weighted k-nearest neighbor with confidence estimate
