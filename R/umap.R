@@ -2794,6 +2794,9 @@ prepare_single_sample_DLBCLone <- function(optimized_model,seed=12345){
 #' 
 #' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 #' 
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
 #' make_umap <- make_and_annotate_umap(
 #'   df=all_full_status,
 #'   metadata=dlbcl_meta
@@ -2816,218 +2819,186 @@ prepare_single_sample_DLBCLone <- function(optimized_model,seed=12345){
 #' )
 #'
 predict_single_sample_DLBCLone <- function(
-    test_df,
-    train_df,
-    train_metadata,
-    projection,
-    umap_out,
-    best_params,
-    optimized_model = NULL,
-    other_df,
-    ignore_self = FALSE,
-    truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
-    drop_unlabeled_from_training=TRUE,
-    make_plot = TRUE,
-    annotate_accuracy = FALSE,
-    label_offset = 2,
-    title1="GAMBL",
-    title2="predicted_class_for_HighConf",
-    title3 ="predicted_class_for_Other",
-    seed = 12345,
-    max_neighbors = 500,
-    other_class = "Other"
+  test_df,
+  train_metadata,
+  optimized_model = NULL,
+  truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
+  seed = 12345,
+  max_neighbors = 500
 ){
-    set.seed(seed)
-    if(is.null(optimized_model)){
-      warning("optimized_model will become a required argument in the future. Please update your code accordingly")
-    }
-    if(ignore_self){
-        # Allow overlapping samples: rename test duplicates temporarily
-        dupes <- intersect(train_df$sample_id, test_df$sample_id)
-        if(length(dupes) > 0){
-            test_df <- test_df %>%
-                mutate(sample_id = ifelse(
-                    sample_id %in% dupes,
-                    paste0(sample_id, "_test"),
-                    sample_id
-                ))
-        }
-    } else {
-        # Drop overlaps to prevent rowname collisions
-        dupes <- intersect(train_df$sample_id, test_df$sample_id)
+  if(is.null(optimized_model)){
+    stop("optimized_model the output of DLBCLone_optimize_params is a required argument. Please update your code accordingly")
+  }
 
-    }
+  if(any(!colnames(test_df) %in% colnames(optimized_model$features))){
+    stop(
+      "test_df should not contain any features that are not in training data. ",
+      "Please check the column names of test_df and optimized_model$features."
+    )
+  }
 
+  bad_samps <- rowSums(test_df) == 0 
+  bad_test_df <- test_df[bad_samps, ]  %>%
+    rownames_to_column("sample_id") %>%
+    select(sample_id)
+  test_df <- test_df[!bad_samps, ]
 
-    train_df = train_df %>%
-        column_to_rownames("sample_id") %>%
-
-        rownames_to_column("sample_id")
-    train_id <- train_df$sample_id
-
-    test_df = test_df %>%
-        column_to_rownames("sample_id") %>%
-
-        rownames_to_column("sample_id")
-    test_id <- test_df$sample_id
+  test_id <- test_df %>% 
+    rownames_to_column("sample_id") %>% 
+    pull(sample_id)
     
-    combined_df <- bind_rows(train_df, test_df)
-    
-    if(missing(projection)){
-      projection <- make_and_annotate_umap(
-        df = combined_df,
-        umap_out = umap_out,
-        ret_model = FALSE,
-        seed = seed,
-        join_column = "sample_id",
-        na_vals = best_params$na_option
-      )
-    }else{
-      message("Using provided projection for prediction")
-    }
-    
-
-    train_coords = dplyr::filter(
-        projection$df,
-        sample_id %in% train_id
-    ) %>% 
-        select(sample_id,V1,V2) %>%
-        column_to_rownames("sample_id")
-    print("TRAIN:")
-    print(dim(train_coords))
-    train_df_proj = dplyr::filter(
-        projection$df,
-        sample_id %in% train_id
-    ) %>% 
+  train_coords = dplyr::filter(
+    optimized_model$df
+  ) %>% 
     select(sample_id,V1,V2) %>%
-        left_join( #Join to the incoming metadata rather than trusting the metadata in the projection
-            train_metadata %>% select(
-                sample_id, 
-                lymphgen
-            ), 
-            by = "sample_id"
-        )
+    column_to_rownames("sample_id")
 
-    train_labels = train_df_proj %>%
-        pull(lymphgen) 
+  train_df_proj = dplyr::filter(
+    optimized_model$df
+  ) %>% 
+  select(sample_id,V1,V2) %>%
+  left_join( #Join to the incoming metadata rather than trusting the metadata in the projection
+    train_metadata %>% 
+    select(
+      sample_id, 
+      lymphgen
+    ), 
+    by = "sample_id"
+  )
 
-    #Obtain UMAP coordinates for the test sample(s)
-    print(paste("num rows:",nrow(test_df)))
-    test_projection <- make_and_annotate_umap(
-        df = test_df,
-        umap_out = umap_out,
-        ret_model = FALSE,
-        seed = seed,
-        join_column = "sample_id",
-        na_vals = best_params$na_option
-      )
-    test_coords = dplyr::filter(
-        test_projection$df,
-        sample_id %in% test_id
-    ) %>% 
-        select(sample_id,V1,V2) %>%
-        column_to_rownames("sample_id")
+  train_labels = train_df_proj %>%
+    pull(lymphgen) 
 
-    predict_training = FALSE
-    if(predict_training){
-      train_pred = weighted_knn_predict_with_conf(
-        train_coords = train_coords,
-        train_labels = train_labels,
-        test_coords = train_coords, # <- predicitng training on self
-        k = best_params$k,
-        conf_threshold = best_params$threshold,
-        other_class = other_class,
-        use_weights = best_params$use_weights,
-        ignore_self = ignore_self
-      )
+  #Obtain UMAP coordinates for the test sample(s)
+  print(paste("num rows:",nrow(test_df)))
+  test_projection <- make_and_annotate_umap(
+    df = test_df,
+    umap_out = optimized_model,
+    ret_model = FALSE,
+    seed = seed,
+    join_column = "sample_id",
+    na_vals = optimized_model$best_params$na_option
+  )
 
-      train_pred = rownames_to_column(train_pred, var = "sample_id")
-    }
-    
+  test_coords = dplyr::filter(
+    test_projection$df,
+    sample_id %in% test_id
+  ) %>% 
+    select(sample_id,V1,V2) %>%
+    column_to_rownames("sample_id")
  
-    test_pred = weighted_knn_predict_with_conf(
-        train_coords = train_coords,
-        train_labels = train_labels,
-        test_coords = test_coords,
-        k = best_params$k,
-        conf_threshold = best_params$threshold,
-        other_class = other_class,
-        use_weights = best_params$use_weights,
-        ignore_self = ignore_self,
-        max_neighbors = max_neighbors
-    )
+  test_pred = weighted_knn_predict_with_conf(
+    train_coords = train_coords,
+    train_labels = train_labels,
+    test_coords = test_coords,
+    k = optimized_model$best_params$k,
+    conf_threshold = optimized_model$best_params$threshold,
+    na_label = "Other",
+    use_weights = optimized_model$best_params$use_weights,
+    max_neighbors = max_neighbors
+  )
 
-    test_pred = rownames_to_column(test_pred, var = "sample_id")
-    #test_pred = bind_cols(test_pred, test_coords)
-    if(!is.null(optimized_model)){
-      test_pred = mutate(test_pred, 
-                       DLBCLone_i = predicted_label,
-                       DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
-                                                          other_class,
-                                                          predicted_label)) 
+  test_pred = rownames_to_column(test_pred, var = "sample_id")
+  if(!is.null(optimized_model)){
+    test_pred = mutate(
+      test_pred, 
+      DLBCLone_i = predicted_label,
+      DLBCLone_io = ifelse(
+        other_score > optimized_model$best_params$threshold_outgroup,
+        "Other",
+        predicted_label
+      )
+    ) 
 
-    }else{
-      test_pred = mutate(test_pred, 
-                       DLBCLone_i = predicted_label,
-                       DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup,
-                                                         other_class,
-                                                          predicted_label)) 
-    }
+  }else{
+    test_pred = mutate(
+      test_pred, 
+      DLBCLone_i = predicted_label,
+      DLBCLone_io = ifelse(
+        other_score > optimized_model$best_params$threshold_outgroup,
+        "Other",
+        predicted_label
+      )
+    ) 
+  }
   
-    anno_umap = select(test_projection$df, sample_id, V1, V2) 
+  anno_umap = select(test_projection$df, sample_id, V1, V2)
 
-    anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
-        mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
+  anno_out = left_join(test_pred,anno_umap,by="sample_id") %>%
+    mutate(label = paste(sample_id,predicted_label,round(confidence,3)))
 
-    anno_out = anno_out %>%
+  anno_out = anno_out %>%
     mutate(
-        V1 = as.numeric(V1),
-        V2 = as.numeric(V2),
-        label = as.character(label)
-    )
-    if(predict_training){
-      predictions_train_df = left_join(train_pred, projection$df, by = "sample_id") 
-    }else{
-      predictions_train_df = filter(projection$df, sample_id %in% train_id) %>%
-        select(sample_id, V1, V2) 
-    }
-    #This had assumed that projection$df contains the test samples!
-    #predictions_test_df = left_join(test_pred, projection$df, by = "sample_id")
-    predictions_test_df = left_join(test_pred, test_projection$df, by = "sample_id") 
+      V1 = as.numeric(V1),
+      V2 = as.numeric(V2),
+      label = as.character(label)
+  )
 
-    predictions_df = bind_rows(predictions_train_df %>% select(sample_id, V1, V2), 
-                               predictions_test_df  %>% select(sample_id, V1, V2))
+  predictions_train_df = filter(
+    optimized_model$df
+  ) %>%
+    select(sample_id, V1, V2) 
 
-    if(!is.null(optimized_model)){
-      best_w_purity = optimized_model$best_w_purity
-      best_w_score_thresh = optimized_model$best_w_score_thresh
+  predictions_test_df = left_join(test_pred, test_projection$df, by = "sample_id") 
+
+  predictions_df = bind_rows(
+    predictions_train_df %>% select(sample_id, V1, V2), 
+    predictions_test_df  %>% select(sample_id, V1, V2)
+  )
+
+  if(!is.null(optimized_model)){
+    best_w_purity = optimized_model$best_w_purity
+    best_w_score_thresh = optimized_model$best_w_score_thresh
       
-      predictions_test_df = process_votes(
-        df=predictions_test_df,
-        group_labels=optimized_model$truth_classes,
-        k=optimized_model$k_DLBCLone_w) 
+    predictions_test_df = process_votes(
+      df=predictions_test_df,
+      group_labels=optimized_model$truth_classes,
+      k=optimized_model$k_DLBCLone_w
+    ) 
       
-      predictions_test_df = predictions_test_df %>%
-        mutate(DLBCLone_w = by_score,
-          DLBCLone_wo = ifelse(score_ratio >= optimized_model$purity_DLBCLone_w | 
-                                  top_group_score > optimized_model$score_thresh_DLBCLone_w, 
-                                by_score, 
-                                other_class))
-
+    predictions_test_df = predictions_test_df %>%
+      mutate(
+        DLBCLone_w = by_score,
+        DLBCLone_wo = ifelse(
+          score_ratio >= optimized_model$purity_DLBCLone_w | top_group_score > optimized_model$score_thresh_DLBCLone_w, 
+          by_score, 
+          "Other"
+        )
+      )
     }
-    to_return = list(
-        prediction = predictions_test_df, 
-        projection = projection$df,
-        umap_input = umap_out$features, 
-        model=umap_out$model,
-        features_df = combined_df %>% column_to_rownames("sample_id"),
-        df = predictions_df,
-        anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id"),
-        anno_out = anno_out,
-        type = "predict_single_sample_DLBCLone"
+
+    predictions_test_df = predictions_test_df %>%
+      bind_rows(
+        bad_test_df %>%
+        mutate(
+          predicted_label = "Other",
+          confidence = 1
+        ) 
       )
 
-    return(to_return)
+    combined_df <- bind_rows(
+      optimized_model$features %>% rownames_to_column("sample_id"),
+      test_df %>% rownames_to_column("sample_id")
+    ) %>%
+      distinct(sample_id, .keep_all = TRUE) %>%  # keep first occurrence
+      column_to_rownames("sample_id")
+
+    if(any(!colnames(optimized_model$features) %in% colnames(test_df))){
+      message("filling in missing features in test_df with zeros")
+      combined_df[is.na(combined_df)] = 0
+    }
+
+    to_return = list(
+      predictions = predictions_test_df, 
+      df = predictions_df,
+      anno_df = predictions_df %>% left_join(.,train_metadata,by="sample_id"),
+      anno_out = anno_out,
+      features_df = combined_df,
+      type = "predict_single_sample_DLBCLone",
+      optimized_predictions = optimized_model$predictions
+    )
+
+  return(to_return)
 }
 
 #' model storage for DLBCLone outputs

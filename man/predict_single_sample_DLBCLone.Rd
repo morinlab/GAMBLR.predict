@@ -6,25 +6,11 @@
 \usage{
 predict_single_sample_DLBCLone(
   test_df,
-  train_df,
   train_metadata,
-  projection,
-  umap_out,
-  best_params,
   optimized_model = NULL,
-  other_df,
-  ignore_self = FALSE,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
-  drop_unlabeled_from_training = TRUE,
-  make_plot = TRUE,
-  annotate_accuracy = FALSE,
-  label_offset = 2,
-  title1 = "GAMBL",
-  title2 = "predicted_class_for_HighConf",
-  title3 = "predicted_class_for_Other",
   seed = 12345,
-  max_neighbors = 500,
-  other_class = "Other"
+  max_neighbors = 500
 )
 }
 \arguments{
@@ -52,6 +38,9 @@ Predict class for a single sample without using umap_transform and plot result o
 library(GAMBLR.predict)
 
 dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) \%>\%
+ tibble::column_to_rownames("sample_id")
 
 make_umap <- make_and_annotate_umap(
   df=all_full_status,
