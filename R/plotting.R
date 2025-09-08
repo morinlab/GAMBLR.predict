@@ -63,7 +63,7 @@ nearest_neighbor_heatmap <- function(
   feats_mat  <- NULL
   neighbors  <- character(0)
 
-  if (model_type %in% c("DLBCLone_KNN", "predict_single_sample_DLBCLone")) {
+  if (model_type %in% c("DLBCLone_KNN", "DLBCLone_predict")) {
     # Needs unlabeled_neighbors present (for KNN path)
     if (model_type == "DLBCLone_KNN") {
       if (!"unlabeled_neighbors" %in% names(DLBCLone_model) || is.null(DLBCLone_model$unlabeled_neighbors)) {
@@ -73,7 +73,7 @@ nearest_neighbor_heatmap <- function(
       neighbors <- .neighbors_for(DLBCLone_model$unlabeled_neighbors, this_sample_id)
       pred_col  <- "DLBCLone_ko"
     } else {
-      # predict_single_sample_DLBCLone stores neighbor_ids in prediction$neighbor_id
+      # DLBCLone_predict stores neighbor_ids in prediction$neighbor_id
       # Reconstruct a tiny neighbors df on the fly to reuse helper
       
       DLBCLone_model$predictions = DLBCLone_model$prediction
@@ -85,7 +85,7 @@ nearest_neighbor_heatmap <- function(
       }
       neighbors <- strsplit(pred_row$neighbor_id[1], ",", fixed = TRUE)[[1]]
       neighbors <- as.character(na.omit(neighbors))
-      pred_col <- "DLBCLone_io" #eventually needs to support io or wo
+      pred_col <- "DLBCLone_wo" #eventually needs to support io or wo
 
     }
 
@@ -108,6 +108,8 @@ nearest_neighbor_heatmap <- function(
     }
     neighbors <- strsplit(pred_row$neighbor_id[1], ",", fixed = TRUE)[[1]]
     neighbors <- as.character(na.omit(neighbors))
+    neighbor_dists <- strsplit(pred_row$distance[1], ",", fixed = TRUE)[[1]]
+    neighbor_dists <- as.numeric(na.omit(neighbor_dists))
     other_neighbors <- strsplit(pred_row$other_neighbor[1], ",", fixed = TRUE)[[1]]
     other_neighbors <- as.character(na.omit(other_neighbors))
     neighbors = unique(c(neighbors, other_neighbors))
@@ -118,7 +120,7 @@ nearest_neighbor_heatmap <- function(
     pred_col <- "predicted_label_optimized"
 
   } else {
-    stop("DLBCLone_model$type must be one of: DLBCLone_KNN, predict_single_sample_DLBCLone, DLBCLone_optimize_params")
+    stop("DLBCLone_model$type must be one of: DLBCLone_KNN, DLBCLone_predict, DLBCLone_optimize_params")
   }
 
   # Make sure the focal sample itself is included (to show in heatmap/annotation)
@@ -130,7 +132,7 @@ nearest_neighbor_heatmap <- function(
 
   # Subset feature matrix; require that all neighbor rows exist
   xx <- feats_mat[neighbors, , drop = FALSE]
-  
+ 
   if (any(is.na(rownames(xx)))) {
     print(neighbors)
     stop("Some neighbor samples are missing from
@@ -152,25 +154,43 @@ nearest_neighbor_heatmap <- function(
   # ----- Build row annotation data -----
   # Start from predictions; join metadata if present
   preds <- DLBCLone_model$predictions
-  
+
   if (is.null(preds) || !"sample_id" %in% names(preds)) {
     stop("Model object missing predictions with 'sample_id'.")
   }
 
   # If metadata present, join so we can pull truth_column from there if needed
   if ("metadata" %in% names(DLBCLone_model) && !is.null(DLBCLone_model$metadata)) {
-    preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
+    if(DLBCLone_model$type=="DLBCLone_predict"){
+      #need to pool together training sample metadata with predictions
+      train_meta = DLBCLone_model$metadata %>% 
+        dplyr::select(dplyr::all_of(c("sample_id", truth_column, metadata_cols)))
+       #preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
+     
+      preds <- dplyr::bind_rows(
+        train_meta,
+        preds
+      ) %>% dplyr::distinct(sample_id, .keep_all = TRUE)
+      
+      #preds %>% select(sample_id,lymphgen,DLBCLone_wo) %>% head() %>% print()
+    }else{
+      preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
+    }
+    #preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
+    #print(colnames(preds))
+  }else{
+    warning("No metadata found in model; truth_column and metadata_cols may be missing.")
   }
 
   # Columns to annotate
   cols_to_select <- unique(c("sample_id", truth_column, pred_col, metadata_cols))
   #print(cols_to_select)
   cols_to_select <- cols_to_select[cols_to_select %in% names(preds)]
-  
+
   row_df <- preds %>%
     dplyr::select(dplyr::all_of(cols_to_select)) %>%
     dplyr::filter(.data$sample_id %in% rownames(xx))
-
+  
   # If the focal sample is missing from predictions (common for "unlabeled"),
   # try unlabeled_predictions
   sample_class <- NA_character_
@@ -233,7 +253,7 @@ nearest_neighbor_heatmap <- function(
   # Title
   title_text <- paste("Sample", this_sample_id, "classified as",
     ifelse(is.na(sample_class), "<NA>", sample_class))
-  print("HERE")
+  
   if(gene_orientation == "column"){
     row_anno <- ComplexHeatmap::rowAnnotation(
         df  = row_df,
@@ -994,7 +1014,8 @@ make_umap_scatterplot = function(df,
                                  high_confidence = FALSE,
                                  custom_colours,
                                  add_labels = FALSE,
-                                 title = NULL){
+                                 title = NULL,
+                                 base_size=8){
   xmin = min(df$V1,na.rm=TRUE)
   xmax = max(df$V1,na.rm=TRUE)
   ymin = min(df$V2,na.rm=TRUE)
@@ -1021,22 +1042,26 @@ make_umap_scatterplot = function(df,
       summarise(median_x = median(V1),median_y = median(V2)) 
   }
   unique_lg = unique(df[[colour_by]])
+
   if(any(!unique_lg %in% names(cols))){
     missing = unique_lg[!unique_lg %in% names(cols)]
     print(paste("missing colour for:",paste(missing,collapse=",")))
 
   }
+  point_size = base_size/12
   p = ggplot(df,
              aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + 
-             geom_point(alpha=0) + 
-             geom_point(data=df %>% filter(!!sym(colour_by) =="Other"),alpha=0.8) + 
-             geom_point(data=df %>% filter(!!sym(colour_by) !="Other"),alpha=0.8) + 
+             geom_point(alpha=0,size=point_size) + 
+             geom_point(data=df %>% filter(!!sym(colour_by) =="Other"),alpha=0.8,size=point_size) + 
+             geom_point(data=df %>% filter(!!sym(colour_by) !="Other"),alpha=0.8,size=point_size) + 
     scale_colour_manual(values=cols) + 
     scale_fill_manual(values=cols) + 
-    theme_Morons() + 
+    theme_Morons(base_size = base_size) + 
     guides(colour = guide_legend(nrow = 1)) + 
     xlim(xmin,xmax) + 
-    ylim(ymin,ymax) 
+    ylim(ymin,ymax) + 
+    theme(axis.title.x = element_blank(),
+      axis.title.y = element_blank())
   if(!is.null(title)){
     p = p + ggtitle(title)
   }
@@ -1276,8 +1301,8 @@ make_alluvial <- function(
       group_order = sort(unique(c(predictions[[pred_column]],predictions[[truth_column]])))
     }
     
-    print("setting group order:")
-    print(group_order)
+    #print("setting group order:")
+    #print(group_order)
   }
 
 
@@ -1338,7 +1363,9 @@ make_alluvial <- function(
 
   pc_conc = filter(xy,match==TRUE) %>% pull(percent) %>% round(.,1)
   if("Other" %in% group_order){
-    title = paste0(title," Concordance (non-Other): ",pc_conc,"%")
+    if(add_accuracy_to_title){
+      title = paste0(title," Concordance (non-Other): ",pc_conc,"%")
+    }
   }
   bacc = round(accuracies$mean_balanced_accuracy,4)
   
@@ -1495,8 +1522,10 @@ if(add_percent){
       mutate(label=paste0(total,"\n (",unclass,"%)")) %>%
                mutate(!!sym(truth_name) := "Other",!!sym(pred_name) := "Other")
     unclass = pull(right_other,unclass)
-    title = paste0(title,", Classification rate: ",100-unclass,"%")
-    title = paste0(title," Bal Acc: ",bacc)
+    if(add_accuracy_to_title){
+      title = paste0(title,", Classification rate: ",100-unclass,"%")
+      title = paste0(title," Bal Acc: ",bacc)
+    }
     left_other = filter(lodes_mean_left,left_group=="Other",axis==2) %>%
       summarize(total=sum(num)) %>%
       mutate(unclass= round(100 * total / full_denominator,1)) %>%

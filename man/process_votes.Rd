@@ -9,12 +9,13 @@ process_votes(
   raw_col = "label",
   group_labels = c("EZB", "MCD", "ST2", "BN2", "N1", "Other"),
   vote_labels_col = "vote_labels",
+  weighted_votes_col = "weighted_votes",
   k,
   other_vote_multiplier = 2,
   score_purity_requirement = 1,
-  weighted_votes_col = "weighted_votes",
   other_class = "Other",
-  optimize_for_other = TRUE
+  optimize_for_other = TRUE,
+  debug = FALSE
 )
 }
 \arguments{
@@ -26,13 +27,13 @@ process_votes(
 
 \item{vote_labels_col}{Name of the column containing the comma-separated neighbor labels for weighted votes (default: "vote_labels").}
 
+\item{weighted_votes_col}{Name of the column containing the comma-separated weighted votes (default: "weighted_votes").}
+
 \item{k}{Number of neighbors used in kNN (required).}
 
 \item{other_vote_multiplier}{Multiplier for the "Other" class when determining if a sample should be reclassified as "Other" (default: 2).}
 
 \item{score_purity_requirement}{Minimum ratio of top group score to "Other" score to assign a sample to the top group (default: 1).}
-
-\item{weighted_votes_col}{Name of the column containing the comma-separated weighted votes (default: "weighted_votes").}
 }
 \value{
 Data frame with additional columns for per-class neighbor counts, scores, top group assignments, and summary statistics for each sample.

@@ -12,7 +12,8 @@ make_umap_scatterplot(
   high_confidence = FALSE,
   custom_colours,
   add_labels = FALSE,
-  title = NULL
+  title = NULL,
+  base_size = 8
 )
 }
 \arguments{
