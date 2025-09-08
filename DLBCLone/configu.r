@@ -35,9 +35,6 @@ tier1_genes = lymphoma_genes %>% filter(DLBCL_Tier==1) %>% pull(Gene)
 tier1_genes = tier1_genes[tier1_genes %in% colnames(full_status)]
 tier1_genes = unique(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",tier1_genes))
 
-#dlbcl_meta_clean <- read_tsv(file = paste0(here::here(), "/dlbcl_meta_clean.tsv"))
-#dlbcl_meta_clean <- read_tsv(file = paste0(here::here(), "/dlbcl_meta_with_dlbclass.tsv")) %>%
-#  mutate(DLBClass = ifelse(Confidence > 0.7,PredictedCluster,"Other")) 
 
 dlbcl_meta_clean = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "dlbcl_meta_with_dlbclass.tsv"))
 

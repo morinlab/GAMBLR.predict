@@ -498,7 +498,7 @@ addResourcePath("predictions", pred_dir)
             unlist() %>%
             .[2]
 
-        # ⚠️ isolate() avoids requiring a reactive context
+        # isolate() avoids requiring a reactive context
         stored_predictions <- isolate(prediction_store())
         preds <- stored_predictions[[run_id]]
 
