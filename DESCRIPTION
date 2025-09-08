@@ -30,7 +30,17 @@ Imports:
     tidyr,
     tidyselect,
     uwot,
-    ggside
+    ggside,
+    grid,
+    circlize,
+    ComplexHeatmap,
+    shinyjs,
+    ggrepel,
+    mclust,
+    DT,
+    FNN,
+    caret,
+    ggalluvial
 Remotes:
     morinlab/GAMBLR.data,
     morinlab/GAMBLR.helpers
