@@ -12,6 +12,8 @@
 #' @import plotly
 #' @import shinyjs
 #' @import ggplot2
+#' @import ggside
+#' @import purrr
 DLBCLone_shiny <- function(...){
     ## Preamble
 lyseq_genes <- sort(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",
@@ -42,6 +44,7 @@ lyseq_genes <- sort(c("BCL2_SV","BCL6_SV","MYD88HOTSPOT",
   "MS4A1", "CD19", "HNRNPD", "NFKBIE", "TMSB4X"
 ))
 
+default_panel <- "Coyle"
 
 #full_status <- read_tsv(file = paste0(here::here(), "/all_full_status.tsv")) %>% column_to_rownames("sample_id")
 full_status = read_tsv(file=system.file(package = "GAMBLR.predict", "extdata", "all_full_status.tsv")) %>% column_to_rownames("sample_id")

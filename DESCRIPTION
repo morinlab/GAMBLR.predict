@@ -32,6 +32,7 @@ Imports:
     uwot,
     ggside,
     grid,
+    purrr,
     circlize,
     ComplexHeatmap,
     shinyjs,
