@@ -8,6 +8,10 @@ make_and_annotate_umap(
   df,
   metadata,
   umap_out,
+  truth_column = "lymphgen",
+  core_features = NULL,
+  core_feature_multiplier = 1.5,
+  hidden_features = NULL,
   n_neighbors = 55,
   min_dist = 0,
   metric = "cosine",
@@ -16,7 +20,13 @@ make_and_annotate_umap(
   ret_model = TRUE,
   na_vals = "drop",
   join_column = "sample_id",
-  seed = 42
+  seed = 12345,
+  target_column,
+  target_metric = "euclidean",
+  target_weight = 0.5,
+  calc_dispersion = FALSE,
+  algorithm = "tumap",
+  make_plot = FALSE
 )
 }
 \arguments{
@@ -54,15 +64,14 @@ Run UMAP and attach result to metadata
 }
 \examples{
 
-umap_outs = make_and_annotate_umap(df=gambl_train_lymphgen,
-                           min_dist = 0,
-                           n_neighbors = 55,
-                           init="spectral",
-                           n_epochs = 1500,
-                           #seed=best_params$seed,
-                           metadata=gambl_train_meta_dlbclass,
-                           ret_model=T,
-                           metric="cosine")
+#library(GAMBLR.predict)
 
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) \%>\%
+ tibble::column_to_rownames("sample_id")
+dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+my_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
 
 }

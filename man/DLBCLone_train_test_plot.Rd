@@ -2,7 +2,7 @@
 % Please edit documentation in R/umap.R
 \name{DLBCLone_train_test_plot}
 \alias{DLBCLone_train_test_plot}
-\title{Plot the result of a lymphgen classification}
+\title{Plot the result of a DLBCLone classification}
 \usage{
 DLBCLone_train_test_plot(
   test_df,
@@ -13,9 +13,10 @@ DLBCLone_train_test_plot(
   annotate_accuracy = FALSE,
   classes = c("BN2", "ST2", "MCD", "EZB", "N1"),
   label_offset = 2,
-  title1 = "GAMBL",
-  title2 = "predicted_class_for_HighConf",
-  title3 = "predicted_class_for_Other"
+  title1 = "Original Class",
+  title2 = "DLBCLone Predicted Class",
+  title3 = "DLBCLone Predicted Class (Other)",
+  base_size = 1
 )
 }
 \arguments{
@@ -45,7 +46,7 @@ DLBCLone_train_test_plot(
 a ggplot object
 }
 \description{
-Plot the result of a lymphgen classification
+Plot the result of a DLBCLone classification
 }
 \examples{
 #add the dataset name to the metadata if it's not already there (required for the plot work)

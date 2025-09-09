@@ -9,45 +9,89 @@ DLBCLone_optimize_params(
   metadata_df,
   umap_out,
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
-  eval_group = "Lacy",
+  truth_column = "lymphgen",
+  optimize_for_other = FALSE,
+  eval_group = NULL,
   min_k = 3,
-  max_k = 30,
+  max_k = 23,
   verbose = FALSE,
-  seed = 12345
+  seed = 12345,
+  maximize = "balanced_accuracy",
+  cap_classification_rate = 1,
+  exclude_other_for_accuracy = FALSE,
+  weights_opt = c(TRUE)
 )
 }
 \arguments{
-\item{combined_mutation_status_df}{Data frame with one row per sample and one column per mutation}
+\item{combined_mutation_status_df}{Data frame with one row per sample and
+one column per mutation}
 
-\item{metadata_df}{Data frame of metadata with one row per sample and three required columns: sample_id, dataset and lymphgen}
+\item{metadata_df}{Data frame of metadata with one row per sample and
+three required columns: sample_id, dataset and lymphgen}
 
-\item{umap_out}{additional argument}
+\item{umap_out}{The output of a previous run of make_and_annotate_umap.
+If provided, the function will use this model to project the data
+instead of re-running UMAP.}
 
-\item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2","Other")}
+\item{truth_classes}{Vector of classes to use for training and testing.
+Default: c("EZB","MCD","ST2","N1","BN2","Other")}
 
-\item{eval_group}{Specify whether certain rows will be evaluated and held out from training rather than using all samples.}
+\item{optimize_for_other}{Set to TRUE to optimize the threshold for
+classifying samples as "Other" based on the relative proportion of
+samples near the sample in UMAP space with the "Other" label. Rather than
+treating Other as just another class, this will optimize the threshold for
+a separate score that considers how many Other and non-Other samples are
+in the neighborhood of the sample in question. This parameter will NOT change
+the value in predicted_label. Instead, the predicted_label_optimized column
+will contain the optimized label. Default: FALSE}
 
-\item{min_k}{additional argument}
+\item{eval_group}{If desired, use this to specify which rows will be
+evaluated and held out from training rather than using all samples.
+NOTE: this parameter will probably become deprecated!}
 
-\item{max_k}{additional argument}
+\item{min_k}{Starting k for knn (Default: 3)}
 
-\item{verbose}{additional argument}
+\item{max_k}{Ending k for knn (Default: 33)}
 
-\item{seed}{additional argument}
+\item{verbose}{Whether to print verbose outputs to console}
+
+\item{seed}{Random seed to use for reproducibility (default: 12345)}
+
+\item{maximize}{Metric to use for optimization. Either "sensitivity"
+(average sensitivity across all classes), "accuracy"
+(actual accuracy across all samples) or "balanced_accuracy" (the mean of the
+balanced accuracy values across all classes). Default: "balanced_accuracy"}
 }
 \value{
 List of data frames with the results of the parameter optimization
-including the best model, the associated knn parameters and the annotated UMAP output
+including the best model, the associated knn parameters and the annotated
+UMAP output as a data frame. The list also includes the predictions for the
+"Other" class if it was included in the training and testing.
 }
 \description{
 Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 }
 \examples{
 
-lymphgen_A53_DLBCLone =  DLBCLone_optimize_params(
-   lgen_feat_status, #our binary feature matrix
-   a53_meta, #our metadata
-   umap_out = lymphgen_A53_all_feat_gambl, # force use existing UMAP fit
-   eval_group = NULL, # use all samples for evaluating accuracy
-   truth_classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"))
+
+# Aim to maximize classification of samples into non-Other class
+lymphgen_lyseq_no_other =  
+GAMBLR.predict::DLBCLone_optimize_params(  
+ dlbcl_status_combined_lyseq,
+ dlbcl_meta_lyseq_train,
+ min_k = 5,max_k=23,
+ optimize_for_other = F,
+ truth_classes = c("MCD","EZB","ST2","BN2"))
+
+# Aim to maximize balanced accuracy while allowing samples to be
+# unclassified (assigned to "Other")
+
+DLBCLone_lymphgen_lyseq_prime_opt =  
+GAMBLR.predict::DLBCLone_optimize_params(  
+ dlbcl_status_combined_lyseq_prime,
+ dlbcl_meta_lyseq_train,
+ min_k = 5,max_k=23,
+ optimize_for_other = T,
+ truth_classes = c("MCD","EZB","ST2","BN2","Other"))
+
 }
