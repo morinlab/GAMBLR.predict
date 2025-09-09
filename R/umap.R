@@ -2922,7 +2922,7 @@ prepare_single_sample_DLBCLone <- function(optimized_model,seed=12345){
   return(optimized_model)
 }
 
-#" DLBCLone_predict: Predict class for one or more samples using a pre-trained DLBCLone model
+#' Predict class for one or more samples using a pre-trained DLBCLone model
 #'
 #' @param seed Random seed for reproducibility
 #' @param test_df Data frame containing the mutation status of the test sample
