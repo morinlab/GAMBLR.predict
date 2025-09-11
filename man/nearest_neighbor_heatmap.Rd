@@ -11,7 +11,10 @@ nearest_neighbor_heatmap(
   metadata_cols = NULL,
   clustering_distance = "binary",
   font_size = 14,
-  gene_orientation = "column"
+  gene_orientation = "column",
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  show_legend = FALSE
 )
 }
 \arguments{
