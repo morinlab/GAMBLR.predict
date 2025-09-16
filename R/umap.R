@@ -2283,19 +2283,20 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             no_other_acc = report_accuracy(xx_d,
             pred = "predicted_label_optimized",
             truth = truth_column)$mean_balanced_accuracy
-            message("new best accuracy DLBCLone_io:")
-            message(paste(
-                          best_acc, 
-                          "without other: ",
-                          no_other_acc, 
-                          "sensitivity:",
-                          overall_sensitivity,
-                          "threshold_outgroup:",
-                          row$threshold_outgroup))
+            # TODO: remove DLBCLone_i/io in favour of w/wo
+            #message("new best accuracy DLBCLone_io:")
+            #message(paste(
+            #              best_acc, 
+            #              "without other: ",
+            #              no_other_acc, 
+            #              "sensitivity:",
+            #              overall_sensitivity,
+            #              "threshold_outgroup:",
+            #              row$threshold_outgroup))
 
             best_fit = outs
             best_pred = xx_d
-            #all_predictions = bind_rows(all_predictions, xx_d %>% mutate(k=k))
+            
             if(!"Other" %in% truth_classes  && n_other > 0){
               other_pred = pred_other
             }
@@ -2362,6 +2363,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   pred = mutate(pred, DLBCLone_i = predicted_label, DLBCLone_io = predicted_label_optimized)
   best_pred_w = rename(best_pred_w, DLBCLone_wo = DLBCLone_w) #optimized
   best_pred_w = rename(best_pred_w, DLBCLone_w = by_score) #greedy
+  # TODO: Remove DLBCLone_i/io to standardize on DLBCLone_w/wo
+
   #check accuracy again
 
   xx_d = bind_cols(outs$df,pred)
@@ -2901,26 +2904,6 @@ weighted_knn_predict_with_conf <- function(train_coords,
   return(to_return)
 }
 
-#' @export
-prepare_single_sample_DLBCLone <- function(optimized_model,seed=12345){
-  if(!optimized_model$type == "DLBCLone_optimize_params"){
-    stop("Input must be the output of predict_single_sample_DLBCLone")
-  }
-  if(!  "projection" %in% names(optimized_model)){
-      projection <- make_and_annotate_umap(
-        df = optimized_model$features,
-        umap_out = optimized_model,
-        ret_model = FALSE,
-        seed = seed,
-        join_column = "sample_id",
-        na_vals = optimized_model$best_params$na_option
-      )
-    }else{
-      stop("Model already contains a projection. Nothing to do!")
-    }
-  optimized_model$projection = projection
-  return(optimized_model)
-}
 
 #' Predict class for one or more samples using a pre-trained DLBCLone model
 #'
@@ -2956,15 +2939,49 @@ DLBCLone_predict <- function(
   optimized_model,
   mode = "DLBCLone_w",              
   truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
-  make_plot = TRUE,
   annotate_accuracy = FALSE,
   seed = 12345,
   max_neighbors = 500,
-  other_class = "Other"
+  other_class = "Other",
+  fill_missing = FALSE,
+  drop_extra = FALSE,
+  check_frequencies = FALSE
 ){
   ignore_self = TRUE
   stopifnot(!is.null(optimized_model))
   set.seed(seed)
+  #check for inconsistencies in feature set and alter the user if neecssary
+  model_feats = optimized_model$features %>% select(-ends_with("_feats")) %>% colnames()
+  model_missing_feats = setdiff(colnames(mutation_status),model_feats)
+  
+  if(length(model_missing_feats)){
+    if(drop_extra){
+      message("Features not present during training, will be dropped:")
+      message(paste(model_missing_feats,collapse=","))
+      mutation_status = select(mutation_status,-all_of(model_missing_feats))
+      
+    }else{
+      message(paste(model_missing_feats,collapse=","))
+      stop(paste("These features in the provided matrix were not present during training",
+          "Re-run with drop_extra = TRUE or remove them."))
+    }
+    
+  }
+  new_missing_feats = setdiff(model_feats,colnames(mutation_status))
+  if(length(new_missing_feats)){
+     if(fill_missing){
+      message("Features in model not found in your input:")
+      message(paste(new_missing_feats,collapse=","))
+      message("Will assume all samples have zero mutations in these. This is NOT ideal!")
+      for(feat in new_missing_feats){
+        mutation_status[[feat]] = 0
+      }
+      
+    }else{
+      message("Features in model not found in your input:")
+      message(paste(new_missing_feats,collapse=","))
+    }
+  }
 
   # pull params/model from optimized_model (single source of truth)
   best_params <- optimized_model$best_params
@@ -2974,6 +2991,27 @@ DLBCLone_predict <- function(
   train_metadata <- optimized_model$df #not yet weighted but needs to be if core_features was used
   
   weight_core_features = FALSE
+  if(check_frequencies){
+    test_bin = test_df %>% select(-any_of(ends_with("_feats")))
+    test_bin[test_bin>0]=1
+    print(dim(test_bin))
+    train_bin=train_df %>% select(-any_of(ends_with("_feats")))
+    train_bin[train_bin>0]=1
+    print(dim(train_bin))
+    test_freq = colSums(test_bin)/nrow(test_bin)
+
+    train_freq = colSums(train_bin[,colnames(test_bin)])/nrow(train_bin)
+
+    freq_df = data.frame(feature=names(test_freq),
+      freq_test=test_freq,
+      freq_train=train_freq) %>%
+      mutate(deviation = abs(freq_test-freq_train))
+    p=ggplot(freq_df,aes(x=freq_train,y=freq_test,label=feature,colour=deviation)) + 
+    geom_point() + 
+    geom_label(data=filter(freq_df,deviation > 0.1))
+    return(list(plot=p,data=freq_df))
+  }
+  
   if ("core_features" %in% names(optimized_model)) {
 
     core_features = optimized_model$core_features

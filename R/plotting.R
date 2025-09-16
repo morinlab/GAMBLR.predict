@@ -977,8 +977,9 @@ make_alluvial <- function(
     excluded_meta = optimized$sample_metadata_no_features %>%
       mutate(!!pred_column := "Other")
     predictions = bind_rows(excluded_meta,predictions)
-  }
-  if("total_samples_available" %in% names(optimized)){
+    full_denominator = nrow(predictions)
+    
+  } else if("total_samples_available" %in% names(optimized)){
       full_denominator = optimized$total_samples_available
   }else{
     full_denominator = nrow(predictions)
@@ -1288,11 +1289,11 @@ if(add_percent){
       geom_label_repel(data=left_other,
                        direction = "x",
                        x=1,y=20,
-                 aes(fill=!!sym(truth_name),label=label)) +
+                 aes(fill=!!sym(truth_name),label=label),size=label_size) +
       geom_label_repel(data=right_other,
                        direction = "x",
                        x=2,y=20,
-                 aes(fill=!!sym(pred_name),label=label))
+                 aes(fill=!!sym(pred_name),label=label),size=label_size)
   }
   pp + guides(
     fill = guide_legend(override.aes = list(label = "", colour = NA)),
