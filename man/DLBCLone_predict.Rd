@@ -9,11 +9,13 @@ DLBCLone_predict(
   optimized_model,
   mode = "DLBCLone_w",
   truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
-  make_plot = TRUE,
   annotate_accuracy = FALSE,
   seed = 12345,
   max_neighbors = 500,
-  other_class = "Other"
+  other_class = "Other",
+  fill_missing = FALSE,
+  drop_extra = FALSE,
+  check_frequencies = FALSE
 )
 }
 \arguments{

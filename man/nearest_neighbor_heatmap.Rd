@@ -14,7 +14,9 @@ nearest_neighbor_heatmap(
   gene_orientation = "column",
   cluster_rows = TRUE,
   cluster_columns = TRUE,
-  show_legend = FALSE
+  show_legend = FALSE,
+  draw = TRUE,
+  keep_metafeatures = FALSE
 )
 }
 \arguments{

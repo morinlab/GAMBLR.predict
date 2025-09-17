@@ -6,7 +6,7 @@
 \usage{
 assemble_genetic_features(
   these_samples_metadata,
-  metadata_columns = c("bcl2_ba", "bcl6_ba", "myc_ba"),
+  sv_from_metadata = c(BCL2 = "bcl2_ba", BCL6 = "bcl6_ba", MYC = "myc_ba"),
   genes,
   synon_genes,
   maf_with_synon,
@@ -15,7 +15,7 @@ assemble_genetic_features(
   sv_value = 3,
   synon_value = 1,
   coding_value = 2,
-  include_ashm = TRUE,
+  include_ashm = FALSE,
   annotated_sv,
   include_GAMBL_sv = TRUE,
   review_hotspots = TRUE,
@@ -24,8 +24,6 @@ assemble_genetic_features(
 }
 \arguments{
 \item{these_samples_metadata}{Data frame with sample metadata, must include seq_type and sample_id.}
-
-\item{metadata_columns}{Columns in metadata to use for SV status (default: c("bcl2_ba","bcl6_ba","myc_ba")).}
 
 \item{genes}{Vector of gene symbols to include.}
 
@@ -42,6 +40,8 @@ assemble_genetic_features(
 \item{coding_value}{Value to assign for coding mutations (default: 2).}
 
 \item{verbose}{Defaults to FALSE}
+
+\item{metadata_columns}{Columns in metadata to use for SV status (default: c("bcl2_ba","bcl6_ba","myc_ba")).}
 }
 \value{
 Matrix of assembled features for each sample.
@@ -49,4 +49,24 @@ Matrix of assembled features for each sample.
 \description{
 This function assembles a matrix of genetic features for each sample, including mutation status,
 aSHM counts, and structural variant status for BCL2, BCL6, and MYC. It supports both genome and capture sequencing types.
+}
+\examples{
+\dontrun{
+all_meta = get_gambl_metadata() \%>\% 
+ dplyr::filter(pathology=="DLBCL",seq_type=="genome")
+
+all_maf = get_all_coding_ssm(all_meta,include_silent=TRUE)
+
+sv_all =get_combined_sv(all_meta)
+
+anno_sv = annotate_sv(sv_all)
+
+feat_mat = assemble_genetic_features(all_meta,
+                                    genes=c("EZH2","SOCS1","PIM1",
+                                            "MYD88","CREBBP","SGK1",
+                                            "NOTCH2","NOTCH1"),
+                                    maf_with_synon = all_maf,
+                                    annotated_sv = anno_sv,
+                                    synon_genes=c("PIM1","SOCS1"))
+} 
 }

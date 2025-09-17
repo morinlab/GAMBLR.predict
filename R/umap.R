@@ -1,142 +1,3 @@
-#' Summarize SSM (Somatic Single Nucleotide Mutation) Status Across Samples
-#'
-#' This function summarizes the mutation status for a set of genes
-#' across multiple samples, separating mutations by class for genes specified
-#' by \code{separate_by_class_genes} and counting the number of hits
-#' in each sample per mutation category.
-#'
-#' @param maf_df A data frame containing mutation annotation format (MAF) data,
-#' with at least the following columns:
-#'   \code{Hugo_Symbol}, \code{Variant_Classification}, and \code{Tumor_Sample_Barcode}.
-#' @param silent_maf_df (Optional) A separate data frame containing silent mutation data if
-#' the user doesn't want to pull silent mutation status from \code{maf_df}.
-#' This argument is useful when you want to combine mutations from
-#' the output of get_coding_ssm and get_ssm_by_region or get_ssm_by_gene
-#' @param these_samples_metadata A data frame containing metadata for the samples,
-#' with at least a \code{sample_id} column.
-#' Any sample that does not have a matching sample_id in these_samples_metadata will be dropped. 
-#' @param genes_of_interest A character vector of gene symbols to include
-#' in the summary. If missing, defaults to all Tier 1 B-cell lymphoma genes.
-#' @param synon_genes (Optional) A character vector of gene symbols for which
-#' synonymous mutations should be included.
-#' @param separate_by_class_genes (Optional) A character vector of
-#' gene symbols for which mutations should be separated by class
-#' (e.g., "Nonsense_Mutation", "Missense_Mutation").
-#' @param count_hits Logical; if \code{TRUE}, counts the number of mutations
-#' per gene per sample. If \code{FALSE} (default), only presence/absence is recorded.
-#'
-#' @return A wide-format data frame (matrix) with samples as rows and
-#' mutation types as columns. Each cell contains either the count of
-#' mutations (if \code{count_hits = TRUE}) or a binary indicator (0/1)
-#' for mutation presence.
-#'
-#' @details
-#' - Mutations are grouped and optionally separated by mutation
-#' class for genes specified in \code{separate_by_class_genes} 
-#' - Synonymous mutations can be counted as another separate feature for genes specified by \code{synon_genes} genes.
-#' - The function simplifies mutation annotations and pivots the data to a wide format suitable for downstream analysis.
-#'
-#' @examples
-#' # A basic example, using only the output of get_all_coding_ssm
-#' # Since the only non-coding class this function handles is Silent,
-#' # we will be missing most non-coding types such as Intron, UTR, Flank
-#' \dontrun{
-#' sample_metadata = get_sample_metadata() %>% filter(seq_type!= "mrna")
-#' 
-#' maf_data = get_all_coding_ssm(sample_metadata)
-#' 
-#' mutation_matrix <- summarize_all_ssm_status(
-#'   maf_df = maf_data,
-#'   these_samples_metadata = sample_metadata,
-#'   genes_of_interest = c("TP53", "SGK1", "BCL2"),
-#'   synon_genes = c("BCL2"),
-#'   separate_by_class_genes = c("TP53","SGK1"),
-#'   count_hits = FALSE
-#' )
-#' }
-#'
-#' @import dplyr tidyr tibble readr
-#' @export
-summarize_all_ssm_status <- function(maf_df,
-                                     these_samples_metadata,
-                                     genes_of_interest,
-                                     synon_genes,
-                                     silent_maf_df,
-                                     separate_by_class_genes = NULL, 
-                                     count_hits = FALSE){
-  if(missing(genes_of_interest)){
-    message("defaulting to all Tier 1 B-cell lymphoma genes")
-    genes_of_interest = filter(GAMBLR.data::lymphoma_genes,
-      DLBCL_Tier==1 | FL_Tier == 1 | BL_Tier == 1 ) %>% 
-      pull(Gene) %>% unique()
-  }
-  
-  maf_df = filter(maf_df,
-    Hugo_Symbol %in% genes_of_interest)
-  if(missing(silent_maf_df)){
-    silent_maf_df = maf_df
-  }else{
-    silent_maf_df = filter(silent_maf_df,Hugo_Symbol %in% genes_of_interest)
-  }
-  if(!missing(these_samples_metadata)){
-    maf_df = filter(maf_df,
-      Tumor_Sample_Barcode %in% these_samples_metadata$sample_id)
-    silent_maf_df = filter(silent_maf_df,
-                           Tumor_Sample_Barcode %in% these_samples_metadata$sample_id)
-  }
-  if(!missing(synon_genes)){
-    if(any(!synon_genes %in% silent_maf_df$Hugo_Symbol)){
-      missing = synon_genes[!synon_genes %in% silent_maf_df$Hugo_Symbol]
-      not_missing = synon_genes[synon_genes %in% silent_maf_df$Hugo_Symbol]
-      
-      message("Warning: Some synonymous genes have no mutations in silent_maf_df")
-      message(paste(missing,collapse=", "))
-    }
-    maf_nonsilent = filter(maf_df,  Variant_Classification %in% vc_nonSynonymous)
-    maf_silent = filter(silent_maf_df, ! Variant_Classification %in% vc_nonSynonymous, Hugo_Symbol %in% synon_genes)
-    maf_df = bind_rows(maf_silent,maf_nonsilent)
-  }
-  #Simplify annotations
-  silent_types = c("Silent","Intron","5'UTR","3'UTR","5'Flank","3'Flank")
-  nonsense_types = c("Nonsense_Mutation","Frame_Shift_Del","Frame_Shift_Ins","Splice_Site")
-  missense_types = c("In_Frame_Del",
-                              "In_Frame_Ins",
-                              "Missense_Mutation",
-                              "Splice_Region")
-  gene_mutations = mutate(maf_df,
-                    mutation_type=case_when(
-                    Variant_Classification %in% nonsense_types ~ "Nonsense_Mutation",
-                    Variant_Classification %in%  missense_types ~ "Missense_Mutation",
-                    Variant_Classification %in% silent_types ~ "Silent",
-                    TRUE ~ Variant_Classification)
-                    ) %>%
-                            mutate(mutation=paste(Hugo_Symbol,mutation_type,sep=":"))
-  separated_coding_maf = filter(gene_mutations,
-                                Hugo_Symbol %in% genes_of_interest,
-                                Hugo_Symbol %in% separate_by_class_genes,
-                                mutation_type != "Silent")
-  
-  unseparated_coding_maf = filter(gene_mutations,
-                                  Hugo_Symbol %in% genes_of_interest, !Hugo_Symbol %in% separate_by_class_genes, mutation_type != "Silent") %>%
-    mutate(mutation = paste(Hugo_Symbol,"Coding",sep=":"))
-  separated_silent_maf = filter(gene_mutations,Hugo_Symbol %in% synon_genes, mutation_type == "Silent") %>%
-    mutate(mutation = paste(Hugo_Symbol,"Silent",sep=":"))
-  gene_mutations = bind_rows(separated_coding_maf, unseparated_coding_maf,separated_silent_maf)
-  
-  mutation_distinct = select(gene_mutations,mutation,Tumor_Sample_Barcode) %>% 
-    mutate(mutated = 1) %>% 
-    group_by(Tumor_Sample_Barcode,mutation,mutated) %>%
-    count() %>% ungroup()
-  if(count_hits){
-    mutation_distinct = mutation_distinct %>% select(-mutated) %>% rename(mutated=n) %>% distinct()
-  } else{
-    mutation_distinct = mutation_distinct %>% select(-n) %>% distinct()
-  }
-  mutation_wide = pivot_wider(mutation_distinct, names_from = "mutation",values_from = "mutated",values_fill = 0) %>% 
-  column_to_rownames("Tumor_Sample_Barcode")
- return(mutation_wide)
-}
-
 
 #' Assemble genetic features for UMAP input
 #'
@@ -155,9 +16,32 @@ summarize_all_ssm_status <- function(maf_df,
 #' @param verbose Defaults to FALSE
 #'
 #' @return Matrix of assembled features for each sample.
+#' 
+#' 
+#' @examples 
+#' \dontrun{
+#' all_meta = get_gambl_metadata() %>% 
+#'  dplyr::filter(pathology=="DLBCL",seq_type=="genome")
+#'
+#' all_maf = get_all_coding_ssm(all_meta,include_silent=TRUE)
+#'
+#' sv_all =get_combined_sv(all_meta)
+#'
+#' anno_sv = annotate_sv(sv_all)
+#'
+#' feat_mat = assemble_genetic_features(all_meta,
+#'                                     genes=c("EZH2","SOCS1","PIM1",
+#'                                             "MYD88","CREBBP","SGK1",
+#'                                             "NOTCH2","NOTCH1"),
+#'                                     maf_with_synon = all_maf,
+#'                                     annotated_sv = anno_sv,
+#'                                     synon_genes=c("PIM1","SOCS1"))
+#'} 
 #' @export
 assemble_genetic_features <- function(these_samples_metadata,
-                metadata_columns = c("bcl2_ba","bcl6_ba","myc_ba"),
+                sv_from_metadata = c(BCL2="bcl2_ba",
+                                     BCL6="bcl6_ba",
+                                     MYC="myc_ba"),
                 genes,
                 synon_genes,
                 maf_with_synon,
@@ -166,7 +50,7 @@ assemble_genetic_features <- function(these_samples_metadata,
                 sv_value = 3,
                 synon_value = 1,
                 coding_value = 2,
-                include_ashm = TRUE,
+                include_ashm = FALSE,
                 annotated_sv,
                 include_GAMBL_sv= TRUE,
                 review_hotspots = TRUE,
@@ -286,35 +170,44 @@ assemble_genetic_features <- function(these_samples_metadata,
   if(coding_value == 1){
     status_combined[status_combined > 1] = 1
   }
-  #TODO: generalize this to use the column names provided in metadata_columns
-  bcl2_id = these_samples_metadata[which(these_samples_metadata$bcl2_ba=="POS"),] %>% pull(sample_id)
-  bcl6_id = these_samples_metadata[which(these_samples_metadata$bcl6_ba=="POS"),] %>% pull(sample_id)
-  myc_id = these_samples_metadata[which(these_samples_metadata$myc_ba=="POS"),] %>% pull(sample_id)
- 
+  sv_samples = list()
+  if(!is.null(sv_from_metadata)){
+    for(oncogene in names(sv_from_metadata)){
+      metadata_column = sv_from_metadata[[oncogene]]
+      #assume POS/NEG encoding. Warn if not consistent with this
+      col_vals = unique(these_samples_metadata[[metadata_column]])
+      if(!"POS" %in% col_vals){
+        stop(paste("column",metadata_column, "doesn't have any POS values",
+            "SV encoding is expected to be POS/NEG"))
+      }
+      sv_samples[[oncogene]] = these_samples_metadata[which(these_samples_metadata[[metadata_column]]=="POS"),] %>% pull(sample_id)
+
+    }
+  }
+  #print(sv_samples)
+  for(oncogene in names(sv_from_metadata)){
+    message(paste("SVs in",oncogene,"from metadata:",length(sv_samples[[oncogene]])))
+  }
+  
   # include SV from provided annotated SV data frame
   if(!missing(annotated_sv) & include_GAMBL_sv){
     annotated_sv = filter(annotated_sv,tumour_sample_id %in% these_samples_metadata$sample_id)
-    bcl2_sv_id = filter(annotated_sv,!is.na(partner),gene=="BCL2") %>% pull(tumour_sample_id)
-    bcl6_sv_id = filter(annotated_sv,!is.na(partner),gene=="BCL6") %>% pull(tumour_sample_id)
-    myc_sv_id = filter(annotated_sv,!is.na(partner),gene=="MYC") %>% pull(tumour_sample_id)
-    n_b = length(bcl2_id)
-
-    bcl2_id = unique(c(bcl2_id,bcl2_sv_id))
-    n_b = length(bcl2_id)
-
-    bcl6_id = unique(c(bcl6_id,bcl6_sv_id))
-    myc_id = unique(c(myc_id,myc_sv_id))
+    for(oncogene in names(sv_from_metadata)){
+      print(paste("oncogene:",oncogene))
+      sv_id = filter(annotated_sv,!is.na(partner),gene==oncogene) %>% pull(tumour_sample_id)
+      if(oncogene %in% names(sv_samples)){
+         sv_samples[[oncogene]] = union( sv_samples[[oncogene]],sv_id)
+      }
+    }
+    for(oncogene in names(sv_from_metadata)){
+      message(paste("SVs in",oncogene,"after adding annotated SVs:",length(sv_samples[[oncogene]])))
+    }
   }
-  
-
-  status_combined[,"BCL2_SV"] = 0
-  status_combined[bcl2_id,"BCL2_SV"] = sv_value
-
-  status_combined[,"MYC_SV"] = 0
-  status_combined[myc_id,"MYC_SV"] = sv_value
-
-  status_combined[,"BCL6_SV"] = 0
-  status_combined[bcl6_id,"BCL6_SV"] = sv_value
+  for(oncogene in names(sv_samples)){
+    onco_column = paste(oncogene,"_SV")
+    status_combined[[onco_column]] = 0
+    status_combined[sv_samples[[oncogene]],onco_column] = sv_value
+  }
   return(status_combined)
 
 }
