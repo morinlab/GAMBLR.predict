@@ -82,6 +82,8 @@ A list with fields including:
 Weighted KNN on a feature (mutation) matrix with optional upweighting of
 user-specified "core" features, optional exclusion of "hidden" features,
 and optional optimization of an explicit outgroup (e.g. "Other").
+WARNING: This function is not one of the core DLBCLone functions. You should
+probably be using DLBCLone_predict instead!
 }
 \details{
 This version removes hard-coded LymphGen class names and instead derives the

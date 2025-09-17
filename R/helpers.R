@@ -1,3 +1,433 @@
+
+#' Optimize the threshold for classifying samples as "Other"
+#'
+#' Performs a post-hoc evaluation of the classification of a sample as one of
+#' the main classes vs the outgroup/unclassified label "Other" and returns the
+#' optimal threshold for classifying a sample as "Other" based on the ground
+#' truth provided in the true_labels vector. It evaluates the performance
+#' of the classifier using a range of thresholds and returns the best threshold
+#' based on the specified metric (balanced accuracy or accuracy). 
+#' 
+#' NOTE: This function is not generally meant to be called directly but rather is
+#' a helper function used by DLBCLone_optimize_params.
+#'
+#' @param predicted_labels Vector of predicted labels for the samples
+#' @param true_labels Vector of true labels for the samples
+#' @param other_score Vector of scores for the "Other" class for each sample ()
+#' @param all_classes Vector of classes to use for training and testing.
+#' Default: c("MCD","EZB","BN2","N1","ST2","Other")
+#' @param maximize Metric to use for optimization.
+#' Either "accuracy" (actual accuracy across all samples) or "balanced_accuracy"
+#' (the mean of the balanced accuracy values across all classes).
+#' Default: "balanced_accuracy"
+#' @param exclude_other_for_accuracy Set to TRUE to exclude the
+#' "Other" class from the 'lymphgen' column when calculating accuracy metrics
+#' (passed to DLBCLone_optimize_params). Default: FALSE
+#'
+#' @returns a list of data frames with the predictions and the UMAP input
+#' @export
+#'
+optimize_outgroup <- function(predicted_labels,
+                            true_labels,
+                            other_score,
+                            all_classes = c("MCD",
+                                            "EZB",
+                                            "BN2",
+                                            "N1",
+                                            "ST2",
+                                            "Other"),
+                            maximize ="balanced_accuracy",
+                            exclude_other_for_accuracy = FALSE,
+                            cap_classification_rate = 1,
+                            verbose = FALSE,
+                            other_class = "Other"){
+  rel_thresholds = seq(1,10,0.1)
+  sens_df = data.frame()
+  acc_df = data.frame()
+  predictions = data.frame(predicted_label=as.character(predicted_labels),
+                           true_label=as.character(true_labels))
+
+  for(threshold in rel_thresholds){
+      predictions_new = mutate(predictions,
+                               predicted_label = ifelse(other_score < threshold,
+                                                        predicted_label,
+                                                        other_class))
+      all_acc = report_accuracy(predictions_new,
+        truth="true_label",
+        pred="predicted_label",
+        drop_other=FALSE)
+      pred = factor(predictions_new[["predicted_label"]],levels=all_classes)
+      truth = factor(predictions_new[["true_label"]],levels=all_classes)
+      conf_matrix <- confusionMatrix(pred, truth)
+
+      bal_acc <- conf_matrix$byClass[, "Balanced Accuracy"]
+      if(maximize == "balanced_accuracy"){
+        bal_acc$average_accuracy = mean(bal_acc)
+      }else{
+        bal_acc$average_accuracy = conf_matrix$overall[["Accuracy"]]
+      }
+      bal_acc$threshold = threshold
+      bal_acc$harmonic_mean = all_acc$harmonic_mean
+      bal_acc$classification_rate = all_acc$classification_rate
+      acc_df = bind_rows(acc_df,bal_acc)
+      sn <- conf_matrix$byClass[, "Sensitivity"]  
+      sn$average_sensitivity = mean(sn)
+      sn$threshold = threshold
+      sn$harmonic_mean = all_acc$harmonic_mean
+      sn$classification_rate = all_acc$classification_rate  
+      sens_df = bind_rows(sens_df,sn)
+  }
+  
+  
+  if(maximize %in% c("balanced_accuracy","accuracy")){
+    acc_df = filter(acc_df, classification_rate <= cap_classification_rate)
+    best = slice_head(arrange(acc_df,desc(average_accuracy)),n=1)
+  }else if(maximize == "harmonic_mean"){
+    acc_df = filter(sens_df, classification_rate <= cap_classification_rate)
+    best = slice_head(arrange(sens_df,desc(harmonic_mean)),n=1)
+  }else{
+    best = slice_head(arrange(sens_df,desc(average_sensitivity)),n=1)
+
+  }
+  
+  return(best)
+}
+
+
+
+#' Process KNN Vote Strings and Scores for Classification
+#'
+#' This function processes the raw neighbor label strings and weighted vote scores from k-nearest neighbor (KNN) classification results.
+#' It computes per-class neighbor counts, weighted scores, and identifies the top group by count and score for each sample.
+#' The function also supports custom logic for handling the "Other" class, including vote multipliers and purity requirements.
+#' NOTE: This is a helper function and is not intended to be called directly by the user
+#'
+#' @param df Data frame containing kNN results, including columns with neighbor labels and weighted votes.
+#' @param raw_col Name of the column containing the comma-separated neighbor labels (default: "label").
+#' @param group_labels Character vector of all possible class labels to consider (default: c("EZB", "MCD", "ST2", "BN2", "N1", "Other")).
+#' @param vote_labels_col Name of the column containing the comma-separated neighbor labels for weighted votes (default: "vote_labels").
+#' @param k Number of neighbors used in kNN (required).
+#' @param other_vote_multiplier Multiplier for the "Other" class when determining if a sample should be reclassified as "Other" (default: 2).
+#' @param score_purity_requirement Minimum ratio of top group score to "Other" score to assign a sample to the top group (default: 1).
+#' @param weighted_votes_col Name of the column containing the comma-separated weighted votes (default: "weighted_votes").
+#'
+#' @return Data frame with additional columns for per-class neighbor counts, scores, top group assignments, and summary statistics for each sample.
+#'
+#' @details
+#' - Computes the number of neighbors for each class and the sum of weighted votes per class.
+#' - Identifies the top group by count and by weighted score, and applies custom logic for the "Other" class if present.
+#' - Adds columns for counts, scores, top group, top group score, score ratios, and optimized group assignments.
+#' - Designed for downstream use in DLBCLone and similar kNN-based classification workflows.
+#'
+#' @examples
+#' # Example usage:
+#' # result <- process_votes(knn_output_df, k = 7)
+#'
+#' @export
+process_votes <- function(df,
+                          raw_col = "label",
+                          group_labels = c("EZB", "MCD", "ST2", "BN2", "N1", "Other"),
+                          vote_labels_col = "vote_labels",
+                          weighted_votes_col = "weighted_votes",
+                          #vote_labels_col = "label",
+                          k,
+                          other_vote_multiplier = 2,
+                          score_purity_requirement = 1,
+                          
+                          other_class = "Other",
+                          optimize_for_other = TRUE,
+                          debug = FALSE) {  
+  if(missing(k)){
+    stop("k value is required")
+  }
+  score_thresh = 2 * k
+
+  count_labels_in_string <- function(string, labels) {
+    tokens <- str_split(string, ",")[[1]]
+    map_int(labels, ~ sum(tokens == .x))
+  }
+
+  extract_weighted_scores <- function(label_str, vote_str, labels) {
+    lbls  <- str_split(label_str, ",")[[1]]
+    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    map_dbl(labels, ~ sum(votes[lbls == .x])) %>%
+      set_names(paste0(labels, "_score"))
+  }
+
+  get_top_score_group <- function(label_str, vote_str, labels) {
+    lbls  <- str_split(label_str, ",")[[1]]
+    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    scores_by_label <- set_names(map_dbl(labels, ~ sum(votes[lbls == .x])), labels)
+    top    <- names(scores_by_label)[which.max(scores_by_label)]
+    value  <- scores_by_label[[top]]
+    list(top_score_group = top, top_group_score = value)
+  }
+
+  df_out <- df %>%
+    mutate(.id = row_number()) %>%
+    rowwise() %>%
+    mutate(
+      counts = list(
+        set_names(
+          count_labels_in_string(.data[[raw_col]], group_labels),
+          paste0(group_labels, "_NN_count")
+        )
+      ),
+      top_group = {
+        cnts <- count_labels_in_string(.data[[raw_col]], group_labels)
+        group_labels[which.max(cnts)]
+      },
+      scores = list(
+        if (!is.null(vote_labels_col) && !is.null(weighted_votes_col)) {
+          extract_weighted_scores(
+            .data[[vote_labels_col]],
+            .data[[weighted_votes_col]],
+            group_labels
+          )
+        } else {
+          set_names(rep(0, length(group_labels)), paste0(group_labels, "_score"))
+        }
+      ),
+      score_summary = list(
+        if (!is.null(vote_labels_col) && !is.null(weighted_votes_col)) {
+          get_top_score_group(
+            .data[[vote_labels_col]],
+            .data[[weighted_votes_col]],
+            group_labels
+          )
+        } else {
+          list(top_score_group = NA_character_, top_group_score = NA_real_)
+        }
+      )
+    ) %>%
+    ungroup()
+    
+
+    df_out = df_out %>%
+    unnest_wider(counts) %>%
+    unnest_wider(scores) %>%
+    unnest_wider(score_summary)
+    long_version = df_out #save for debugging if necessary
+    
+    df_out = df_out %>%
+    rowwise() %>%
+    mutate(
+      top_group_count = get(paste0(top_group, "_NN_count"))
+    ) %>%
+    ungroup()
+
+  if (!is.null(other_class) && other_class %in% group_labels) {  
+    if ("neighbors_other" %in% colnames(df)) {
+      df_out <- df_out %>%
+        mutate(!!sym(paste0(other_class, "_count")) := neighbors_other)
+    }
+    if ("other_weighted_votes" %in% colnames(df)) {
+      df_out <- df_out %>%
+        mutate(!!sym(paste0(other_class, "_score")) := other_weighted_votes)
+    }
+    if (all(c("top_group_count", paste0(other_class, "_count")) %in% colnames(df_out))) {
+      df_out <- df_out %>%
+        mutate(by_vote = top_group_count) %>%
+        mutate(by_vote_opt = ifelse(top_group_count * other_vote_multiplier > !!sym(paste0(other_class, "_count")), top_group, other_class))
+    }
+    df_out <- mutate(df_out,
+                     by_score = top_score_group,
+                     score_ratio = top_group_score / !!sym(paste0(other_class, "_score")),
+                     by_score_opt = ifelse(score_ratio > score_purity_requirement | top_group_score > score_thresh, top_score_group, other_class))
+  } else {
+    # Fallback: if no "other" class exists, keep by_score/by_vote as top_group
+    df_out <- mutate(df_out,
+                     by_score = top_score_group,
+                     score_ratio = NA_real_,
+                     by_score_opt = top_score_group,
+                     by_vote_opt = top_group)
+  }
+  if(debug){
+    return(list(processed=df_out, long_version = long_version))
+  }else{
+    return(df_out)
+  }
+  
+}
+
+
+
+#' Optimize Purity Threshold for Classification Assignment
+#'
+#' This function searches for the optimal purity threshold to assign samples to their predicted class or to "Other" based on the score ratio in processed kNN vote results.
+#' It iteratively tests a range of purity thresholds, updating the predicted class if the score ratio meets or exceeds the threshold, and computes the accuracy for each threshold.
+#' The function returns the best accuracy achieved and the corresponding purity threshold.
+#' NOTE: This is a helper function and is not intended to be called directly by the user
+#'
+#' @param processed_votes Data frame output from `process_votes`, containing at least the columns for score ratio, by_score_opt, and the relevant prediction and truth columns.
+#' @param prediction_column Name of the column in `processed_votes` to update with the optimized prediction.
+#' @param truth_column Name of the column in `processed_votes` containing the true class labels.
+#'
+#' @return A list with two elements: `best_accuracy` (numeric, the highest accuracy achieved) and `best_purity_threshold` (numeric, the threshold at which this accuracy was achieved).
+#'
+#' @details
+#' - For each threshold in the range 0.1 to 0.95 (step 0.05), the function updates the prediction column to assign the class from `by_score_opt` if the score ratio meets the threshold, otherwise assigns "Other".
+#' - Accuracy is computed as the proportion of correct assignments (diagonal of the confusion matrix).
+#' - The function is intended for use in optimizing classification purity in kNN-based workflows, especially when distinguishing between confident class assignments and ambiguous ("Other") cases.
+#'
+#' @import caret
+#' @examples
+#' # Example usage:
+#' # result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+#'
+#' @export
+optimize_purity <- function(optimized_model_object,
+                            vote_df, 
+                            mode, 
+                            optimize_by = "balanced_accuracy", #allowed: harmonic_mean, overall_accuracy
+                            truth_column, 
+                            all_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+                            k,
+                            cap_classification_rate = 1,
+                            exclude_other_for_accuracy = FALSE,
+                            other_class = "Other",
+                            optimize_for_other = TRUE) {  
+
+  out_column = "DLBCLone_wo"
+
+  if(!missing(optimized_model_object)){
+    if(!is.null(optimized_model_object$best_params)){
+      if(!missing(k)){
+        message("k is provided in the optimized_model_object, ignoring the k parameter")
+      }
+      k = optimized_model_object$best_params$k
+    }else{
+      stop("optimized_model_object must contain best_params with k value")
+    }
+    vote_df = optimized_model_object$predictions
+  }
+
+  some_classes <- if (!is.null(other_class) && other_class %in% all_classes) {
+    all_classes[all_classes != other_class]
+  } else {
+    all_classes
+  }
+  score_thresh = 2 * k
+
+  processed_votes <- process_votes(vote_df,
+                                   group_labels = all_classes,
+                                   k = k,
+                                   score_purity_requirement = 0.5,
+                                   other_class = other_class,
+                                   optimize_for_other = optimize_for_other)    
+  if(!truth_column %in% colnames(processed_votes)){
+    stop("truth_column must be a column in processed_votes")
+  }
+  best_accuracy <- 0
+  best_purity_threshold <- 0
+
+  processed_votes <- mutate(processed_votes, !!sym(truth_column) := as.character(!!sym(truth_column))) 
+  
+  if (!is.null(other_class) && other_class %in% all_classes) {
+    no_other_df <- processed_votes %>%
+      filter(!!sym(truth_column) != other_class)
+  } else {
+    no_other_df <- processed_votes
+  }
+
+  for(purity_threshold in seq(3, 0, -0.05)){
+    updated_votes <- processed_votes %>%
+      mutate(!!sym(out_column) := if (!is.null(other_class) && other_class %in% all_classes) {
+        ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, other_class)
+      } else {
+        by_score
+      })
+
+    updated_no_other_df <- no_other_df %>%
+      mutate(!!sym(out_column) := if (!is.null(other_class) && other_class %in% all_classes) {
+        ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, other_class)
+      } else {
+        by_score
+      })
+
+    if(!exclude_other_for_accuracy || is.null(other_class) || !(other_class %in% all_classes)){
+      xx <- select(updated_votes, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
+        mutate(match = !!sym(truth_column) == !!sym(out_column)) %>%
+        group_by(match) %>%
+        summarise(concordant = sum(match == TRUE), discordant = sum(match == FALSE), .groups = "drop") %>%
+        summarise(all_conc = sum(concordant), dis = sum(discordant), total = all_conc + dis, percent = 100 * sum(concordant) / total)
+      
+      updated_votes <- mutate(updated_votes, !!sym(out_column) := factor(!!sym(out_column), levels = all_classes))
+      updated_votes <- mutate(updated_votes, !!sym(truth_column) := factor(!!sym(truth_column), levels = all_classes))
+      #confusion_matrix <- table(updated_votes[[truth_column]], updated_votes[[out_column]])
+      conf_matrix <- confusionMatrix(updated_votes[[out_column]], updated_votes[[truth_column]])
+    } else {
+      xx <- select(updated_no_other_df, sample_id, !!sym(truth_column), !!sym(out_column)) %>%
+        filter(!!sym(truth_column) != other_class) %>%
+        mutate(match = !!sym(truth_column) == !!sym(out_column)) %>%
+        group_by(match) %>%
+        summarise(concordant = sum(match == TRUE), discordant = sum(match == FALSE), .groups = "drop") %>%
+        summarise(all_conc = sum(concordant), dis = sum(discordant), total = all_conc + dis, percent = 100 * sum(concordant) / total)
+
+      updated_no_other_df <- mutate(updated_no_other_df,
+        !!sym(out_column) := factor(!!sym(out_column), levels = all_classes),
+        !!sym(truth_column) := factor(!!sym(truth_column), levels = all_classes))
+      confusion_matrix <- table(updated_no_other_df[[truth_column]], updated_no_other_df[[out_column]])
+      conf_matrix <- confusionMatrix(updated_no_other_df[[out_column]], updated_no_other_df[[truth_column]])
+    }
+
+ 
+    acc_details <- report_accuracy(updated_votes,
+      truth = truth_column,
+      pred = out_column)
+    
+    bal_acc <- mean(conf_matrix$byClass[, "Balanced Accuracy"], na.rm = TRUE)
+    classification_rate = acc_details$classification_rate
+    if(classification_rate <= cap_classification_rate){    
+      if(optimize_by == "harmonic_mean"){
+        accuracy = acc_details$harmonic_mean
+      }else if( optimize_by == "overall_accuracy"){
+        accuracy = conf_matrix$overall[["Accuracy"]]
+
+      }else{
+        accuracy = bal_acc
+      }
+
+
+      if(accuracy > best_accuracy){
+        best_accuracy <- accuracy
+        best_purity_threshold <- purity_threshold
+      }
+    }else{
+      message(paste0("skipping purity threshold ",purity_threshold," because classification rate ",round(classification_rate,3),
+                     " exceeds cap of ",cap_classification_rate))
+    }
+  }
+
+  best_out <- processed_votes %>%
+    mutate(!!sym(out_column) := if (!is.null(other_class) && other_class %in% all_classes) {
+      ifelse(score_ratio >= best_purity_threshold | top_group_score > score_thresh, by_score, other_class)
+    } else {
+      by_score
+    })
+
+  if(missing(optimized_model_object)){
+    optimized_model_object <- list()
+    optimized_model_object$best_params <- list(
+      k = k,
+      purity_threshold = best_purity_threshold,
+      accuracy = best_accuracy,
+      num_classes = length(unique(best_out$predicted_label)),
+      num_features = ncol(best_out) - 3, 
+      seed = 12345
+    )  
+  }
+  optimized_model_object$predictions <- best_out
+  optimized_model_object$best_accuracy <- best_accuracy  
+  optimized_model_object$best_purity_threshold <- best_purity_threshold
+  optimized_model_object$maximize <- optimize_by
+  optimized_model_object$score_thresh <- score_thresh
+  optimized_model_object$exclude_other_for_accuracy <- exclude_other_for_accuracy
+
+  return(optimized_model_object)
+}
+
+
 #' Summarize SSM (Somatic Single Nucleotide Mutation) Status Across Samples
 #'
 #' This function summarizes the mutation status for a set of genes

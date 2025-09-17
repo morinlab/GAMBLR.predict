@@ -47,7 +47,7 @@ a list of data frames with the predictions, the UMAP input, the model, and a ggp
 Predict class for one or more samples using a pre-trained DLBCLone model
 }
 \examples{
-predict_single_sample_DLBCLone(
+DLBCLone_predict(
    seed = 1234,
    test_df = test_df,
    train_df = train_df,
