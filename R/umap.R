@@ -221,7 +221,8 @@ assemble_genetic_features <- function(these_samples_metadata,
 #' truth provided in the true_labels vector. It evaluates the performance
 #' of the classifier using a range of thresholds and returns the best threshold
 #' based on the specified metric (balanced accuracy or accuracy). 
-#' This function is not generally meant to be called directly but rather is
+#' 
+#' NOTE: This function is not generally meant to be called directly but rather is
 #' a helper function used by DLBCLone_optimize_params.
 #'
 #' @param predicted_labels Vector of predicted labels for the samples
@@ -306,120 +307,6 @@ optimize_outgroup <- function(predicted_labels,
   return(best)
 }
 
-
-#' Plot the result of a DLBCLone classification
-#'
-#' @param test_df Data frame containing the test data with UMAP coordinates
-#' @param train_df Data frame containing the training data with UMAP coordinates
-#' @param predictions_df Data frame containing the predictions with UMAP coordinates
-#' @param other_df Data frame containing the predictions for samples in the "Other" class
-#' @param details Single-row data frame with the best parameters from DLBCLone_optimize_params
-#' @param annotate_accuracy Set to true to add labels with accuracy values
-#' @param classes Vector of classes that were used in the training and testing
-#' @param label_offset Length of the label offset for the accuracy labels
-#' @param title1 additional argument
-#' @param title2 additional argument
-#' @param title3 additional argument
-#'
-#' @returns a ggplot object
-#' @export
-#'
-#' @examples
-#' #add the dataset name to the metadata if it's not already there (required for the plot work)
-#' lymphgen_A53_DLBCLone$df$dataset = "GAMBL"
-#'
-#' DLBCLone_train_test_plot(
-#'  test_df = lymphgen_A53_DLBCLone$df,
-#'  train_df = lymphgen_A53_DLBCLone$df,
-#'  predictions_df = lymphgen_A53_DLBCLone$predictions,
-#'  #other_df = lymphgen_A53_DLBCLone$predictions_other, #required only when "Other" was in the truth_classes
-#'  details = lymphgen_A53_DLBCLone$best_params,
-#'  classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"),
-#'  annotate_accuracy=TRUE,label_offset = 1)
-#'
-DLBCLone_train_test_plot = function(test_df,
-                           train_df,
-                           predictions_df,
-                           other_df,
-                           details,
-                           annotate_accuracy = FALSE,
-                           
-                           classes = c("BN2","ST2","MCD","EZB","N1"),
-                           label_offset = 2,
-                           title1="Original Class",
-                           title2="DLBCLone Predicted Class",
-                           title3 ="DLBCLone Predicted Class (Other)",base_size = 1){
-  title = ""
-  if(!missing(details)){
-    title = paste0("N_class:",details$num_classes," N_feats:",details$num_features," k=",details$k," threshold=",details$threshold," bacc=",round(details$accuracy,3))
-    
-  }
-  if(annotate_accuracy){
-    if("BN2" %in% classes){
-      acc_df = data.frame(lymphgen = classes,
-                          accuracy = c(
-                            details$BN2_bacc,
-                            details$EZB_bacc,
-                            details$MCD_bacc,
-                            details$ST2_bacc,
-                            details$Other_bacc,
-                            details$A53_bacc))
-    }else if("C1" %in% classes){
-      acc_df = data.frame(lymphgen = c("C1","C2","C3","C4","C5"),
-                          accuracy = c(details$C1_bacc,
-                                       details$C2_bacc,
-                                       details$C3_bacc,
-                                       details$C4_bacc,
-                                       details$C5_bacc))
-    }else{
-      stop("no labels to add?")
-    }
-    
-  }
-  # Add the predicted labels for Other (unclassified) cases, if provided
-  if(!missing(other_df)){
-    in_df = bind_rows(train_df,
-                      test_df,
-                      mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
-                      mutate(other_df,dataset=title3,lymphgen=predicted_label)
-                      )
-    in_df = mutate(in_df,dataset = factor(dataset,levels=unique(c(unique(train_df$dataset),title1,title2,title3))))
-  }else{
-    in_df = bind_rows(train_df,
-                      test_df,
-                      mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
-                      )
-    in_df = mutate(in_df,dataset = factor(dataset,levels=unique(c(unique(train_df$dataset),title1,title2))))
-  }
-
-  pp = ggplot(in_df) +
-    geom_point(aes(x=V1,y=V2,colour=lymphgen),alpha=0.8) +
-    scale_colour_manual(values=get_gambl_colours()) +
-    facet_wrap(~dataset,ncol=1) +
-    theme_Morons(base_size=base_size) + ggtitle(title)
-  if(annotate_accuracy){
-    #add labels and set nudge direction based on what quadrant each group sits in
-    centroids = filter(predictions_df,predicted_label %in% classes) %>%
-      group_by(predicted_label) %>%
-      summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
-      mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
-      mutate(lymphgen=predicted_label)
-    #print(centroids)
-    centroids = left_join(centroids,acc_df) %>%
-      mutate(label=paste(lymphgen,":",round(accuracy,3)))
-
-    centroids$dataset = title2
-    pp = pp + geom_label_repel(data=filter(centroids,nudge_y < 0, nudge_x < 0),
-                              aes(x=mean_V1,y=mean_V2,label=label),fill="white",size=5,nudge_y = -1 * label_offset , nudge_x = -1 * label_offset) +
-      geom_label_repel(data=filter(centroids,nudge_y < 0, nudge_x > 0),
-                      aes(x=mean_V1,y=mean_V2,label=label),size=5,nudge_y = -1 * label_offset , nudge_x = 1 * label_offset) +
-      geom_label_repel(data=filter(centroids,nudge_y > 0, nudge_x < 0),
-                      aes(x=mean_V1,y=mean_V2,label=label),size=5,nudge_y = 1 * label_offset , nudge_x = -1 * label_offset) +
-      geom_label_repel(data=filter(centroids,nudge_y > 0, nudge_x > 0),
-                      aes(x=mean_V1,y=mean_V2,label=label),fill="white",size=5,nudge_y = 1 * label_offset , nudge_x = 1 * label_offset)
-  }
-  pp + guides(colour = guide_legend(nrow = 1))
-}
 
 
 #' Run UMAP and attach result to metadata
