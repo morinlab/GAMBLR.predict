@@ -1642,3 +1642,176 @@ if(add_percent){
   segment.colour = "none",
   fill = guide_legend(title = "Class")) 
 }
+
+#' Create a stacked bar plot of top features per subtype
+#'
+#' This function generates a stacked bar plot showing the top features (genes) for each subtype based on their prevalence in the dataset. 
+#'
+#' @param DLBCLone_model A DLBCLone model object, which can be the output of \code{DLBCLone_optimize_params}, or \code{DLBCLone_KNN}
+#' @param truth_column Name of the column containing the true class labels (default: "lymphgen").
+#' @param truth_classes Vector of class labels to consider (default: c("BN2","EZB","MCD","ST2")).
+#' @param method Method to determine top features: "common" for most common features, "chi_square" for subtype vs rest significance (default : "common").
+#' @param num_feats Number of top features to display per subtype (default: 10).
+#' @param title Title for the plot (default: NULL).
+#'
+#' @return A ggplot2 object representing the stacked bar plot.
+#' 
+#' @import dplyr ggplot2 tidyr rlang
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' stacked_bar_plot(
+#'  optimize_params,
+#'  method = "chi_square",
+#'  num_feats = 10,
+#'  title = "LymphGen"
+#' ) 
+#' }
+#'
+stacked_bar_plot <- function(
+  DLBCLone_model,
+  truth_column = "lymphgen",
+  truth_classes = c("BN2","EZB","MCD","ST2"),
+  method = "common",
+  num_feats = 10,
+  title = NULL
+){
+  if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model) && DLBCLone_model$type == "predict_single_sample_DLBCLone"){
+    stop("DLBCLone_model must be the output of DLBCLone_optimize_params, or DLBCLone_KNN")
+  }
+
+  if ("type" %in% names(DLBCLone_model) && DLBCLone_model$type == "DLBCLone_KNN") {
+    DLBCLone_model$features <- DLBCLone_model$features_df
+  }
+
+  bad_cols <- colSums(DLBCLone_model$features) <= 0.02 * nrow(DLBCLone_model$features)
+  DLBCLone_model$features <- DLBCLone_model$features[, !bad_cols]
+
+  annotated_feats <- DLBCLone_model$features %>%
+    rownames_to_column("sample_id") %>%
+    left_join(
+      DLBCLone_model$df %>% select(sample_id, !!sym(truth_column)), 
+      by = "sample_id"
+    ) %>%
+    column_to_rownames("sample_id") 
+
+  annotated_feats[[truth_column]] <- as.factor(annotated_feats[[truth_column]])
+
+  gene_cols <- setdiff(colnames(annotated_feats), c("sample_id", truth_column))
+  subtypes <- truth_classes
+
+  top_genes_per_subtype <- list()
+
+  if(method == "common"){
+
+    for(subtype in subtypes){
+      subtype_samples <- annotated_feats[annotated_feats[[truth_column]] == subtype, ]
+      
+      gene_counts <- colSums(subtype_samples[, gene_cols, drop = FALSE])
+      gene_ranking <- order(gene_counts, decreasing = TRUE)
+      
+      # Top genes for this subtype
+      top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
+    }
+
+  }else if(method == "chi_square"){
+
+    for(subtype in subtypes){
+      # Create binary class: subtype vs rest
+      y_binary <- factor(ifelse(annotated_feats[[truth_column]] == subtype, subtype, paste0("not_", subtype)))
+  
+      chi_stats <- numeric(length(gene_cols))
+  
+      for(i in seq_along(gene_cols)){
+        gene <- gene_cols[i]
+        tbl <- table(annotated_feats[[gene]], y_binary)
+        test <- suppressWarnings(chisq.test(tbl))
+        chi_stats[i] <- test$statistic
+      }
+  
+      gene_ranking <- order(chi_stats, decreasing = TRUE)
+  
+      # Top genes for this subtype
+      top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
+    }
+
+  }else{
+    stop(
+      paste(
+        "Must select a valid method:",
+        "'common'     - for most common features",
+        "'chi_square' - for subtype vs rest significance",
+        sep = "\n"
+      )
+    )
+  }
+
+  plot_df <- bind_rows(lapply(names(top_genes_per_subtype), function(subtype){
+    genes <- top_genes_per_subtype[[subtype]]
+    subtype_samples <- annotated_feats[annotated_feats[[truth_column]] == subtype, ]
+    n_subtype <- nrow(subtype_samples)  # total samples in this subtype
+  
+    counts <- colSums(subtype_samples[, genes, drop = FALSE] > 0)  # ensure 0/1
+    plot_df <- tibble(
+      subtype = subtype,
+      gene = names(counts),
+      count = as.numeric(counts),
+      prop_gene = as.numeric(counts) / n_subtype
+  )
+  }))
+
+  plot_df <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      prop = count / sum(count),
+      rank = rank(-count, ties.method = "first")  # rank genes within subtype
+    ) %>%
+    ungroup()
+
+  # cumulative position for placing labels
+  plot_df <- plot_df %>%
+    group_by(subtype) %>%
+    arrange(rank) %>%
+    mutate(
+      cum_prop = cumsum(prop),         
+      pos = cum_prop - prop / 2       
+    ) %>%
+    ungroup()
+
+  colours <- get_gambl_colours()
+  n_colours <- max(plot_df$rank)
+
+  fill_map <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      base_col = ifelse(!is.na(colours[subtype]), colours[subtype], "grey"),
+      ramp = list(colorRampPalette(c(first(base_col), "white"))(max(rank))),
+      fill_color = ramp[[1]][rank]
+    ) %>%
+    ungroup()
+
+  # merge colors back into plot_df
+  plot_df$fill_color <- fill_map$fill_color
+
+  ggplot(plot_df, aes(x = subtype, y = prop, fill = fill_color)) +
+    geom_bar(stat = "identity", color = "black", position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(label = paste0(gene, " ", scales::percent(prop_gene, accuracy = 1))),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      size = 3
+    ) +
+    scale_fill_identity() +   
+    labs(
+      title = paste(title, " Top", num_feats, "genes per subtype (method:", method, ")"),
+      x = "Subtype",
+      y = "Proportion of Samples with Mutation"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 0, hjust = 1),
+      legend.position = "none"
+    )
+}
