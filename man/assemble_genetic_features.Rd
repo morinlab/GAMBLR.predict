@@ -50,3 +50,33 @@ Matrix of assembled features for each sample.
 This function assembles a matrix of genetic features for each sample, including mutation status,
 aSHM counts, and structural variant status for BCL2, BCL6, and MYC. It supports both genome and capture sequencing types.
 }
+\examples{
+
+\dontrun{
+library(GAMBLR.predict)
+
+ordered_genes = filter(lymphoma_genes,DLBCL_Tier==1 | FL_Tier==1|BL_Tier==1)  \%>\% pull(Gene)
+synon_genes = unique(grch37_ashm_regions$gene)
+synon_genes = synon_genes[synon_genes \%in\% ordered_genes]
+
+all_sv_anno = get_combined_sv(these_samples_metadata = dlbcl_meta)
+
+all_sv_anno = annotate_sv(all_sv_anno)
+
+all_full_status = assemble_genetic_features(
+  these_samples_metadata = dlbcl_meta,
+  metadata_columns = c("BCL2_SV","BCL6_SV"),
+  synon_genes = synon_genes,
+  synon_value = 1,
+  coding_value = 2,
+  genes = ordered_genes,
+  hotspot_genes = c("MYD88"),
+  maf_with_synon = all_maf_with_s,
+  include_ashm = F,
+  sv_value = 2,
+  verbose=F,
+  annotated_sv = all_sv_anno
+)
+}
+ 
+}

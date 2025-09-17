@@ -137,7 +137,6 @@ summarize_all_ssm_status <- function(maf_df,
  return(mutation_wide)
 }
 
-
 #' Assemble genetic features for UMAP input
 #'
 #' This function assembles a matrix of genetic features for each sample, including mutation status,
@@ -155,7 +154,39 @@ summarize_all_ssm_status <- function(maf_df,
 #' @param verbose Defaults to FALSE
 #'
 #' @return Matrix of assembled features for each sample.
+#' 
+#' @import dplyr tibble tidyr
 #' @export
+#' 
+#' @examples 
+#' 
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' ordered_genes = filter(lymphoma_genes,DLBCL_Tier==1 | FL_Tier==1|BL_Tier==1)  %>% pull(Gene)
+#' synon_genes = unique(grch37_ashm_regions$gene)
+#' synon_genes = synon_genes[synon_genes %in% ordered_genes]
+#'
+#' all_sv_anno = get_combined_sv(these_samples_metadata = dlbcl_meta)
+#'
+#' all_sv_anno = annotate_sv(all_sv_anno)
+#'
+#' all_full_status = assemble_genetic_features(
+#'   these_samples_metadata = dlbcl_meta,
+#'   metadata_columns = c("BCL2_SV","BCL6_SV"),
+#'   synon_genes = synon_genes,
+#'   synon_value = 1,
+#'   coding_value = 2,
+#'   genes = ordered_genes,
+#'   hotspot_genes = c("MYD88"),
+#'   maf_with_synon = all_maf_with_s,
+#'   include_ashm = F,
+#'   sv_value = 2,
+#'   verbose=F,
+#'   annotated_sv = all_sv_anno
+#' )
+#' }
+#'  
 assemble_genetic_features <- function(these_samples_metadata,
                 metadata_columns = c("bcl2_ba","bcl6_ba","myc_ba"),
                 genes,
@@ -316,9 +347,7 @@ assemble_genetic_features <- function(these_samples_metadata,
   status_combined[,"BCL6_SV"] = 0
   status_combined[bcl6_id,"BCL6_SV"] = sv_value
   return(status_combined)
-
 }
-
 
 #' Optimize the threshold for classifying samples as "Other"
 #'
@@ -345,6 +374,8 @@ assemble_genetic_features <- function(these_samples_metadata,
 #' (passed to DLBCLone_optimize_params). Default: FALSE
 #'
 #' @returns a list of data frames with the predictions and the UMAP input
+#' 
+#' @import dplyr tidyr caret
 #' @export
 #'
 optimize_outgroup <- function(predicted_labels,
@@ -412,7 +443,6 @@ optimize_outgroup <- function(predicted_labels,
   
   return(best)
 }
-
 
 #' Plot the result of a DLBCLone classification
 #'
@@ -528,7 +558,6 @@ DLBCLone_train_test_plot = function(test_df,
   pp + guides(colour = guide_legend(nrow = 1))
 }
 
-
 #' Run UMAP and attach result to metadata
 #'
 #' @param df Feature matrix with one row per sample and one column per mutation
@@ -554,12 +583,14 @@ DLBCLone_train_test_plot = function(test_df,
 #'
 #' @examples
 #' 
-#' #library(GAMBLR.predict)
+#' library(GAMBLR.predict)
 #'
 #' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
 #'  tibble::column_to_rownames("sample_id")
+#' 
 #' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
-#' my_umap <- make_and_annotate_umap(
+#' 
+#' make_umap <- make_and_annotate_umap(
 #'   df=all_full_status,
 #'   metadata=dlbcl_meta
 #' )
@@ -614,7 +645,6 @@ make_and_annotate_umap = function(df,
     }
     
   }
- 
 
   if(missing(df)){
     stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
@@ -748,8 +778,7 @@ make_and_annotate_umap = function(df,
                        rng_type = "deterministic"
                        ) 
       #IMPORTANT: n_threads must never be changed because it will break reproducibility
-    }
-    
+    }   
 
   }else{
     message("transforming each data point individually using the provided UMAP model. This will take some time.")
@@ -771,7 +800,6 @@ make_and_annotate_umap = function(df,
     
   }
   
-  
   if(model_provided){
     # model was generated here
     message("model given to function")
@@ -785,8 +813,6 @@ make_and_annotate_umap = function(df,
     umap_df = left_join(umap_df,metadata,by=join_column)
   }
   results = list()
-
-
   
   results[["df"]]=umap_df
   results[["features"]] = df
@@ -835,11 +861,16 @@ make_and_annotate_umap = function(df,
 #' - Adds columns for counts, scores, top group, top group score, score ratios, and optimized group assignments.
 #' - Designed for downstream use in DLBCLone and similar kNN-based classification workflows.
 #'
-#' @examples
-#' # Example usage:
-#' # result <- process_votes(knn_output_df, k = 7)
-#'
+#' @import dplyr tidyr stringr purrr
 #' @export
+#' 
+#' @examples
+#' /dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' result <- process_votes(knn_output_df, k = 7)
+#' }
+#' 
 process_votes <- function(df,
                           raw_col = "label",
                           group_labels = c("EZB", "MCD", "ST2", "BN2", "N1", "Other"),
@@ -971,8 +1002,6 @@ process_votes <- function(df,
   
 }
 
-
-
 #' Optimize Purity Threshold for Classification Assignment
 #'
 #' This function searches for the optimal purity threshold to assign samples to their predicted class or to "Other" based on the score ratio in processed kNN vote results.
@@ -990,12 +1019,17 @@ process_votes <- function(df,
 #' - Accuracy is computed as the proportion of correct assignments (diagonal of the confusion matrix).
 #' - The function is intended for use in optimizing classification purity in kNN-based workflows, especially when distinguishing between confident class assignments and ambiguous ("Other") cases.
 #'
-#' @import caret
-#' @examples
-#' # Example usage:
-#' # result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
-#'
+#' @import dplyr tidyr caret
 #' @export
+#' 
+#' @examples
+#' 
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+#' }
+#' 
 optimize_purity <- function(optimized_model_object,
                             vote_df, 
                             mode, 
@@ -1147,7 +1181,6 @@ optimize_purity <- function(optimized_model_object,
   return(optimized_model_object)
 }
 
-
 #' Predict DLBCLone Classes for New Samples Using a Trained KNN Model
 #'
 #' Applies a previously optimized DLBCLone KNN model to predict class labels for new (test) samples.
@@ -1172,17 +1205,34 @@ optimize_purity <- function(optimized_model_object,
 #' - Uses the parameters (e.g., k, feature weights) from the provided \code{DLBCLone_KNN_out} object.
 #' - Returns the same structure as \code{DLBCLone_KNN}, with predictions for the test samples.
 #'
+#' @import dplyr tidyr tibble readr
+#' @export 
+#'
 #' @examples
 #' # Assuming you have run DLBCLone_KNN to get optimized parameters:
 #' # model_out <- DLBCLone_KNN(train_features, train_metadata, ...)
 #' # Predict on new samples:
-#' predictions <- DLBCLone_KNN_predict(
-#'   train_df = train_features,
-#'   test_df = new_samples,
-#'   metadata = sample_metadata,
-#'   DLBCLone_KNN_out = model_out
 #' 
-#' @export
+#' library(GAMBLR.predict) 
+#' 
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' dlbcl_knn <- DLBCLone_KNN(  
+#'   features_df = all_full_status,
+#'   metadata = dlbcl_meta
+#' )
+#'
+#' predictions <- DLBCLone_KNN_predict(
+#'   train_df = all_full_status,
+#'   test_df = lyseq_validation_data,
+#'   metadata = dlbcl_meta,
+#'   DLBCLone_KNN_out = dlbcl_knn,
+#'   mode = "batch"
+#' )
+#' 
 #'
 DLBCLone_KNN_predict <- function(train_df,
                                  test_df,
@@ -1243,7 +1293,6 @@ DLBCLone_KNN_predict <- function(train_df,
   }
 }
 
-
 #' Run DLBCLone KNN Classification
 #'
 #' Weighted KNN on a feature (mutation) matrix with optional upweighting of
@@ -1290,7 +1339,23 @@ DLBCLone_KNN_predict <- function(train_df,
 #'   \item{df}{Annotated layout for plotting (when built in this run)}
 #'   \item{plot_truth, plot_predicted}{ggplots when built in this run}
 #'
+#' @import dplyr tidyr uwot ggplot2 purrr caret
 #' @export
+#' 
+#' @examples 
+#' 
+#' library(GAMBLR.predict)
+#' 
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' dlbcl_knn <- DLBCLone_KNN(  
+#'   features_df = all_full_status,
+#'   metadata = dlbcl_meta
+#' )
+#'
 DLBCLone_KNN <- function(features_df,
                          metadata,
                          core_features = NULL,
@@ -1886,8 +1951,6 @@ DLBCLone_KNN <- function(features_df,
   return(to_return)
 }
 
-
-
 #' Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 #'
 #' @param combined_mutation_status_df Data frame with one row per sample and
@@ -1925,34 +1988,47 @@ DLBCLone_KNN <- function(features_df,
 #' UMAP output as a data frame. The list also includes the predictions for the
 #' "Other" class if it was included in the training and testing.
 #' 
-#' @import caret
-#' 
+#' @import dplyr tidyr tibble 
 #' @export
 #'
 #' @examples
 #'
+#' library(GAMBLR.predict)
+#' 
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
 #'
 #' # Aim to maximize classification of samples into non-Other class
-#' lymphgen_lyseq_no_other =  
-#' GAMBLR.predict::DLBCLone_optimize_params(  
-#'  dlbcl_status_combined_lyseq,
-#'  dlbcl_meta_lyseq_train,
-#'  min_k = 5,max_k=23,
-#'  optimize_for_other = F,
-#'  truth_classes = c("MCD","EZB","ST2","BN2"))
+#' optimize_params_F <- DLBCLone_optimize_params(  
+#'   all_full_status, 
+#'   dlbcl_meta,
+#'   umap_out = make_umap,
+#'   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+#'   optimize_for_other = F,
+#'   min_k=5,
+#'   max_k=23
+#' )
 #'
 #' # Aim to maximize balanced accuracy while allowing samples to be
 #' # unclassified (assigned to "Other")
 #' 
-#' DLBCLone_lymphgen_lyseq_prime_opt =  
-#' GAMBLR.predict::DLBCLone_optimize_params(  
-#'  dlbcl_status_combined_lyseq_prime,
-#'  dlbcl_meta_lyseq_train,
-#'  min_k = 5,max_k=23,
-#'  optimize_for_other = T,
-#'  truth_classes = c("MCD","EZB","ST2","BN2","Other"))
+#' optimize_params_T <- DLBCLone_optimize_params(  
+#'   all_full_status, 
+#'   dlbcl_meta,
+#'   umap_out = make_umap,
+#'   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+#'   optimize_for_other = T,
+#'   min_k=5,
+#'   max_k=23
+#' )
 #'
-
 DLBCLone_optimize_params = function(combined_mutation_status_df,
                            metadata_df,
                            umap_out,
@@ -2055,7 +2131,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
         }
     }
     
-
     for(use_w in weights_opt){
       for(k in ks){
         best_w_acc = NULL
@@ -2067,8 +2142,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
         test_ids = filter(outs$df,!!sym(truth_column) %in% truth_classes) %>% pull(sample_id)
         rownames(train_coords) = train_ids
         rownames(test_coords) = test_ids
-
-
 
         pred = weighted_knn_predict_with_conf(
           train_coords = train_coords,
@@ -2189,7 +2262,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
           if(verbose){
             print("true_factor")
-            print(levels(true_factor ))
+            print(levels(true_factor))
             print("===")
             print(levels(xx_d$predicted_label))
           }
@@ -2324,7 +2397,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     print(paste("TOP score threshold:",best_w_score_thresh, "purity:", best_w_purity))  
   }
   
-
   pred = weighted_knn_predict_with_conf(
             train_coords = train_coords,
             train_labels = train_labels,
@@ -2348,7 +2420,6 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                            by_score,
                                            "Other")) 
 
-  
   if(optimize_for_other){
     
     pred = mutate(pred,predicted_label_optimized = ifelse(other_score > best_params$threshold_outgroup,
@@ -2433,14 +2504,23 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 #'   - predictions: updated predictions_df (DLBCLone_wo or DLBCLone_wc / DLBCLone_wc_simplified)
 #'   - consistency_report: per-sample counts and decision flags
 #'
-#' @import dplyr tidyr
+#' @import dplyr tidyr tibble 
 #' @export
+#' 
+#' @examples
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' DLBCLone_ensemble_postprocess(
+#'   optimized_model = optimize_params_T,
+#'   other_min = 3,
+#'   assign_composites = TRUE,
+#'   any_split = TRUE,
+#'   optimize_per_class = TRUE
+#' )
+#' }
+#'
 DLBCLone_ensemble_postprocess <- function(
-  #all_predictions,
-  #truth_classes,
-  #predictions_df,
-  #outs_df,
-  #truth_column,
   optimized_model,
   assign_composites = FALSE,
   other_min          = 2,
@@ -2626,9 +2706,6 @@ DLBCLone_ensemble_postprocess <- function(
   return(to_return)
 }
 
-
-
-
 #' Weighted k-nearest neighbor with confidence estimate
 #'
 #' @param train_coords Data frame of coordinates for labeled (training) samples.
@@ -2672,7 +2749,7 @@ DLBCLone_ensemble_postprocess <- function(
 #'   \item{total_w}{sum of weights for in-group neighbors used}
 #'   \item{pred_w}{weight supporting the predicted class}
 #'
-#' @import FNN
+#' @import FNN dplyr tibble tidyr
 #' @export
 #' 
 #' 
@@ -2937,18 +3014,37 @@ prepare_single_sample_DLBCLone <- function(optimized_model,seed=12345){
 #' samples to estimate overall accuracy
 #' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")
 #' @returns a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
+#' 
+#' @import dplyr tibble ggplot2 readr
 #' @export
 #'
 #' @examples
-#' predict_single_sample_DLBCLone(
-#'    seed = 1234,
-#'    test_df = test_df,
-#'    train_df = train_df,
-#'    train_metadata = train_metadata,
-#'    umap_out = umap_out,
-#'    best_params = best_params
-#'    predictions_df = predictions_df,
-#'    annotate_accuracy = TRUE
+#' 
+#' library(GAMBLR.predict)
+#' 
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#'
+#' optimize_params <- DLBCLone_optimize_params(  
+#'   all_full_status, 
+#'   dlbcl_meta,
+#'   umap_out = make_umap,
+#'   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+#'   optimize_for_other = T,
+#'   min_k=5,
+#'   max_k=23
+#' )
+#' 
+#' predict_single <- DLBCLone_predict(
+#'   mutation_status = optimize_params$features[1,], 
+#'   optimized_model = optimize_params
 #' )
 #'
 DLBCLone_predict <- function(
@@ -3097,8 +3193,6 @@ DLBCLone_predict <- function(
   }else{
     stop("mode must be one of DLBCLone_w or DLBCLone_i")
   }
-  
-
 
   # coords for outputs (always from the unified projection)
   predictions_test_df <- dplyr::left_join(
@@ -3164,7 +3258,6 @@ DLBCLone_predict <- function(
   return(to_return)
 }
 
-
 #' Train a Gaussian Mixture Model for DLBCLone Classification
 #'
 #' Fits a supervised Gaussian mixture model (GMM) to UMAP-projected data for DLBCLone subtypes, excluding samples labeled "Other".
@@ -3186,12 +3279,26 @@ DLBCLone_predict <- function(
 #'   \item{predictions}{Data frame with sample IDs, UMAP coordinates, true labels, predicted classes, and thresholded assignments}
 #'   \item{probability_threshold}{Probability threshold used for "Other" assignment}
 #'
-#' @examples
-#' result <- DLBCLone_train_mixture_model(umap_out)
-#' head(result$predictions)
-#' @import mclust
-#'
+#' @import mclust dplyr tibble
 #' @export
+#' 
+#' @examples
+#' 
+#' library(GAMBLR.predict)
+#' 
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#' 
+#' result <- DLBCLone_train_mixture_model(umap_out = make_umap)
+#' head(result$predictions)
+#' 
 DLBCLone_train_mixture_model = function(umap_out,
                                         probability_threshold = 0.5,
                                         density_max_threshold = 0.05,
@@ -3293,13 +3400,32 @@ return(to_return)
 #'   \item{predictions}{Data frame with sample IDs, UMAP coordinates, predicted classes, and thresholded assignments}
 #'   \item{probability_threshold}{Probability threshold used for "Other" assignment}
 #'
+#' @import mclust dplyr tibble
+#' @export
+#' 
 #' @examples
 #' # Predict on new UMAP data using a trained mixture model:
-#' result <- DLBCLone_predict_mixture_model(model, umap_out)
+#' 
+#' library(GAMBLR.predict)
+#' 
+#' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+#'  tibble::column_to_rownames("sample_id")
+#' 
+#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+#' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#' 
+#' mixture_model <- DLBCLone_train_mixture_model(umap_out = make_umap)
+#' 
+#' result <- DLBCLone_predict_mixture_model(
+#'   model=mixture_model$gaussian_mixture_model,
+#'   umap_out=make_umap
+#' )
 #' head(result$predictions)
 #'
-#' @import mclust
-#' @export
 DLBCLone_predict_mixture_model = function(model,
                                           umap_out,
                                         probability_threshold = 0.5,
@@ -3338,16 +3464,13 @@ colnames(densities) <- names(gmm_supervised$models)
 max_density <- apply(densities, 1, max)
 max_prob <- apply(pred$z, 1, max)
 
-
 df$DLBCLone_g = pred$classification
-
 
 df$DLBCLone_go <- ifelse(
   (max_prob < probability_threshold) | (max_density < density_max_threshold),
   "Other",
   as.character(pred$classification)
 )
-
 
 df$cohort = cohort
 to_return = list(gaussian_mixture_model = gmm_supervised,
@@ -3356,4 +3479,3 @@ to_return = list(gaussian_mixture_model = gmm_supervised,
                  )
 return(to_return)
 }
-
