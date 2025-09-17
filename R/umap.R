@@ -2275,7 +2275,8 @@ DLBCLone_predict <- function(
   max_neighbors = 500,
   fill_missing = FALSE,
   drop_extra = FALSE,
-  check_frequencies = FALSE
+  check_frequencies = FALSE,
+  dry_run = FALSE
 ){
  
   stopifnot(!is.null(optimized_model))
@@ -2365,17 +2366,21 @@ DLBCLone_predict <- function(
       max_vals = apply(test_df,2,max)
       #core features should have a higher max value than the rest
       core_feature_mask = !colnames(test_df) %in% core_features
-      if (all(max(max_vals[core_feature_mask]) < max_vals[core_features])){
+
+      if (max(max_vals[core_feature_mask]) < max_vals[core_features]){
+        #print(paste(max(max_vals[core_feature_mask]), "<", max_vals[core_features]))
         message("core features already appear to be weighted. Skipping weighting step.")
       }else{
+        #print(paste(max(max_vals[core_feature_mask]), "vs", max_vals[core_features]))
         weight_core_features = TRUE
-
         test_df[,core_features] <- test_df[,core_features] * multiplier
         message(paste("Weighting core features by",multiplier,"to match training data for this model"))
       }
     }
   }
-
+  if(dry_run){
+    return(test_df)
+  }
 
   # ids
   train_df  <- tibble::rownames_to_column(train_df, "sample_id")
