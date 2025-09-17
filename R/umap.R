@@ -1311,6 +1311,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                                              "N1",
                                              "BN2",
                                              "Other"),
+                           other_class = "Other",
                            truth_column = "lymphgen",
                            optimize_for_other = FALSE,
                            eval_group = NULL,
@@ -1425,7 +1426,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           test_coords = test_coords,
           k=k,
           conf_threshold =threshold,
-          other_class="Other",
+          other_class=other_class,
           use_weights = use_w,
           #ignore_self = ignore_self,
           verbose = verbose)
@@ -1522,7 +1523,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 test_coords = test_coords,
                 k=k,
                 conf_threshold =threshold,
-                other_class="Other",
+                other_class=other_class,
                 use_weights = use_w,
                 #ignore_self = ignore_self,
                 verbose = verbose)
@@ -1581,7 +1582,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             out_opt_thresh = 0
           }
           if(exclude_other_for_accuracy){
-            mean_balanced_accuracy = mean(bal_acc[!names(bal_acc) == "Class: Other"], na.rm = TRUE)
+            mean_balanced_accuracy = mean(bal_acc[!names(bal_acc) == paste("Class:",other_class)], na.rm = TRUE)
           }else{
             mean_balanced_accuracy = mean(bal_acc)
           }
@@ -1637,7 +1638,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             best_fit = outs
             best_pred = xx_d
             
-            if(!"Other" %in% truth_classes  && n_other > 0){
+            if(!other_class %in% truth_classes  && n_other > 0){
               other_pred = pred_other
             }
 
@@ -1691,7 +1692,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   if(optimize_for_other){
     
     pred = mutate(pred,predicted_label_optimized = ifelse(other_score > best_params$threshold_outgroup,
-                                                          "Other",
+                                                          other_class,
                                                           predicted_label))
   }else{
     pred = mutate(pred,predicted_label_optimized = predicted_label)
@@ -1738,7 +1739,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     to_ret = c(store_params,to_ret)
   }
   
-  if(!"Other" %in% truth_classes && n_other > 0){
+  if(!other_class %in% truth_classes && n_other > 0){
     to_ret[["predictions_other"]] = xx_o
     to_ret[["predictions_combined"]] = bind_rows(xx_o,best_pred)
   }
@@ -1754,7 +1755,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   to_ret$optimize_for_other = optimize_for_other
   to_ret$truth_column = truth_column
   to_ret$type = "DLBCLone_optimize_params"
-
+  to_ret$other_class = other_class
   return(to_ret)
 }
 
@@ -2269,17 +2270,14 @@ weighted_knn_predict_with_conf <- function(train_coords,
 DLBCLone_predict <- function(
   mutation_status,
   optimized_model,
-  mode = "DLBCLone_w",              
-  truth_classes = c("EZB","MCD","ST2","N1","BN2","Other"),
   annotate_accuracy = FALSE,
   seed = 12345,
   max_neighbors = 500,
-  other_class = "Other",
   fill_missing = FALSE,
   drop_extra = FALSE,
   check_frequencies = FALSE
 ){
-  ignore_self = TRUE
+ 
   stopifnot(!is.null(optimized_model))
   set.seed(seed)
   #check for inconsistencies in feature set and alter the user if neecssary
@@ -2317,12 +2315,15 @@ DLBCLone_predict <- function(
 
   # pull params/model from optimized_model (single source of truth)
   best_params <- optimized_model$best_params
+  truth_classes <- optimized_model$truth_classes
+  other_class = "Other" #replace this with the next line when we're sure all models support this
+  #other_class <- optimized_model$other_class
   umap_model  <- optimized_model  # passed into make_and_annotate_umap (holds model + settings)
   train_df <- optimized_model$features #already weighted if core_features was used
-  test_df  <- mutation_status
-  train_metadata <- optimized_model$df #not yet weighted but needs to be if core_features was used
+  test_df  <- mutation_status #needs to be weighted/meta-featured if done during training
+  train_metadata <- optimized_model$df 
   
-  weight_core_features = FALSE
+  weight_core_features = FALSE #will be set based on how the model was trained
   if(check_frequencies){
     test_bin = test_df %>% select(-any_of(ends_with("_feats")))
     test_bin[test_bin>0]=1
@@ -2375,26 +2376,12 @@ DLBCLone_predict <- function(
     }
   }
 
-  # avoid self-neighboring if any test samples are also in training
-  
-  #dupes <- intersect(rownames(train_df), rownames(test_df))
-  #if (ignore_self && length(dupes) > 0) {
-  #  message("duplicates detected; removing test samples from training to avoid self-neighbors: ",
-  #          paste(dupes, collapse = ", "))
-  #  train_df <- train_df[setdiff(rownames(train_df), dupes), , drop = FALSE]
-  #  if (!missing(train_metadata)) {
-  #    train_metadata <- dplyr::filter(train_metadata, !(sample_id %in% dupes))
-  #  }
-  #}
 
   # ids
   train_df  <- tibble::rownames_to_column(train_df, "sample_id")
   test_df   <- tibble::rownames_to_column(test_df,  "sample_id")
   train_id  <- train_df$sample_id
   test_id   <- test_df$sample_id
-
-  # build combined and get a SINGLE fresh projection using the PROVIDED model
-  #combined_df <- dplyr::bind_rows(train_df, test_df)
 
   projection_train <- make_and_annotate_umap(
     df          = train_df,
@@ -2417,16 +2404,14 @@ DLBCLone_predict <- function(
   if (missing(train_metadata)) {
     stop("train_metadata is required to extract training labels (lymphgen).")
   }
-  message("using",optimized_model$k_DLBCLone_w)
+  message(paste("using K:",optimized_model$k_DLBCLone_w))
   #use the K that matches the optimal DLBCLone_wo result!
   test_pred=data.frame()
 
-  for(this_sample in projection_train$df$sample_id){
-    print(this_sample)
+  for(this_sample in projection_test$df$sample_id){
     train_df_proj <- projection_train$df |>
     dplyr::filter(sample_id !=this_sample) |> #IMPORTANT: ensure samples own label is ignored if its in the training set
     dplyr::select(sample_id, V1, V2) |>
-    #dplyr::arrange(match(sample_id, train_id)) |>
     dplyr::left_join(train_metadata |> 
       dplyr::select(sample_id, lymphgen), by = "sample_id")
 
@@ -2439,8 +2424,7 @@ DLBCLone_predict <- function(
       dplyr::select(sample_id, V1, V2) |>
       filter(sample_id == this_sample) |>
       tibble::column_to_rownames("sample_id")
-    print(nrow(train_coords))
-    print(nrow(test_coords))
+
   this_test_pred <- weighted_knn_predict_with_conf(
     train_coords   = train_coords,
     train_labels   = train_labels,
@@ -2480,29 +2464,15 @@ DLBCLone_predict <- function(
       )
   }
 
-  # annotation convenience
-  #anno_out <- dplyr::left_join(
-  #  test_pred,
-  #  projection_test$df,
-    #test_coords$df,
-  #  by = "sample_id"
-  #) |>
-  #  dplyr::mutate(
-  #    V1 = as.numeric(V1), V2 = as.numeric(V2),
-  #    label = paste(sample_id, predicted_label, round(confidence, 3))
-  #  )
-
+  
   to_return = list(
     prediction  = predictions_test_df,
     projection  = projection_test$df,                
     umap_input  = optimized_model$features,      # input feature space of the model
     model       = optimized_model$model,         # the model actually used
-    mode = mode,
     features_df = test_df |> tibble::column_to_rownames("sample_id"),
     df          = predictions_test_df,
     metadata = optimized_model$df,
-    #anno_df     = dplyr::left_join(predictions_df, train_metadata, by = "sample_id"),
-    #anno_out    = anno_out,
     type        = "DLBCLone_predict",
     unprocessed_votes = unprocessed
   )
