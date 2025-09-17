@@ -1707,7 +1707,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 
   xx_d = bind_cols(outs$df,pred)
  
-  xx_d = left_join(xx_d, select(best_pred_w, sample_id, any_of(c("Local_Otherness")), score_ratio, top_group_score, DLBCLone_w, DLBCLone_wo), by="sample_id")
+  xx_d = left_join(xx_d, select(best_pred_w, sample_id, any_of(c("Local_Otherness")), score_ratio, ends_with("score"), DLBCLone_w, DLBCLone_wo), by="sample_id")
   acc_check_w = report_accuracy(xx_d,pred = "DLBCLone_w",truth=truth_column)
   acc_check_wo = report_accuracy(xx_d,pred = "DLBCLone_wo",truth=truth_column)
   message(paste("DLBCLone_w accuracy:",
@@ -2261,15 +2261,9 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #' @export
 #'
 #' @examples
-#' DLBCLone_predict(
-#'    seed = 1234,
-#'    test_df = test_df,
-#'    train_df = train_df,
-#'    train_metadata = train_metadata,
+#' predicted_out = DLBCLone_predict(
+#'    mutation_status = mutation_feature_status,
 #'    umap_out = umap_out,
-#'    best_params = best_params
-#'    predictions_df = predictions_df,
-#'    annotate_accuracy = TRUE
 #' )
 #'
 DLBCLone_predict <- function(
@@ -2383,15 +2377,15 @@ DLBCLone_predict <- function(
 
   # avoid self-neighboring if any test samples are also in training
   
-  dupes <- intersect(rownames(train_df), rownames(test_df))
-  if (ignore_self && length(dupes) > 0) {
-    message("duplicates detected; removing test samples from training to avoid self-neighbors: ",
-            paste(dupes, collapse = ", "))
-    train_df <- train_df[setdiff(rownames(train_df), dupes), , drop = FALSE]
-    if (!missing(train_metadata)) {
-      train_metadata <- dplyr::filter(train_metadata, !(sample_id %in% dupes))
-    }
-  }
+  #dupes <- intersect(rownames(train_df), rownames(test_df))
+  #if (ignore_self && length(dupes) > 0) {
+  #  message("duplicates detected; removing test samples from training to avoid self-neighbors: ",
+  #          paste(dupes, collapse = ", "))
+  #  train_df <- train_df[setdiff(rownames(train_df), dupes), , drop = FALSE]
+  #  if (!missing(train_metadata)) {
+  #    train_metadata <- dplyr::filter(train_metadata, !(sample_id %in% dupes))
+  #  }
+  #}
 
   # ids
   train_df  <- tibble::rownames_to_column(train_df, "sample_id")
@@ -2400,97 +2394,76 @@ DLBCLone_predict <- function(
   test_id   <- test_df$sample_id
 
   # build combined and get a SINGLE fresh projection using the PROVIDED model
-  combined_df <- dplyr::bind_rows(train_df, test_df)
+  #combined_df <- dplyr::bind_rows(train_df, test_df)
 
-  projection <- make_and_annotate_umap(
-    df          = combined_df,
+  projection_train <- make_and_annotate_umap(
+    df          = train_df,
     umap_out    = umap_model,         # <- use supplied model/settings
     ret_model   = FALSE,              # <- don't retrain; just (re)project
     seed        = seed,
     join_column = "sample_id",
     na_vals     = best_params$na_option
   )
-
+  projection_test <- make_and_annotate_umap(
+    df          = test_df,
+    umap_out    = umap_model,         # <- use supplied model/settings
+    ret_model   = FALSE,              # <- don't retrain; just (re)project
+    seed        = seed,
+    join_column = "sample_id",
+    na_vals     = best_params$na_option
+  )
   # coords & labels from the unified projection
-  train_coords <- projection$df |>
-    dplyr::filter(sample_id %in% train_id) |>
-    dplyr::select(sample_id, V1, V2) |>
-    dplyr::arrange(match(sample_id, train_id)) |>
-    tibble::column_to_rownames("sample_id")
 
   if (missing(train_metadata)) {
     stop("train_metadata is required to extract training labels (lymphgen).")
   }
+  message("using",optimized_model$k_DLBCLone_w)
+  #use the K that matches the optimal DLBCLone_wo result!
+  test_pred=data.frame()
 
-  train_df_proj <- projection$df |>
-    dplyr::filter(sample_id %in% train_id) |>
+  for(this_sample in projection_train$df$sample_id){
+    print(this_sample)
+    train_df_proj <- projection_train$df |>
+    dplyr::filter(sample_id !=this_sample) |> #IMPORTANT: ensure samples own label is ignored if its in the training set
     dplyr::select(sample_id, V1, V2) |>
-    dplyr::arrange(match(sample_id, train_id)) |>
-    dplyr::left_join(train_metadata |> dplyr::select(sample_id, lymphgen), by = "sample_id")
+    #dplyr::arrange(match(sample_id, train_id)) |>
+    dplyr::left_join(train_metadata |> 
+      dplyr::select(sample_id, lymphgen), by = "sample_id")
 
-  train_labels <- train_df_proj$lymphgen
-  stopifnot(identical(rownames(train_coords), train_df_proj$sample_id))
-
-  test_coords <- projection$df |>
-    dplyr::filter(sample_id %in% test_id) |>
-    dplyr::select(sample_id, V1, V2) |>
-    tibble::column_to_rownames("sample_id")
-  if(mode=="DLBCLone_w"){
-    message("using",optimized_model$k_DLBCLone_w)
-    #use the K that matches the optimal DLBCLone_wo result!
-    test_pred <- weighted_knn_predict_with_conf(
-      train_coords   = train_coords,
-      train_labels   = train_labels,
-      test_coords    = test_coords,
-      k              = optimized_model$k_DLBCLone_w,
-      conf_threshold = best_params$threshold,
-      other_class    = other_class,
-      use_weights    = best_params$use_weights,
-      max_neighbors  = max_neighbors
-    ) |>
-      tibble::rownames_to_column("sample_id")
-
-  }else if(mode=="DLBCLone_i"){
-    message("using",best_params$k)
-      # KNN prediction in the single, consistent space
-    test_pred <- weighted_knn_predict_with_conf(
-      train_coords   = train_coords,
-      train_labels   = train_labels,
-      test_coords    = test_coords,
-      k              = best_params$k,
-      conf_threshold = best_params$threshold,
-      other_class    = other_class,
-      use_weights    = best_params$use_weights,
-      max_neighbors  = max_neighbors
-    ) |>
-      tibble::rownames_to_column("sample_id")
-      # add in/out "Other" gating using model and old-school thresholds
-    test_pred <- dplyr::mutate(
-      test_pred,
-      DLBCLone_i  = predicted_label,
-      DLBCLone_io = ifelse(other_score > best_params$threshold_outgroup, other_class, predicted_label)
-    )
-  }else{
-    stop("mode must be one of DLBCLone_w or DLBCLone_i")
+    train_labels <- train_df_proj$lymphgen
+    train_coords = train_df_proj |>
+      dplyr::select(sample_id, V1, V2) |>
+      tibble::column_to_rownames("sample_id")
+    
+    test_coords <- projection_test$df |>
+      dplyr::select(sample_id, V1, V2) |>
+      filter(sample_id == this_sample) |>
+      tibble::column_to_rownames("sample_id")
+    print(nrow(train_coords))
+    print(nrow(test_coords))
+  this_test_pred <- weighted_knn_predict_with_conf(
+    train_coords   = train_coords,
+    train_labels   = train_labels,
+    test_coords    = test_coords,
+    k              = optimized_model$k_DLBCLone_w,
+    conf_threshold = best_params$threshold,
+    other_class    = other_class,
+    use_weights    = best_params$use_weights,
+    max_neighbors  = max_neighbors
+  ) %>% tibble::rownames_to_column("sample_id")
+  test_pred = bind_rows(test_pred,this_test_pred)
   }
   
-
-
   # coords for outputs (always from the unified projection)
   predictions_test_df <- dplyr::left_join(
     test_pred,
-    projection$df |> dplyr::select(sample_id, V1, V2),
+    projection_test$df |> dplyr::select(sample_id, V1, V2),
     by = "sample_id"
   )
 
-  predictions_train_df <- projection$df |>
-    dplyr::filter(sample_id %in% train_id) |>
-    dplyr::select(sample_id, V1, V2)
-
-  predictions_df <- dplyr::bind_rows(predictions_train_df, predictions_test_df |> dplyr::select(sample_id, V1, V2))
   unprocessed = predictions_test_df
   # new weighted “purity/score” post-processing if present in model
-  if (mode == "DLBCLone_w" && !is.null(optimized_model$purity_DLBCLone_w)) {
+  if (!is.null(optimized_model$purity_DLBCLone_w)) {
     predictions_test_df <- process_votes(
       df = predictions_test_df,
       group_labels = optimized_model$truth_classes %||% truth_classes,
@@ -2508,27 +2481,28 @@ DLBCLone_predict <- function(
   }
 
   # annotation convenience
-  anno_out <- dplyr::left_join(
-    test_pred,
-    projection$df |> dplyr::select(sample_id, V1, V2),
-    by = "sample_id"
-  ) |>
-    dplyr::mutate(
-      V1 = as.numeric(V1), V2 = as.numeric(V2),
-      label = paste(sample_id, predicted_label, round(confidence, 3))
-    )
+  #anno_out <- dplyr::left_join(
+  #  test_pred,
+  #  projection_test$df,
+    #test_coords$df,
+  #  by = "sample_id"
+  #) |>
+  #  dplyr::mutate(
+  #    V1 = as.numeric(V1), V2 = as.numeric(V2),
+  #    label = paste(sample_id, predicted_label, round(confidence, 3))
+  #  )
 
   to_return = list(
     prediction  = predictions_test_df,
-    projection  = projection$df,                 # fresh, unified coordinates
+    projection  = projection_test$df,                
     umap_input  = optimized_model$features,      # input feature space of the model
     model       = optimized_model$model,         # the model actually used
     mode = mode,
-    features_df = combined_df |> tibble::column_to_rownames("sample_id"),
-    df          = predictions_df,
+    features_df = test_df |> tibble::column_to_rownames("sample_id"),
+    df          = predictions_test_df,
     metadata = optimized_model$df,
     #anno_df     = dplyr::left_join(predictions_df, train_metadata, by = "sample_id"),
-    anno_out    = anno_out,
+    #anno_out    = anno_out,
     type        = "DLBCLone_predict",
     unprocessed_votes = unprocessed
   )
