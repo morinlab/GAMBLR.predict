@@ -40,6 +40,15 @@ based on a DLBCLone model object. Supports outputs from:
 }
 }
 \examples{
-# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict 
+# Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
+\dontrun{ 
+library(GAMBLR.predict)
+
+nearest_neighbor_heatmap(
+  this_sample_id = "CCS_0680_lst",
+  DLBCLone_model = predict_single,
+  font_size = 10
+)
+}
 
 }

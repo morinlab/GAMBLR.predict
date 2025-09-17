@@ -35,19 +35,23 @@ basic_umap_scatterplot(
 
 \item{custom_colours}{Optional named vector of colors for groups; falls back to \code{get_gambl_colours()}.}
 }
-\value{
-A ggplot object.
-}
 \description{
 Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
 }
 \examples{
 
 \dontrun{
-my_umap = make_and_annotate_umap(my_data, my_metadata)
+library(GAMBLR.predict)
 
-basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
-                       plot_samples = "some_sample_ID",
-                       colour_by = "DLBCLone_ko")
+make_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
+
+basic_umap_scatterplot(
+  make_umap$df, #the data frame containing V1 and V2 from UMAP
+  plot_samples = "some_sample_ID",
+  colour_by = "DLBCLone_ko")
 }
+
 }

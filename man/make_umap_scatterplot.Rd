@@ -17,20 +17,39 @@ make_umap_scatterplot(
 )
 }
 \arguments{
-\item{df}{}
+\item{df}{Data frame containing the UMAP coordinates and annotations.}
 
-\item{drop_composite}{}
+\item{drop_composite}{If TRUE: removes composite labels from the lymphgen column.}
 
-\item{colour_by}{}
+\item{colour_by}{Column name to color points by. Default: "lymphgen".}
 
-\item{drop_other}{}
+\item{drop_other}{If TRUE: removes "Other" and "NOS" labels from the lymphgen column.}
 
-\item{high_confidence}{}
+\item{high_confidence}{If TRUE: filters the data to include only samples with confidence > 0.7.}
 
-\item{custom_colours}{}
+\item{custom_colours}{Custom color palette for the plot. If not provided, uses default GAMBL colors.}
 
-\item{add_labels}{}
+\item{add_labels}{If TRUE: adds labels to the points based on the median coordinates of each group.}
+}
+\value{
+A ggplot object representing the UMAP scatterplot with marginal histograms.
 }
 \description{
 Make UMAP scatterplot
+}
+\examples{
+\dontrun{
+library(GAMBLR.predict)
+
+make_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
+
+make_umap_scatterplot(
+  make_umap$df,
+  drop_other = F
+)
+}
+
 }

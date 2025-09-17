@@ -97,7 +97,10 @@ unclassified rates, and flexible labeling and coloring options.
 }
 }
 \examples{
-# Example usage:
-# make_alluvial(optimized_result)
+\dontrun{
+library(GAMBLR.predict)
+
+make_alluvial(optimize_params)
+}
 
 }
