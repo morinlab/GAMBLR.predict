@@ -7,20 +7,16 @@
 DLBCLone_predict(
   mutation_status,
   optimized_model,
-  mode = "DLBCLone_w",
-  truth_classes = c("EZB", "MCD", "ST2", "N1", "BN2", "Other"),
   annotate_accuracy = FALSE,
   seed = 12345,
   max_neighbors = 500,
-  other_class = "Other",
   fill_missing = FALSE,
   drop_extra = FALSE,
-  check_frequencies = FALSE
+  check_frequencies = FALSE,
+  dry_run = FALSE
 )
 }
 \arguments{
-\item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")}
-
 \item{seed}{Random seed for reproducibility}
 
 \item{test_df}{Data frame containing the mutation status of the test sample}
@@ -39,6 +35,8 @@ for reproducibility and for using the same UMAP model on different datasets.}
 \item{ignore_self}{Set to TRUE to avoid considering a neighbor with the same ID
 distance = 0. This is usually only relevant when re-classifying labeled
 samples to estimate overall accuracy}
+
+\item{truth_classes}{Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")}
 }
 \value{
 a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
@@ -47,15 +45,9 @@ a list of data frames with the predictions, the UMAP input, the model, and a ggp
 Predict class for one or more samples using a pre-trained DLBCLone model
 }
 \examples{
-DLBCLone_predict(
-   seed = 1234,
-   test_df = test_df,
-   train_df = train_df,
-   train_metadata = train_metadata,
+predicted_out = DLBCLone_predict(
+   mutation_status = mutation_feature_status,
    umap_out = umap_out,
-   best_params = best_params
-   predictions_df = predictions_df,
-   annotate_accuracy = TRUE
 )
 
 }

@@ -2,26 +2,73 @@
 % Please edit documentation in R/persistence.R
 \name{DLBCLone_load_optimized}
 \alias{DLBCLone_load_optimized}
-\title{load previously saved DLBCLone model and parameters}
+\title{Load a previously saved DLBCLone model (including UMAP state)}
 \usage{
-DLBCLone_load_optimized(path = ".", name_prefix = "DLBCLone")
+DLBCLone_load_optimized(
+  path = ".",
+  name_prefix = "DLBCLone",
+  check_integrity = FALSE
+)
 }
 \arguments{
-\item{path}{Path to open saved the files}
+\item{path}{Character scalar. Directory containing the saved files.
+Defaults to \code{"."}.}
 
-\item{name_prefix}{Prefix of the saved files, all files will be in path and start with name_prefix}
+\item{name_prefix}{Character scalar. Common filename prefix used when the
+model was saved. The function looks for
+\code{<name_prefix>_model.rds} and \code{<name_prefix>_umap.uwot}
+in \code{path}. Defaults to \code{"DLBCLone"}.}
+
+\item{check_integrity}{Logical. If \code{TRUE}, the function re-embeds the
+training samples (both batch and iterative modes, when available) and
+confirms that the coordinates match the saved embeddings (within a small
+tolerance). This requires that the saved model list contains
+\code{embedding_batch} and/or \code{embedding_iterative}. Defaults to
+\code{FALSE}.}
 }
 \value{
-a reconstructed model for use with DLBCLone_predict
+A list representing the reconstructed DLBCLone model, suitable for
+downstream use with \code{DLBCLone_predict()} or utilities that expect
+\code{DLBCLone_model}. On return, \code{DLBCLone_model$model} contains the
+restored \code{uwot} model object.
 }
 \description{
-load previously saved DLBCLone model and parameters
+Reconstructs a DLBCLone model saved via \code{\link[=DLBCLone_save_optimized]{DLBCLone_save_optimized()}} by
+restoring the serialized model list and the associated \code{uwot} UMAP object.
+Optionally performs an integrity check to verify that embeddings can be
+reproduced from the saved state.
+}
+\details{
+This function expects two files produced by \code{DLBCLone_save_optimized()}:
+\itemize{
+\item \code{<name_prefix>_model.rds}: a serialized list with the core model
+components (e.g., \code{features}, \code{df}, and optional test
+embeddings).
+\item \code{<name_prefix>_umap.uwot}: a serialized \code{uwot} UMAP model
+saved with \code{uwot::save_uwot()}.
+}
+
+If \code{check_integrity = TRUE}, the function computes fresh embeddings via
+\code{make_and_annotate_umap()} and compares them to the saved ones. A
+mismatch larger than \code{0.01} in either axis will throw an error.
 }
 \examples{
-#Restore a model for use in a fresh R session
+# Restore a model for use in a fresh R session
 DLBCLone_myfeats_opt <- DLBCLone_load_optimized(
-  path="./",
-  name_prefix="DLBCLone_myfeats"
+  path = ".",
+  name_prefix = "DLBCLone_myfeats"
 )
 
+\dontrun{
+# Restore and verify that saved embeddings can be reproduced
+confirmed_DLBCLone <- DLBCLone_load_optimized(
+  path = ".",
+  name_prefix = "dlbclone_dlc_test",
+  check_integrity = TRUE
+)
+}
+}
+\seealso{
+\code{\link[=DLBCLone_save_optimized]{DLBCLone_save_optimized()}}, \code{uwot::save_uwot()},
+\code{uwot::load_uwot()}
 }

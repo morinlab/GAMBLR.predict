@@ -26,6 +26,7 @@ make_and_annotate_umap(
   target_weight = 0.5,
   calc_dispersion = FALSE,
   algorithm = "tumap",
+  individually = TRUE,
   make_plot = FALSE
 )
 }

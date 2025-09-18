@@ -275,6 +275,7 @@ make_and_annotate_umap = function(df,
                               target_weight=0.5,
                               calc_dispersion = FALSE,
                               algorithm = "tumap",
+                              individually = TRUE,
                               make_plot = FALSE
                               ){
   
@@ -310,10 +311,7 @@ make_and_annotate_umap = function(df,
   }
   if(!is.null(core_features)){
     if(class(core_features)=="list"){
-
       message("list of core features detected. Will group features from each class.")
-
-
       df = df %>%
         rownames_to_column("sample_id") %>%
         rowwise(sample_id)
@@ -441,21 +439,32 @@ make_and_annotate_umap = function(df,
     
 
   }else{
-    message("transforming each data point individually using the provided UMAP model. This will take some time.")
-    umap_df = data.frame()
-    for(sample in rownames(df)){
-      this_row = df[sample,]
-      this_umap_df = umap_transform(X=this_row,
+    if(individually){
+      message("transforming each data point individually using the provided UMAP model. This will take some time.")
+      umap_df = data.frame()
+      for(sample in rownames(df)){
+        this_row = df[sample,]
+        this_umap_df = umap_transform(X=this_row,
                               model=umap_out$model,
                               seed=seed,
                               batch = TRUE,
                               n_threads = 1,
                               n_sgd_threads = 1)
-      this_umap_df = as.data.frame(this_umap_df) 
+        this_umap_df = as.data.frame(this_umap_df) 
       
-      umap_df = bind_rows(umap_df,this_umap_df)
+        umap_df = bind_rows(umap_df,this_umap_df)
+      }
+      message("done")
+    }else {
+      message("umap transform in batch")
+      umap_df = umap_transform(df,
+                              model=umap_out$model,
+                              seed=seed,
+                              batch = TRUE,
+                              n_threads = 1,
+                              n_sgd_threads = 1)
+      message("done")
     }
-    message("done")
 
     
   }

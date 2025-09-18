@@ -2,31 +2,72 @@
 % Please edit documentation in R/persistence.R
 \name{DLBCLone_save_optimized}
 \alias{DLBCLone_save_optimized}
-\title{model storage for DLBCLone outputs}
+\title{Save a DLBCLone model (and optionally integrity test embeddings)}
 \usage{
 DLBCLone_save_optimized(
   DLBCLone_model,
   base_path = "./",
-  name_prefix = "DLBCLone"
+  name_prefix = "DLBCLone",
+  include_tests = FALSE,
+  overwrite = FALSE
 )
 }
 \arguments{
-\item{DLBCLone_model}{The model object to save}
+\item{DLBCLone_model}{List. The model object to save. It must contain a
+trained UMAP model at \code{$model} created with \pkg{uwot}.}
 
-\item{name_prefix}{Prefix for the saved files, all files will be in path and start with name_prefix}
+\item{base_path}{Character scalar. Directory to write output files.
+Defaults to \code{"./"}.}
 
-\item{path}{Path to save the files}
+\item{name_prefix}{Character scalar. Prefix for the saved files. Files will
+be named \code{<name_prefix>_model.rds} and \code{<name_prefix>_umap.uwot}.
+Defaults to \code{"DLBCLone"}.}
+
+\item{include_tests}{Logical. If \code{TRUE}, compute and embed two reference
+embeddings (batch and iterative modes) from the training data and store
+them in the saved model list as \code{embedding_batch} and
+\code{embedding_iterative}. Defaults to \code{FALSE}.}
+
+\item{overwrite}{Logical. If \code{FALSE} (default), an error is thrown if
+either target file already exists. Set \code{TRUE} to replace existing
+files.}
 }
 \value{
-saves the files to the specified path
+Invisibly, the paths of the two written files (invisibly). Called for
+its side effect of writing \code{.rds} and \code{.uwot} files.
 }
 \description{
-model storage for DLBCLone outputs
+Serializes the DLBCLone model list and its associated \code{uwot} UMAP
+object to disk. Optionally computes and stores reference embeddings to enable
+future integrity checks with \code{\link[=DLBCLone_load_optimized]{DLBCLone_load_optimized()}}.
+}
+\details{
+The UMAP model is stored separately using \code{uwot::save_uwot()} and then
+removed from the list prior to writing the \code{.rds}, to avoid duplication.
+When \code{include_tests = TRUE}, the function calls
+\code{make_and_annotate_umap()} twice to create reproducible embeddings that
+can be verified later with \code{check_integrity = TRUE} in
+\code{DLBCLone_load_optimized()}.
 }
 \examples{
+# Save a trained model; error if files exist
 DLBCLone_save_optimized(
- optimzied_params = optimized_params,
- path="/save_optimized/trial_folder",
- name_prefix="test_A"
+  DLBCLone_model = trained_model,
+  base_path = "save_optimized/trial_folder",
+  name_prefix = "test_A"
 )
+
+\dontrun{
+# Save with embedded test embeddings, overwriting if present
+DLBCLone_save_optimized(
+  DLBCLone_model = trained_model,
+  base_path = "save_optimized/trial_folder",
+  name_prefix = "test_A",
+  include_tests = TRUE,
+  overwrite = TRUE
+)
+} 
+}
+\seealso{
+\code{\link[=DLBCLone_load_optimized]{DLBCLone_load_optimized()}}, \code{uwot::save_uwot()}
 }
