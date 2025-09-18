@@ -45,15 +45,32 @@ a list of data frames with the predictions, the UMAP input, the model, and a ggp
 Predict class for one or more samples using a pre-trained DLBCLone model
 }
 \examples{
-predict_single_sample_DLBCLone(
-   seed = 1234,
-   test_df = test_df,
-   train_df = train_df,
-   train_metadata = train_metadata,
-   umap_out = umap_out,
-   best_params = best_params
-   predictions_df = predictions_df,
-   annotate_accuracy = TRUE
+
+library(GAMBLR.predict)
+
+dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) \%>\%
+ tibble::column_to_rownames("sample_id")
+
+make_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
+
+optimize_params <- DLBCLone_optimize_params(  
+  all_full_status, 
+  dlbcl_meta,
+  umap_out = make_umap,
+  truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+  optimize_for_other = T,
+  min_k=5,
+  max_k=23
+)
+
+predict_single <- DLBCLone_predict(
+  mutation_status = optimize_params$features[1,], 
+  optimized_model = optimize_params
 )
 
 }

@@ -52,10 +52,26 @@ for more stable results when predicting multiple samples.
 # Assuming you have run DLBCLone_KNN to get optimized parameters:
 # model_out <- DLBCLone_KNN(train_features, train_metadata, ...)
 # Predict on new samples:
+
+library(GAMBLR.predict) 
+
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) \%>\%
+ tibble::column_to_rownames("sample_id")
+
+dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+dlbcl_knn <- DLBCLone_KNN(  
+  features_df = all_full_status,
+  metadata = dlbcl_meta
+)
+
 predictions <- DLBCLone_KNN_predict(
-  train_df = train_features,
-  test_df = new_samples,
-  metadata = sample_metadata,
-  DLBCLone_KNN_out = model_out
+  train_df = all_full_status,
+  test_df = lyseq_validation_data,
+  metadata = dlbcl_meta,
+  DLBCLone_KNN_out = dlbcl_knn,
+  mode = "batch"
+)
+
 
 }

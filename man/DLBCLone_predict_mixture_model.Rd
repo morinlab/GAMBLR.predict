@@ -45,7 +45,25 @@ Assigns class predictions and optionally reclassifies samples as "Other" based o
 }
 \examples{
 # Predict on new UMAP data using a trained mixture model:
-result <- DLBCLone_predict_mixture_model(model, umap_out)
+
+library(GAMBLR.predict)
+
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) \%>\%
+ tibble::column_to_rownames("sample_id")
+
+dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+make_umap <- make_and_annotate_umap(
+  df=all_full_status,
+  metadata=dlbcl_meta
+)
+
+mixture_model <- DLBCLone_train_mixture_model(umap_out = make_umap)
+
+result <- DLBCLone_predict_mixture_model(
+  model=mixture_model$gaussian_mixture_model,
+  umap_out=make_umap
+)
 head(result$predictions)
 
 }

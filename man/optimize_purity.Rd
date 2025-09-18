@@ -41,7 +41,11 @@ The function returns the best accuracy achieved and the corresponding purity thr
 }
 }
 \examples{
-# Example usage:
-# result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+
+\dontrun{
+library(GAMBLR.predict)
+
+result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+}
 
 }

@@ -45,6 +45,21 @@ The function extracts the nearest neighbors of the specified sample, draws segme
 # and 'output' is the result of DLBCLone_predict_single_sample
 # on sample_id "SAMPLE123":
 \dontrun{
- make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+library(GAMBLR.predict)
+
+predict_single <- predict_single_sample_DLBCLone(
+  test_df = optimize_params$features[1,],
+  train_metadata = dlbcl_meta, 
+  optimized_model = optimize_params
+)
+
+make_neighborhood_plot(
+  single_sample_prediction_output = predict_single,
+  training_predictions = optimize_params$df,
+  this_sample_id = "SAMPLE123",
+  prediction_in_title = TRUE,
+  add_circle = TRUE
+)
 }
+
 }

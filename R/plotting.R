@@ -14,16 +14,21 @@
 #' @param font_size Numeric. Font size for labels (default 14).
 #'
 #' @return A ComplexHeatmap object (drawn).
-#' @importFrom dplyr filter select left_join mutate pull
-#' @importFrom tidyr separate pivot_longer
-#' @importFrom tibble rownames_to_column column_to_rownames
-#' @import ComplexHeatmap
-#' @importFrom grid gpar
-#' @importFrom circlize colorRamp2
-#' @examples
-#' # Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict 
 #' 
-#' @export
+#' @import dplyr tidyr ComplexHeatmap grid circlize tibble
+#'
+#' @examples
+#' # Assuming 'model' is a DLBCLone model and 'sample_id' is a valid sample:
+#' \dontrun{ 
+#' library(GAMBLR.predict)
+#' 
+#' nearest_neighbor_heatmap(
+#'   this_sample_id = "CCS_0680_lst",
+#'   DLBCLone_model = predict_single,
+#'   font_size = 10
+#' )
+#' }
+#'
 nearest_neighbor_heatmap <- function(
   this_sample_id,
   DLBCLone_model,
@@ -163,11 +168,14 @@ nearest_neighbor_heatmap <- function(
   if ("metadata" %in% names(DLBCLone_model) && !is.null(DLBCLone_model$metadata)) {
     if(DLBCLone_model$type=="DLBCLone_predict"){
       #need to pool together training sample metadata with predictions
-      train_meta = DLBCLone_model$metadata %>% 
-        dplyr::select(dplyr::all_of(c("sample_id", truth_column, metadata_cols)))
+      train_meta = DLBCLone_model$optimized_predictions %>% ############################################ metadata -> optimized_predictions
+        dplyr::select(dplyr::all_of(c("sample_id", truth_column, pred_col, metadata_cols))) #################################################### pred_col added
        #preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
      
-      preds <- dplyr::bind_rows(
+      colnames(preds)
+      colnames(train_meta)
+
+      preds <- dplyr::left_join( ######################################################## bind_rows -> left_join
         train_meta,
         preds
       ) %>% dplyr::distinct(sample_id, .keep_all = TRUE)
@@ -300,18 +308,12 @@ nearest_neighbor_heatmap <- function(
 
   }
   
-
-  
-
-  
   ComplexHeatmap::draw(
     ht,
     heatmap_legend_side = "bottom",
     annotation_legend_side = "bottom"
   )
 }
-
-
 
 #' Heatmap visualization of mutations in nearest neighbors for a sample
 #'
@@ -343,8 +345,6 @@ nearest_neighbor_heatmap <- function(
 #' nearest_neighbor_heatmap("SomeSample_ID", predicted_out)
 #'}
 #' 
-
-
 depr_nearest_neighbor_heatmap <- function(
   this_sample_id,
   DLBCLone_model,
@@ -691,18 +691,25 @@ og_nearest_neighbor_heatmap <- function(this_sample_id,
 #' @param use_plotly Logical; if FALSE and `plot_samples` provided, draw static labels.
 #' @param custom_colours Optional named vector of colors for groups; falls back to `get_gambl_colours()`.
 #'
-#' @return A ggplot object.
+#' @import dplyr ggplot2 ggExtra
 #' @export
 #' 
 #' @examples 
 #' 
 #' \dontrun{
-#' my_umap = make_and_annotate_umap(my_data, my_metadata)
+#' library(GAMBLR.predict)
 #' 
-#' basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
-#'                        plot_samples = "some_sample_ID",
-#'                        colour_by = "DLBCLone_ko")
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#' 
+#' basic_umap_scatterplot(
+#'   make_umap$df, #the data frame containing V1 and V2 from UMAP
+#'   plot_samples = "some_sample_ID",
+#'   colour_by = "DLBCLone_ko")
 #' }
+#' 
 basic_umap_scatterplot <- function(optimized,
                                    plot_samples = NULL,
                                    colour_by    = NULL,
@@ -781,7 +788,6 @@ message("colour_by: ", colour_by)
   return(p)
 }
 
-
 #' Summarize and Export DLBCLone Model Results
 #'
 #' Generates and saves a set of summary plots and tables for
@@ -803,15 +809,14 @@ message("colour_by: ", colour_by)
 #'
 #' @return No return value. Side effect: writes multiple PDF files to disk.
 #'
-#' @import ggalluvial
-#' 
+#' @import dplyr ggplot2 ComplexHeatmap rlang
 #' @export
 #' 
 #' @examples
 #' \dontrun{
-#' DLBCLone_summarize_model(optimized_model = all_features_optimized,
-#'                          base_name="model_summaries/Lymphgen_all_features")
-#' }
+#' DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
+#'}
+#' 
 DLBCLone_summarize_model = function(base_name,
                                     optimized_model){
   base_dir = here::here()
@@ -875,7 +880,6 @@ DLBCLone_summarize_model = function(base_name,
 
 }
 
-
 #' @title Make Neighborhood Plot
 #' @description
 #' Generates a UMAP plot highlighting the neighborhood of a given sample, showing its nearest neighbors and their group assignments.
@@ -893,19 +897,32 @@ DLBCLone_summarize_model = function(base_name,
 #' @details
 #' The function extracts the nearest neighbors of the specified sample, draws segments connecting the sample to its neighbors, and colors points by group (e.g., lymphgen subtype). The plot title can optionally include the predicted label.
 #'
-#' @import dplyr
-#' @import ggplot2
-#' @importFrom rlang sym
-#'
+#' @import dplyr ggplot2 rlang ggExtra
 #' @export
+#' 
 #' @examples
 #' 
 #' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
 #' # and 'output' is the result of DLBCLone_predict_single_sample
 #' # on sample_id "SAMPLE123":
 #' \dontrun{
-#'  make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+#' library(GAMBLR.predict)
+#' 
+#' predict_single <- predict_single_sample_DLBCLone(
+#'   test_df = optimize_params$features[1,],
+#'   train_metadata = dlbcl_meta, 
+#'   optimized_model = optimize_params
+#' )
+#' 
+#' make_neighborhood_plot(
+#'   single_sample_prediction_output = predict_single,
+#'   training_predictions = optimize_params$df,
+#'   this_sample_id = "SAMPLE123",
+#'   prediction_in_title = TRUE,
+#'   add_circle = TRUE
+#' )
 #' }
+#' 
 make_neighborhood_plot <- function(single_sample_prediction_output,
                                    training_predictions,
                                   this_sample_id,
@@ -966,6 +983,7 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
   }
   links_df = mutate(links_df,my_x=my_x,my_y=my_y)
   links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
+ # links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = sqrt((V1 - my_x)^2 + (V2 - my_y)^2)) #Euclidean Distance
   
   
   pp=ggplot(mutate(training_predictions,group=lymphgen),
@@ -987,26 +1005,45 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
     circle = circleFun(c(my_x,my_y),diameter=d,npoints=100)
     pp = pp + geom_path(data=circle,aes(x=x,y=y),colour="black",alpha=1,inherit.aes=FALSE)
   }
+#  if(add_circle){
+ #   #add a circle around the sample
+  #  d = max(links_df$length)*2.1  # adding a 10% spacer
+   # circle = circleFun(c(my_x,my_y),diameter=d,npoints=100)
+#    pp = pp + geom_path(data=circle,aes(x=x,y=y),colour="black",alpha=1,inherit.aes=FALSE)
+ # }
   return(pp)
 }
 
-
 #' Make UMAP scatterplot
 #'
-#' @param df 
-#' @param drop_composite 
-#' @param colour_by 
-#' @param drop_other 
-#' @param high_confidence 
-#' @param custom_colours 
-#' @param add_labels 
+#' @param df Data frame containing the UMAP coordinates and annotations. 
+#' @param drop_composite If TRUE: removes composite labels from the lymphgen column.
+#' @param colour_by Column name to color points by. Default: "lymphgen".
+#' @param drop_other If TRUE: removes "Other" and "NOS" labels from the lymphgen column. 
+#' @param high_confidence If TRUE: filters the data to include only samples with confidence > 0.7.
+#' @param custom_colours Custom color palette for the plot. If not provided, uses default GAMBL colors.
+#' @param add_labels If TRUE: adds labels to the points based on the median coordinates of each group.
 #'
-#' @returns
+#' @returns A ggplot object representing the UMAP scatterplot with marginal histograms.
 #' 
-#' @import ggside
+#' @import dplyr ggplot2 ggExtra ggside rlang
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' make_umap <- make_and_annotate_umap(
+#'   df=all_full_status,
+#'   metadata=dlbcl_meta
+#' )
+#' 
+#' make_umap_scatterplot(
+#'   make_umap$df,
+#'   drop_other = F
+#' )
+#' }
+#' 
 make_umap_scatterplot = function(df,
                                  drop_composite = TRUE,
                                  colour_by="lymphgen",
@@ -1081,8 +1118,6 @@ make_umap_scatterplot = function(df,
   return(p)
 }
 
-
-
 #' Calculate Classification Accuracy and Per-Class Metrics based on Predictions
 #'
 #' Computes overall accuracy, balanced accuracy, and sensitivity for predicted vs. true class labels.
@@ -1105,12 +1140,18 @@ make_umap_scatterplot = function(df,
 #' - Excludes "Other" class for no_other accuracy.
 #' - Returns per-class metrics for further analysis.
 #'
+#' @import dplyr caret rlang
+#' @export
+#'
 #' @examples
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
 #' result <- report_accuracy(predictions_df)
 #' result$overall
 #' result$per_class
+#' }
 #'
-#' @export
 report_accuracy <- function(predictions,
                             truth = "lymphgen",
                             pred = "DLBCLone_io",
@@ -1211,7 +1252,6 @@ report_accuracy <- function(predictions,
   ))
 }
 
-
 #' Create an Alluvial Plot Comparing Original and Predicted Classifications
 #'
 #' This function generates a detailed alluvial plot to visualize the concordance
@@ -1253,12 +1293,16 @@ report_accuracy <- function(predictions,
 #' - Annotates concordance rate, per-group accuracy, and unclassified rate as specified.
 #' - Supports flexible labeling, coloring, and axis ordering for publication-quality plots.
 #'
-#' @examples
-#' # Example usage:
-#' # make_alluvial(optimized_result)
-#'
-#' @import ggrepel
+#' @import dplyr ggplot2 ggalluvial rlang tidyr
 #' @export
+#' 
+#' @examples
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' make_alluvial(optimize_params)
+#' }
+#' 
 make_alluvial <- function(
     optimized,
     count_excluded_as_other = FALSE,
@@ -1641,4 +1685,177 @@ if(add_percent){
   color = "none",
   segment.colour = "none",
   fill = guide_legend(title = "Class")) 
+}
+
+#' Create a stacked bar plot of top features per subtype
+#'
+#' This function generates a stacked bar plot showing the top features (genes) for each subtype based on their prevalence in the dataset. 
+#'
+#' @param DLBCLone_model A DLBCLone model object, which can be the output of \code{DLBCLone_optimize_params}, or \code{DLBCLone_KNN}
+#' @param truth_column Name of the column containing the true class labels (default: "lymphgen").
+#' @param truth_classes Vector of class labels to consider (default: c("BN2","EZB","MCD","ST2")).
+#' @param method Method to determine top features: "common" for most common features, "chi_square" for subtype vs rest significance (default : "common").
+#' @param num_feats Number of top features to display per subtype (default: 10).
+#' @param title Title for the plot (default: NULL).
+#'
+#' @return A ggplot2 object representing the stacked bar plot.
+#' 
+#' @import dplyr ggplot2 tidyr rlang
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' stacked_bar_plot(
+#'  optimize_params,
+#'  method = "chi_square",
+#'  num_feats = 10,
+#'  title = "LymphGen"
+#' ) 
+#' }
+#'
+stacked_bar_plot <- function(
+  DLBCLone_model,
+  truth_column = "lymphgen",
+  truth_classes = c("BN2","EZB","MCD","ST2"),
+  method = "common",
+  num_feats = 10,
+  title = NULL
+){
+  if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model) && DLBCLone_model$type == "predict_single_sample_DLBCLone"){
+    stop("DLBCLone_model must be the output of DLBCLone_optimize_params, or DLBCLone_KNN")
+  }
+
+  if ("type" %in% names(DLBCLone_model) && DLBCLone_model$type == "DLBCLone_KNN") {
+    DLBCLone_model$features <- DLBCLone_model$features_df
+  }
+
+  bad_cols <- colSums(DLBCLone_model$features) <= 0.02 * nrow(DLBCLone_model$features)
+  DLBCLone_model$features <- DLBCLone_model$features[, !bad_cols]
+
+  annotated_feats <- DLBCLone_model$features %>%
+    rownames_to_column("sample_id") %>%
+    left_join(
+      DLBCLone_model$df %>% select(sample_id, !!sym(truth_column)), 
+      by = "sample_id"
+    ) %>%
+    column_to_rownames("sample_id") 
+
+  annotated_feats[[truth_column]] <- as.factor(annotated_feats[[truth_column]])
+
+  gene_cols <- setdiff(colnames(annotated_feats), c("sample_id", truth_column))
+  subtypes <- truth_classes
+
+  top_genes_per_subtype <- list()
+
+  if(method == "common"){
+
+    for(subtype in subtypes){
+      subtype_samples <- annotated_feats[annotated_feats[[truth_column]] == subtype, ]
+      
+      gene_counts <- colSums(subtype_samples[, gene_cols, drop = FALSE])
+      gene_ranking <- order(gene_counts, decreasing = TRUE)
+      
+      # Top genes for this subtype
+      top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
+    }
+
+  }else if(method == "chi_square"){
+
+    for(subtype in subtypes){
+      # Create binary class: subtype vs rest
+      y_binary <- factor(ifelse(annotated_feats[[truth_column]] == subtype, subtype, paste0("not_", subtype)))
+  
+      chi_stats <- numeric(length(gene_cols))
+  
+      for(i in seq_along(gene_cols)){
+        gene <- gene_cols[i]
+        tbl <- table(annotated_feats[[gene]], y_binary)
+        test <- suppressWarnings(chisq.test(tbl))
+        chi_stats[i] <- test$statistic
+      }
+  
+      gene_ranking <- order(chi_stats, decreasing = TRUE)
+  
+      # Top genes for this subtype
+      top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
+    }
+
+  }else{
+    stop(
+      paste(
+        "Must select a valid method:",
+        "'common'     - for most common features",
+        "'chi_square' - for subtype vs rest significance",
+        sep = "\n"
+      )
+    )
+  }
+
+  plot_df <- bind_rows(lapply(names(top_genes_per_subtype), function(subtype){
+    genes <- top_genes_per_subtype[[subtype]]
+    subtype_samples <- annotated_feats[annotated_feats[[truth_column]] == subtype, ]
+    n_subtype <- nrow(subtype_samples)  # total samples in this subtype
+  
+    counts <- colSums(subtype_samples[, genes, drop = FALSE] > 0)  # ensure 0/1
+    plot_df <- tibble(
+      subtype = subtype,
+      gene = names(counts),
+      count = as.numeric(counts),
+      prop_gene = as.numeric(counts) / n_subtype
+  )
+  }))
+
+  plot_df <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      prop = count / sum(count),
+      rank = rank(-count, ties.method = "first")  # rank genes within subtype
+    ) %>%
+    ungroup()
+
+  # cumulative position for placing labels
+  plot_df <- plot_df %>%
+    group_by(subtype) %>%
+    arrange(rank) %>%
+    mutate(
+      cum_prop = cumsum(prop),         
+      pos = cum_prop - prop / 2       
+    ) %>%
+    ungroup()
+
+  colours <- get_gambl_colours()
+  n_colours <- max(plot_df$rank)
+
+  fill_map <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      base_col = ifelse(!is.na(colours[subtype]), colours[subtype], "grey"),
+      ramp = list(colorRampPalette(c(first(base_col), "white"))(max(rank))),
+      fill_color = ramp[[1]][rank]
+    ) %>%
+    ungroup()
+
+  # merge colors back into plot_df
+  plot_df$fill_color <- fill_map$fill_color
+
+  ggplot(plot_df, aes(x = subtype, y = prop, fill = fill_color)) +
+    geom_bar(stat = "identity", color = "black", position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(label = paste0(gene, " ", scales::percent(prop_gene, accuracy = 1))),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      size = 3
+    ) +
+    scale_fill_identity() +   
+    labs(
+      title = paste(title, " Top", num_feats, "genes per subtype (method:", method, ")"),
+      x = "Subtype",
+      y = "Proportion of Samples with Mutation"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 0, hjust = 1),
+      legend.position = "none"
+    )
 }

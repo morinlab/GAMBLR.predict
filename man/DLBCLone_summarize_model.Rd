@@ -33,7 +33,7 @@ base name.
 }
 \examples{
 \dontrun{
-DLBCLone_summarize_model(optimized_model = all_features_optimized,
-                         base_name="model_summaries/Lymphgen_all_features")
+DLBCLone_summarize_model("Full_geneset_unweighted", optimized_model)
 }
+
 }

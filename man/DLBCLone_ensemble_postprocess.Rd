@@ -44,3 +44,17 @@ Post-process KNN results across K to score consistency,
 (optionally) refine classified/Other cutoffs per-class
 and (optionally) assign composite classes
 }
+\examples{
+\dontrun{
+library(GAMBLR.predict)
+
+DLBCLone_ensemble_postprocess(
+  optimized_model = optimize_params_T,
+  other_min = 3,
+  assign_composites = TRUE,
+  any_split = TRUE,
+  optimize_per_class = TRUE
+)
+}
+
+}
