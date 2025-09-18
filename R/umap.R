@@ -3112,6 +3112,7 @@ DLBCLone_predict <- function(
     #anno_df     = dplyr::left_join(predictions_df, train_metadata, by = "sample_id"),
     anno_out    = anno_out,
     type        = "DLBCLone_predict",
+    optimized_predictions = optimized_model$predictions, # <- NECESSARY FOR HEATMAP!!
     unprocessed_votes = unprocessed
   )
   if(weight_core_features){

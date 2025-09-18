@@ -168,11 +168,14 @@ nearest_neighbor_heatmap <- function(
   if ("metadata" %in% names(DLBCLone_model) && !is.null(DLBCLone_model$metadata)) {
     if(DLBCLone_model$type=="DLBCLone_predict"){
       #need to pool together training sample metadata with predictions
-      train_meta = DLBCLone_model$metadata %>% 
-        dplyr::select(dplyr::all_of(c("sample_id", truth_column, metadata_cols)))
+      train_meta = DLBCLone_model$optimized_predictions %>% ############################################ metadata -> optimized_predictions
+        dplyr::select(dplyr::all_of(c("sample_id", truth_column, pred_col, metadata_cols))) #################################################### pred_col added
        #preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
      
-      preds <- dplyr::bind_rows(
+      colnames(preds)
+      colnames(train_meta)
+
+      preds <- dplyr::left_join( ######################################################## bind_rows -> left_join
         train_meta,
         preds
       ) %>% dplyr::distinct(sample_id, .keep_all = TRUE)
