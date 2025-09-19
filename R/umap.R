@@ -316,8 +316,31 @@ make_and_annotate_umap = function(df,
         rownames_to_column("sample_id") %>%
         rowwise(sample_id)
       for(group in names(core_features)){
-        df = df %>% 
-          mutate(!!sym(group) :=  1.5* mean(c_across(any_of(core_features[[group]])))) 
+        if(!grepl("_feats",group)){
+          group_name = paste0(group,"_feats")
+        }else{
+          group_name = group
+        }
+        if(class(core_feature_multiplier)=="list"){
+          #different weights for each meta-feature
+          if(!group %in% names(core_feature_multiplier)){
+            stop(paste("missing",group,"mulitplier.",
+              "If multiplier is supplied as a list then each meta-feature needs a multiplier specified"))
+          }
+          if(!is.numeric(core_feature_multiplier[[group]])){
+            stop("Multipliers must be numeric!")
+          }
+          weight = core_feature_multiplier[[group]]
+          message(paste("using",weight,"for",group_name))
+          df = df %>% 
+          mutate(!!sym(group_name) :=  weight * mean(c_across(any_of(core_features[[group]])))) 
+          
+        }else{
+          df = df %>% 
+            mutate(!!sym(group_name) :=  core_feature_multiplier * mean(c_across(any_of(core_features[[group]])))) 
+        }
+
+        
       }
       df = df %>% column_to_rownames("sample_id") %>% ungroup()
 
@@ -2253,41 +2276,173 @@ weighted_knn_predict_with_conf <- function(train_coords,
 }
 
 
-#' Predict class for one or more samples using a pre-trained DLBCLone model
+#' Predict DLBCL genetic subgroup for one or more samples using a pre-trained DLBCLone model
 #'
-#' @param seed Random seed for reproducibility
-#' @param test_df Data frame containing the mutation status of the test sample
-#' @param train_df Data frame containing the mutation status of the training samples
-#' @param train_metadata Metadata for training samples with truth labels in lymphgen column
-#' @param umap_out UMAP output from a previous run. The function will use this model to project the data, useful
-#' for reproducibility and for using the same UMAP model on different datasets.
-#' @param best_params Data frame from DLBCLone_optimize_params with the best parameters
-#' @param other_df Data frame containing the predictions for samples in the "Other" class
-#' @param ignore_self Set to TRUE to avoid considering a neighbor with the same ID
-#' distance = 0. This is usually only relevant when re-classifying labeled
-#' samples to estimate overall accuracy
-#' @param truth_classes Vector of classes to use for training and testing. Default: c("EZB","MCD","ST2","N1","BN2")
-#' @returns a list of data frames with the predictions, the UMAP input, the model, and a ggplot object
-#' @export
+#' Projects new samples into a frozen UMAP space from a pre-trained
+#' DLBCLone model and assigns subtype labels with a weighted k-NN
+#' classifier. The function aligns features between the input matrix and
+#' the training model, optionally constructs/weights meta-features
+#' (``*_feats``) based on the model's `core_features`, and prevents
+#' label leakage by excluding the test sample from its own neighbor set.
+#'
+#' @param mutation_status Data frame or matrix with one row per sample and one
+#'   column per feature (typically binary or count mutation indicators).
+#'   Row names must be unique sample IDs. Columns should correspond to the
+#'   features the model was trained on. Extra/missing features are handled by
+#'   \code{drop_extra} and \code{fill_missing}.
+#' @param optimized_model A pre-trained DLBCLone model object as returned by
+#'   \code{DLBCLone_load_optimized()} (or saved via
+#'   \code{DLBCLone_save_optimized()}). Must contain fields such as
+#'   \code{$model} (uwot UMAP), \code{$features} (training feature matrix),
+#'   \code{$df} (training metadata incl. \code{sample_id}, \code{lymphgen}),
+#'   \code{$best_params} (e.g., \code{na_option}, \code{threshold},
+#'   \code{use_weights}), and \code{$k_DLBCLone_w}. Optional fields include
+#'   \code{$core_features}, \code{$core_feature_multiplier},
+#'   \code{$purity_DLBCLone_w}, \code{$score_thresh_DLBCLone_w}, and
+#'   \code{$truth_classes}.
+#' @param annotate_accuracy Logical. Currently unused (reserved for future
+#'   output annotations). Defaults to \code{FALSE}.
+#' @param fill_missing Logical. If \code{TRUE}, any features that exist in the
+#'   model but are absent in \code{mutation_status} are added and set to zero
+#'   for all samples (with a warning). If \code{FALSE}, missing model features
+#'   cause an error. Defaults to \code{FALSE}.
+#' @param drop_extra Logical. If \code{TRUE}, any features present in
+#'   \code{mutation_status} but not seen during model training are dropped
+#'   (with a message). If \code{FALSE}, extra features cause an error.
+#'   Defaults to \code{FALSE}.
+#' @param check_frequencies Logical. If \code{TRUE}, the function does not run
+#'   prediction. Instead, it computes and returns a per-feature frequency
+#'   comparison between test and training cohorts (binary presence/absence),
+#'   along with a ggplot highlighting large deviations. Defaults to \code{FALSE}.
+#' @param dry_run Logical. If \code{TRUE}, return the preprocessed/weighted
+#'   test feature matrix (after column alignment and any core-feature
+#'   weighting/meta-feature construction) without running projection or
+#'   classification. Defaults to \code{FALSE}.
+#' @param seed Integer seed passed to embedding/projection steps for
+#'   reproducibility. Defaults to \code{12345}.
+#'
+#' @details
+#' \strong{Feature alignment.} Columns in \code{mutation_status} must match the
+#' model's training features. Set \code{drop_extra=TRUE} to drop unexpected
+#' columns, and \code{fill_missing=TRUE} to add missing model columns (filled
+#' with zero). If, after adjustment, columns do not exactly match (including
+#' order), the function stops with an error.
+#'
+#' \strong{Core features & meta-features.} If \code{optimized_model$core_features}
+#' is:
+#' \itemize{
+#'   \item a \emph{list} of feature groups, the function creates meta-features
+#'         (columns suffixed with \code{"_feats"}) as the (weighted) mean of
+#'         each group's members. When \code{core_feature_multiplier} is a list,
+#'         group-specific numeric weights are applied.
+#'   \item a \emph{character vector}, core features may be multiplicatively
+#'         up-weighted by \code{core_feature_multiplier} to match training
+#'         scale if they do not already appear weighted in the input.
+#' }
+#'
+#' \strong{Projection & classification.} Both training and test samples are
+#' projected into the same frozen UMAP space (no retraining) via
+#' \code{make_and_annotate_umap(..., umap_out=optimized_model, ret_model=FALSE)}.
+#' For each test sample, neighbors are drawn from the projected training set
+#' with that test sample removed to prevent self-label leakage. Labels are
+#' assigned using \code{weighted_knn_predict_with_conf()} with
+#' \code{k=optimized_model$k_DLBCLone_w}, confidence threshold
+#' \code{best_params$threshold}, optional distance weighting
+#' \code{best_params$use_weights}, and \code{max_neighbors}. The
+#' \code{other_class} is currently fixed as \code{"Other"}.
+#'
+#' \strong{Post-processing (optional).} If the model contains
+#' \code{$purity_DLBCLone_w} and/or \code{$score_thresh_DLBCLone_w}, the raw
+#' vote outputs are passed to \code{process_votes()} to derive
+#' \code{DLBCLone_w} and \code{DLBCLone_wo} decisions using score and ratio
+#' criteria. When available, \code{$truth_classes} are used to order/interpret
+#' group labels.
+#'
+#' \strong{Early-return modes.}
+#' \itemize{
+#'   \item \code{check_frequencies=TRUE}: returns a list with a ggplot object
+#'         and a frequency deviation data frame; no projection/prediction.
+#'   \item \code{dry_run=TRUE}: returns the processed test feature matrix
+#'         (after alignment/weighting); no projection/prediction.
+#' }
+#'
+#' @return A list with elements (fields may vary depending on options/model):
+#' \itemize{
+#'   \item \code{prediction}: data frame of per-sample predictions joined to
+#'         test UMAP coordinates (\code{V1}, \code{V2}) and any vote metrics.
+#'   \item \code{projection}: data frame of projected test coordinates.
+#'   \item \code{umap_input}: the model's training feature matrix
+#'         (\code{optimized_model$features}).
+#'   \item \code{model}: the frozen UMAP model used for projection
+#'         (\code{optimized_model$model}).
+#'   \item \code{features_df}: the processed test feature matrix used for
+#'         projection/classification (rows = samples).
+#'   \item \code{df}: alias of \code{prediction} (kept for compatibility).
+#'   \item \code{metadata}: the model's training metadata (\code{optimized_model$df}).
+#'   \item \code{type}: string identifier \code{"DLBCLone_predict"}.
+#'   \item \code{unprocessed_votes}: predictions before post-processing.
+#'   \item (optional) \code{core_features}, \code{core_feature_multiplier},
+#'         \code{mutation_status}: included when core-feature weighting was applied.
+#' }
+#'
+#' @section Errors and messages:
+#' The function stops if feature columns cannot be reconciled (see
+#' \code{drop_extra}, \code{fill_missing}), or if, after alignment, the column
+#' order/identity does not exactly match the training features. Messages are
+#' emitted when dropping/adding features or when core-feature weighting is
+#' inferred/applied or skipped.
+#'
+#' @seealso \code{\link{DLBCLone_load_optimized}}, \code{\link{DLBCLone_save_optimized}},
+#'   \code{\link{make_and_annotate_umap}}, \code{\link{weighted_knn_predict_with_conf}},
+#'   \code{\link{process_votes}}
 #'
 #' @examples
-#' predicted_out = DLBCLone_predict(
-#'    mutation_status = mutation_feature_status,
-#'    umap_out = umap_out,
+#' \dontrun{
+#' # Typical usage
+#' model <- DLBCLone_load_optimized(path = "models", name_prefix = "DLBCLone_LySeqST")
+#' # Inspect distribution shifts without running classification
+#' freq_chk <- DLBCLone_predict(
+#'   mutation_status = my_panelX_matrix,
+#'   optimized_model = model,
+#'   check_frequencies = TRUE
 #' )
+#' print(freq_chk$plot); head(freq_chk$data)
+#' 
+#' preds <- DLBCLone_predict(
+#'   mutation_status = feat_status_LySeqST,  # rows = samples, cols = features
+#'   optimized_model = model,
+#'   drop_extra = TRUE,    # drop unexpected columns
+#'   fill_missing = TRUE   # add any missing model columns as zeros
+#' )
+#' head(preds$prediction)
 #'
+#'
+#' # Dry run to see the meta-features after alignment/weighting
+#' processed <- DLBCLone_predict(
+#'   mutation_status = my_panelX_matrix,
+#'   optimized_model = model,
+#'   dry_run = TRUE
+#' )
+#' colnames(processed)
+#' 
+#' 
+#' }
+#'
+#' @importFrom dplyr select mutate filter left_join bind_rows any_of all_of ends_with rowwise ungroup
+#' @importFrom tibble rownames_to_column column_to_rownames
+#' @importFrom ggplot2 ggplot aes geom_point geom_label
+#' @export
+
 DLBCLone_predict <- function(
   mutation_status,
   optimized_model,
-  annotate_accuracy = FALSE,
-  seed = 12345,
-  max_neighbors = 500,
   fill_missing = FALSE,
   drop_extra = FALSE,
   check_frequencies = FALSE,
-  dry_run = FALSE
+  dry_run = FALSE,
+  seed = 12345
 ){
- 
+  
   stopifnot(!is.null(optimized_model))
   set.seed(seed)
   #check for inconsistencies in feature set and alter the user if neecssary
@@ -2322,7 +2477,16 @@ DLBCLone_predict <- function(
       message(paste(new_missing_feats,collapse=","))
     }
   }
-
+  if(length(intersect(model_feats,colnames(mutation_status)))==length(model_feats)){
+    mutation_status = mutation_status[,model_feats]
+  }else{
+    stop("not all columns are accounted for!")
+  }
+  if(!all(model_feats == colnames(mutation_status))){
+    print(model_feats)
+    print(colnames(mutation_status))
+    stop("not all equal")
+  }
   # pull params/model from optimized_model (single source of truth)
   best_params <- optimized_model$best_params
   truth_classes <- optimized_model$truth_classes
@@ -2366,8 +2530,29 @@ DLBCLone_predict <- function(
         rownames_to_column("sample_id") %>%
         rowwise(sample_id)
       for(group in names(core_features)){
-        test_df = test_df %>% 
-          mutate(!!sym(group) :=  1.5* mean(c_across(any_of(core_features[[group]])))) 
+        if(!grepl("_feats",group)){
+          group_name = paste0(group,"_feats") # consistent suffix so meta-features can be recognized later
+        } else{
+          group_name = group
+        }
+        if(class(multiplier)=="list"){
+          #different weights for each meta-feature
+          if(!group %in% names(multiplier)){
+            stop(paste("missing",group,"mulitplier.",
+              "If multiplier is supplied as a list then each meta-feature needs a multiplier specified"))
+          }
+          if(!is.numeric(multiplier[[group]])){
+            stop("Multipliers must be numeric!")
+          }
+          weight = multiplier[[group]]
+          message(paste("using",weight,"for",group_name))
+          test_df = test_df %>% 
+            mutate(!!sym(group_name) :=  weight * mean(c_across(any_of(core_features[[group]])))) 
+        }else{
+          test_df = test_df %>% 
+            mutate(!!sym(group_name) :=  multiplier * mean(c_across(any_of(core_features[[group]])))) 
+        }
+
       }
       test_df = test_df %>%
         column_to_rownames("sample_id") %>% ungroup()
@@ -2446,8 +2631,7 @@ DLBCLone_predict <- function(
     k              = optimized_model$k_DLBCLone_w,
     conf_threshold = best_params$threshold,
     other_class    = other_class,
-    use_weights    = best_params$use_weights,
-    max_neighbors  = max_neighbors
+    use_weights    = best_params$use_weights
   ) %>% tibble::rownames_to_column("sample_id")
   test_pred = bind_rows(test_pred,this_test_pred)
   }
@@ -2501,8 +2685,11 @@ DLBCLone_predict <- function(
 
 #' Train a Gaussian Mixture Model for DLBCLone Classification
 #'
-#' Fits a supervised Gaussian mixture model (GMM) to UMAP-projected data for DLBCLone subtypes, excluding samples labeled "Other".
-#' Assigns class predictions and optionally reclassifies samples as "Other" based on probability and density thresholds.
+#' Fits a supervised Gaussian mixture model (GMM) to UMAP-projected data using a user-provided
+#' taxonomy of genetic subtypes, excluding samples labeled "Other".
+#' Assigns class predictions and optionally reclassifies samples as "Other" based on probability
+#' and density thresholds. 
+#' NOTE: This is not related to the core KNN DLBCLone approach and is mostly here just for curiosity.
 #'
 #' @param umap_out List. Output from \code{make_and_annotate_umap}, containing a data frame with UMAP coordinates and truth labels.
 #' @param probability_threshold Numeric. Minimum posterior probability required to assign a class (default: 0.5).
