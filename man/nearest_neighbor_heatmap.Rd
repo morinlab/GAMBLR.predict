@@ -45,6 +45,6 @@ based on a DLBCLone model object. Supports outputs from:
 }
 }
 \examples{
-# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict 
+# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
 
 }

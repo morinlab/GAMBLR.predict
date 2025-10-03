@@ -76,8 +76,8 @@ Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 
 
 # Aim to maximize classification of samples into non-Other class
-lymphgen_lyseq_no_other =  
-GAMBLR.predict::DLBCLone_optimize_params(  
+lymphgen_lyseq_no_other =
+GAMBLR.predict::DLBCLone_optimize_params(
  dlbcl_status_combined_lyseq,
  dlbcl_meta_lyseq_train,
  min_k = 5,max_k=23,
@@ -87,8 +87,8 @@ GAMBLR.predict::DLBCLone_optimize_params(
 # Aim to maximize balanced accuracy while allowing samples to be
 # unclassified (assigned to "Other")
 
-DLBCLone_lymphgen_lyseq_prime_opt =  
-GAMBLR.predict::DLBCLone_optimize_params(  
+DLBCLone_lymphgen_lyseq_prime_opt =
+GAMBLR.predict::DLBCLone_optimize_params(
  dlbcl_status_combined_lyseq_prime,
  dlbcl_meta_lyseq_train,
  min_k = 5,max_k=23,

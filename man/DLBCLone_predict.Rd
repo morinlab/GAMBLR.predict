@@ -11,7 +11,8 @@ DLBCLone_predict(
   drop_extra = FALSE,
   check_frequencies = FALSE,
   dry_run = FALSE,
-  seed = 12345
+  seed = 12345,
+  verbose = FALSE
 )
 }
 \arguments{

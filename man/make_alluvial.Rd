@@ -29,7 +29,8 @@ make_alluvial(
   concordant_label_relative_pos = 0.5,
   verbose = FALSE,
   custom_colours = NULL,
-  hide_legend = TRUE
+  hide_legend = TRUE,
+  rotate = FALSE
 )
 }
 \arguments{
@@ -71,6 +72,8 @@ for axes and coloring.}
 \item{label_box_flip_colour}{Logical; controls color assignment for label boxes.}
 
 \item{concordant_label_relative_pos}{Position for concordant labels: 0 (left), 0.5 (middle), or 1 (right).}
+
+\item{rotate}{}
 
 \item{pred}{Name of the column in predictions to use for the predicted
 class (default: "predicted_label_optimized").}

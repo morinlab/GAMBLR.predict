@@ -52,7 +52,7 @@ aSHM counts, and structural variant status for BCL2, BCL6, and MYC. It supports 
 }
 \examples{
 \dontrun{
-all_meta = get_gambl_metadata() \%>\% 
+all_meta = get_gambl_metadata() \%>\%
  dplyr::filter(pathology=="DLBCL",seq_type=="genome")
 
 all_maf = get_all_coding_ssm(all_meta,include_silent=TRUE)
@@ -68,5 +68,5 @@ feat_mat = assemble_genetic_features(all_meta,
                                     maf_with_synon = all_maf,
                                     annotated_sv = anno_sv,
                                     synon_genes=c("PIM1","SOCS1"))
-} 
+}
 }
