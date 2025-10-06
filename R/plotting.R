@@ -651,15 +651,19 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
 
 #' Make UMAP scatterplot
 #'
-#' @param df
-#' @param drop_composite
-#' @param colour_by
-#' @param drop_other
-#' @param high_confidence
-#' @param custom_colours
-#' @param add_labels
+#' @param df Data frame containing UMAP coordinates (V1, V2) and grouping columns.
+#' Typically this is the `df` element from the output of `make_and_annotate_umap()`.
+#' @param drop_composite Logical; if TRUE, drops samples with composite labels (e.g., "EZB-COMP").
+#' @param colour_by Column name to color points by (default: "lymphgen").
+#' @param drop_other Logical; if TRUE, drops (hides) samples with "Other" labels.
+#' @param high_confidence Logical; if TRUE, only includes samples with high confidence predictions.
+#' @param custom_colours Named vector of custom colors for each group.
+#' @param add_labels Logical; if TRUE, adds labels to points.
+#' @param title Plot title.
+#' @param base_size Base font and point size for the plot (passed to theme_Morons()).
+#' @param alpha Point transparency (default: 0.8).
 #'
-#' @returns
+#' @returns A ggplot object.
 #'
 #' @import ggside
 #' @export
@@ -673,7 +677,8 @@ make_umap_scatterplot = function(df,
                                  custom_colours,
                                  add_labels = FALSE,
                                  title = NULL,
-                                 base_size=8){
+                                 base_size=8,
+                                 alpha = 0.8){
   xmin = min(df$V1,na.rm=TRUE)
   xmax = max(df$V1,na.rm=TRUE)
   ymin = min(df$V2,na.rm=TRUE)
@@ -713,8 +718,8 @@ make_umap_scatterplot = function(df,
   p = ggplot(df,
              aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) +
              geom_point(alpha=0,size=point_size) +
-             geom_point(data=df %>% filter(!!sym(colour_by) =="Other"),alpha=0.8,size=point_size) +
-             geom_point(data=df %>% filter(!!sym(colour_by) !="Other"),alpha=0.8,size=point_size) +
+             geom_point(data=df %>% filter(!!sym(colour_by) =="Other"),alpha=alpha,size=point_size) +
+             geom_point(data=df %>% filter(!!sym(colour_by) !="Other"),alpha=alpha,size=point_size) +
     scale_colour_manual(values=cols) +
     scale_fill_manual(values=cols) +
     theme_Morons(base_size = base_size) +

@@ -1,18 +1,44 @@
 
 #' Assemble genetic features for UMAP input
 #'
-#' This function assembles a matrix of genetic features for each sample, including mutation status,
-#' aSHM counts, and structural variant status for BCL2, BCL6, and MYC. It supports both genome and capture sequencing types.
+#' This function assembles a matrix of genetic features for each sample,
+#' including mutation status, aSHM counts, and structural variant status
+#' for BCL2, BCL6, and MYC. It supports both genome and capture sequencing types.
 #'
 #' @param these_samples_metadata Data frame with sample metadata, must include seq_type and sample_id.
-#' @param metadata_columns Columns in metadata to use for SV status (default: c("bcl2_ba","bcl6_ba","myc_ba")).
+#' @param sv_from_metadata A named vector that specifies the columns containing the oncogene
+#' translocation status for any SV that is annotated in the metadata
+#' Where the name is the oncogene and the value is the column name in the metadata.
+#' The column created in the output will be "<oncogeneName>_SV".
 #' @param genes Vector of gene symbols to include.
-#' @param synon_genes Vector of gene symbols for synonymous mutations.
+#' @param synon_genes Vector of gene symbols for synonymous mutations
+#' (generally a subset of genes).
 #' @param maf_with_synon MAF data frame including synonymous mutations.
-#' @param hotspot_genes Vector of hotspot genes.
-#' @param sv_value Value to assign for SV presence (default: 3).
+#' @param hotspot_genes Vector specifying genes for which hotspot
+#' mutations should be separately annotated.
+#' The columns will be named "<gene>HOTSPOT". For this to work,
+#' either specify review_hotspots = TRUE or, if you want full control over
+#' hotspot annotation, the MAF must include a column "hot_spot" with TRUE
+#' specifying any row corresponding to a hotspot mutation.
+#' @param sv_value Value to assign for SV presence (default: 2).
 #' @param synon_value Value to assign for synonymous mutations (default: 1).
 #' @param coding_value Value to assign for coding mutations (default: 2).
+#' @param include_ashm Logical; if TRUE, use GAMBLR.results::get_ssm_by_region
+#' to retrieve all non-coding mutations for each gene in synon_genes and
+#' use these to infer mutation status (default: FALSE). 
+#' WARNING: This feature is experimental and is likely not going to give comparable
+#' results if you are using a mix of genome and capture data. It also relies on GAMBLR.results
+#' which is not a core dependency of GAMBLR.predict.
+#' @param annotated_sv Data frame in bedpe format with annotated SVs from
+#' GAMBLR.utils::annotate_sv(). If provided, the oncogene SV status will be based on the union
+#' of the SVs in this data frame and the metadata columns specified in sv_from_metadata.
+#' @param include_GAMBL_sv Logical; if TRUE, SVs from GAMBLR.results will automatically be
+#' retrieved and annotated.
+#' WARNING: This feature is experimental and is likely not going to give comparable
+#' results if you are using a mix of genome and capture data. It also relies on GAMBLR.results
+#' which is not a core dependency of GAMBLR.predict.
+#' @param review_hotspots Logical; if TRUE, any gene in hotspot_genes that is compatible with review_hotspots
+#' will have its hotspots annotated. For more information, see GAMBLR.helpers::review_hotspots
 #' @param verbose Defaults to FALSE
 #'
 #' @return Matrix of assembled features for each sample.
@@ -47,7 +73,7 @@ assemble_genetic_features <- function(these_samples_metadata,
                 maf_with_synon,
                 hotspot_genes,
                 genome_build = "grch37",
-                sv_value = 3,
+                sv_value = 2,
                 synon_value = 1,
                 coding_value = 2,
                 include_ashm = FALSE,
@@ -129,7 +155,10 @@ assemble_genetic_features <- function(these_samples_metadata,
 
   if (any(! colnames(status_with_silent) %in% colnames(status_without_silent))){
     print(colnames(status_with_silent)[!colnames(status_with_silent) %in% colnames(status_without_silent)])
-    stop("some columns are missing from the status_without_silent matrix")
+    missing = setdiff(colnames(status_with_silent), colnames(status_without_silent))
+    for(m in missing){
+      status_without_silent[[m]] = 0
+    }
   }
   # Instead of just relying on the MAF(s) supplied by the user
   if (include_ashm){
