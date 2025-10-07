@@ -26,6 +26,7 @@ make_and_annotate_umap(
   target_weight = 0.5,
   calc_dispersion = FALSE,
   algorithm = "tumap",
+  individually = TRUE,
   make_plot = FALSE
 )
 }
@@ -66,12 +67,18 @@ Run UMAP and attach result to metadata
 
 #library(GAMBLR.predict)
 
-all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) \%>\%
- tibble::column_to_rownames("sample_id")
-dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+# Load your mutation status data frame and ensure sample_id is moved to row names
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",
+                                  package = "GAMBLR.predict")) \%>\%
+                                  tibble::column_to_rownames("sample_id")
+# Load sample metadata for training/labeling
+dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",
+                             package = "GAMBLR.predict"))
 my_umap <- make_and_annotate_umap(
   df=all_full_status,
   metadata=dlbcl_meta
 )
+# Usually you'll immediately want to visualize it
+# make_umap_scatterplot(my_umap$df)
 
 }

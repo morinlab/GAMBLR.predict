@@ -13,23 +13,34 @@ make_umap_scatterplot(
   custom_colours,
   add_labels = FALSE,
   title = NULL,
-  base_size = 8
+  base_size = 8,
+  alpha = 0.8
 )
 }
 \arguments{
-\item{df}{}
+\item{df}{Data frame containing UMAP coordinates (V1, V2) and grouping columns.
+Typically this is the \code{df} element from the output of \code{make_and_annotate_umap()}.}
 
-\item{drop_composite}{}
+\item{drop_composite}{Logical; if TRUE, drops samples with composite labels (e.g., "EZB-COMP").}
 
-\item{colour_by}{}
+\item{colour_by}{Column name to color points by (default: "lymphgen").}
 
-\item{drop_other}{}
+\item{drop_other}{Logical; if TRUE, drops (hides) samples with "Other" labels.}
 
-\item{high_confidence}{}
+\item{high_confidence}{Logical; if TRUE, only includes samples with high confidence predictions.}
 
-\item{custom_colours}{}
+\item{custom_colours}{Named vector of custom colors for each group.}
 
-\item{add_labels}{}
+\item{add_labels}{Logical; if TRUE, adds labels to points.}
+
+\item{title}{Plot title.}
+
+\item{base_size}{Base font and point size for the plot (passed to theme_Morons()).}
+
+\item{alpha}{Point transparency (default: 0.8).}
+}
+\value{
+A ggplot object.
 }
 \description{
 Make UMAP scatterplot

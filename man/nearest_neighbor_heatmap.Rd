@@ -11,7 +11,12 @@ nearest_neighbor_heatmap(
   metadata_cols = NULL,
   clustering_distance = "binary",
   font_size = 14,
-  gene_orientation = "column"
+  gene_orientation = "column",
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  show_legend = FALSE,
+  draw = TRUE,
+  keep_metafeatures = FALSE
 )
 }
 \arguments{
@@ -40,6 +45,6 @@ based on a DLBCLone model object. Supports outputs from:
 }
 }
 \examples{
-# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict 
+# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
 
 }

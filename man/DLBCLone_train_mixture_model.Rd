@@ -29,8 +29,11 @@ A list with:
 \item{probability_threshold}{Probability threshold used for "Other" assignment}
 }
 \description{
-Fits a supervised Gaussian mixture model (GMM) to UMAP-projected data for DLBCLone subtypes, excluding samples labeled "Other".
-Assigns class predictions and optionally reclassifies samples as "Other" based on probability and density thresholds.
+Fits a supervised Gaussian mixture model (GMM) to UMAP-projected data using a user-provided
+taxonomy of genetic subtypes, excluding samples labeled "Other".
+Assigns class predictions and optionally reclassifies samples as "Other" based on probability
+and density thresholds.
+NOTE: This is not related to the core KNN DLBCLone approach and is mostly here just for curiosity.
 }
 \details{
 \itemize{

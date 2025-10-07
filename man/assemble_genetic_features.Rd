@@ -6,16 +6,16 @@
 \usage{
 assemble_genetic_features(
   these_samples_metadata,
-  metadata_columns = c("bcl2_ba", "bcl6_ba", "myc_ba"),
+  sv_from_metadata = c(BCL2 = "bcl2_ba", BCL6 = "bcl6_ba", MYC = "myc_ba"),
   genes,
   synon_genes,
   maf_with_synon,
   hotspot_genes,
   genome_build = "grch37",
-  sv_value = 3,
+  sv_value = 2,
   synon_value = 1,
   coding_value = 2,
-  include_ashm = TRUE,
+  include_ashm = FALSE,
   annotated_sv,
   include_GAMBL_sv = TRUE,
   review_hotspots = TRUE,
@@ -25,21 +25,50 @@ assemble_genetic_features(
 \arguments{
 \item{these_samples_metadata}{Data frame with sample metadata, must include seq_type and sample_id.}
 
-\item{metadata_columns}{Columns in metadata to use for SV status (default: c("bcl2_ba","bcl6_ba","myc_ba")).}
+\item{sv_from_metadata}{A named vector that specifies the columns containing the oncogene
+translocation status for any SV that is annotated in the metadata
+Where the name is the oncogene and the value is the column name in the metadata.
+The column created in the output will be "\if{html}{\out{<oncogeneName>}}_SV".}
 
 \item{genes}{Vector of gene symbols to include.}
 
-\item{synon_genes}{Vector of gene symbols for synonymous mutations.}
+\item{synon_genes}{Vector of gene symbols for synonymous mutations
+(generally a subset of genes).}
 
 \item{maf_with_synon}{MAF data frame including synonymous mutations.}
 
-\item{hotspot_genes}{Vector of hotspot genes.}
+\item{hotspot_genes}{Vector specifying genes for which hotspot
+mutations should be separately annotated.
+The columns will be named "\if{html}{\out{<gene>}}HOTSPOT". For this to work,
+either specify review_hotspots = TRUE or, if you want full control over
+hotspot annotation, the MAF must include a column "hot_spot" with TRUE
+specifying any row corresponding to a hotspot mutation.}
 
-\item{sv_value}{Value to assign for SV presence (default: 3).}
+\item{sv_value}{Value to assign for SV presence (default: 2).}
 
 \item{synon_value}{Value to assign for synonymous mutations (default: 1).}
 
 \item{coding_value}{Value to assign for coding mutations (default: 2).}
+
+\item{include_ashm}{Logical; if TRUE, use GAMBLR.results::get_ssm_by_region
+to retrieve all non-coding mutations for each gene in synon_genes and
+use these to infer mutation status (default: FALSE).
+WARNING: This feature is experimental and is likely not going to give comparable
+results if you are using a mix of genome and capture data. It also relies on GAMBLR.results
+which is not a core dependency of GAMBLR.predict.}
+
+\item{annotated_sv}{Data frame in bedpe format with annotated SVs from
+GAMBLR.utils::annotate_sv(). If provided, the oncogene SV status will be based on the union
+of the SVs in this data frame and the metadata columns specified in sv_from_metadata.}
+
+\item{include_GAMBL_sv}{Logical; if TRUE, SVs from GAMBLR.results will automatically be
+retrieved and annotated.
+WARNING: This feature is experimental and is likely not going to give comparable
+results if you are using a mix of genome and capture data. It also relies on GAMBLR.results
+which is not a core dependency of GAMBLR.predict.}
+
+\item{review_hotspots}{Logical; if TRUE, any gene in hotspot_genes that is compatible with review_hotspots
+will have its hotspots annotated. For more information, see GAMBLR.helpers::review_hotspots}
 
 \item{verbose}{Defaults to FALSE}
 }
@@ -47,6 +76,27 @@ assemble_genetic_features(
 Matrix of assembled features for each sample.
 }
 \description{
-This function assembles a matrix of genetic features for each sample, including mutation status,
-aSHM counts, and structural variant status for BCL2, BCL6, and MYC. It supports both genome and capture sequencing types.
+This function assembles a matrix of genetic features for each sample,
+including mutation status, aSHM counts, and structural variant status
+for BCL2, BCL6, and MYC. It supports both genome and capture sequencing types.
+}
+\examples{
+\dontrun{
+all_meta = get_gambl_metadata() \%>\%
+ dplyr::filter(pathology=="DLBCL",seq_type=="genome")
+
+all_maf = get_all_coding_ssm(all_meta,include_silent=TRUE)
+
+sv_all =get_combined_sv(all_meta)
+
+anno_sv = annotate_sv(sv_all)
+
+feat_mat = assemble_genetic_features(all_meta,
+                                    genes=c("EZH2","SOCS1","PIM1",
+                                            "MYD88","CREBBP","SGK1",
+                                            "NOTCH2","NOTCH1"),
+                                    maf_with_synon = all_maf,
+                                    annotated_sv = anno_sv,
+                                    synon_genes=c("PIM1","SOCS1"))
+}
 }

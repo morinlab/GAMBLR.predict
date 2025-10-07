@@ -21,8 +21,8 @@
 #' @importFrom grid gpar
 #' @importFrom circlize colorRamp2
 #' @examples
-#' # Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict 
-#' 
+#' # Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
+#'
 #' @export
 nearest_neighbor_heatmap <- function(
   this_sample_id,
@@ -31,7 +31,12 @@ nearest_neighbor_heatmap <- function(
   metadata_cols = NULL,
   clustering_distance = "binary",
   font_size = 14,
-  gene_orientation = "column"
+  gene_orientation = "column",
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  show_legend = FALSE,
+  draw = TRUE,
+  keep_metafeatures = FALSE
 ){
   stopifnot(is.list(DLBCLone_model), "type" %in% names(DLBCLone_model))
 
@@ -59,7 +64,8 @@ nearest_neighbor_heatmap <- function(
 
   # Decide model type + predicted label column + feature matrix source
   model_type <- DLBCLone_model$type
-  pred_col   <- NULL
+  pred_col   <- "DLBCLone_wo"
+  greedy_col <- "DLBCLone_w"
   feats_mat  <- NULL
   neighbors  <- character(0)
 
@@ -72,10 +78,11 @@ nearest_neighbor_heatmap <- function(
       }
       neighbors <- .neighbors_for(DLBCLone_model$unlabeled_neighbors, this_sample_id)
       pred_col  <- "DLBCLone_ko"
+      greedy_col <- "DLBCLone_k"
     } else {
       # DLBCLone_predict stores neighbor_ids in prediction$neighbor_id
       # Reconstruct a tiny neighbors df on the fly to reuse helper
-      
+
       DLBCLone_model$predictions = DLBCLone_model$prediction
       pred_row <- DLBCLone_model$prediction %>%
         dplyr::filter(.data$sample_id == .env$this_sample_id)
@@ -86,6 +93,7 @@ nearest_neighbor_heatmap <- function(
       neighbors <- strsplit(pred_row$neighbor_id[1], ",", fixed = TRUE)[[1]]
       neighbors <- as.character(na.omit(neighbors))
       pred_col <- "DLBCLone_wo" #eventually needs to support io or wo
+      greedy_col <- "DLBCLone_w"
 
     }
 
@@ -99,7 +107,7 @@ nearest_neighbor_heatmap <- function(
     if (!"predictions" %in% names(DLBCLone_model)) {
       stop("DLBCLone_optimize_params model missing $predictions")
     }
-    
+
     pred_row <- DLBCLone_model$predictions %>%
       dplyr::filter(.data$sample_id == .env$this_sample_id)
     if (nrow(pred_row) == 0 || !"neighbor_id" %in% names(pred_row)) {
@@ -117,7 +125,7 @@ nearest_neighbor_heatmap <- function(
     if (is.null(feats_mat)) {
       stop("features is missing in the optimize_params model object.")
     }
-    pred_col <- "predicted_label_optimized"
+
 
   } else {
     stop("DLBCLone_model$type must be one of: DLBCLone_KNN, DLBCLone_predict, DLBCLone_optimize_params")
@@ -132,7 +140,9 @@ nearest_neighbor_heatmap <- function(
 
   # Subset feature matrix; require that all neighbor rows exist
   xx <- feats_mat[neighbors, , drop = FALSE]
- 
+  if(!keep_metafeatures){
+    xx <- xx %>% select(-ends_with("_feats"))
+  }
   if (any(is.na(rownames(xx)))) {
     print(neighbors)
     stop("Some neighbor samples are missing from
@@ -163,15 +173,15 @@ nearest_neighbor_heatmap <- function(
   if ("metadata" %in% names(DLBCLone_model) && !is.null(DLBCLone_model$metadata)) {
     if(DLBCLone_model$type=="DLBCLone_predict"){
       #need to pool together training sample metadata with predictions
-      train_meta = DLBCLone_model$metadata %>% 
+      train_meta = DLBCLone_model$metadata %>%
         dplyr::select(dplyr::all_of(c("sample_id", truth_column, metadata_cols)))
        #preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
-     
+
       preds <- dplyr::bind_rows(
         train_meta,
         preds
       ) %>% dplyr::distinct(sample_id, .keep_all = TRUE)
-      
+
       #preds %>% select(sample_id,lymphgen,DLBCLone_wo) %>% head() %>% print()
     }else{
       preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
@@ -183,24 +193,24 @@ nearest_neighbor_heatmap <- function(
   }
 
   # Columns to annotate
-  cols_to_select <- unique(c("sample_id", truth_column, pred_col, metadata_cols))
+  cols_to_select <- unique(c("sample_id", truth_column, pred_col, greedy_col, metadata_cols))
   #print(cols_to_select)
   cols_to_select <- cols_to_select[cols_to_select %in% names(preds)]
 
   row_df <- preds %>%
     dplyr::select(dplyr::all_of(cols_to_select)) %>%
     dplyr::filter(.data$sample_id %in% rownames(xx))
-  
+
   # If the focal sample is missing from predictions (common for "unlabeled"),
   # try unlabeled_predictions
   sample_class <- NA_character_
   if (!this_sample_id %in% row_df$sample_id) {
-    if("prediction" %in% names(DLBCLone_model) && 
+    if("prediction" %in% names(DLBCLone_model) &&
       DLBCLone_model$type == "predict_single_sample_DLBCLone"){
       stop(paste(this_sample_id,
         "not found in predictions; cannot look up class for predict_single_sample_DLBCLone"))
     }
-    if ("unlabeled_predictions" %in% names(DLBCLone_model) && 
+    if ("unlabeled_predictions" %in% names(DLBCLone_model) &&
         !is.null(DLBCLone_model$unlabeled_predictions)) {
       extra <- DLBCLone_model$unlabeled_predictions %>%
         dplyr::select(dplyr::any_of(cols_to_select)) %>%
@@ -229,13 +239,16 @@ nearest_neighbor_heatmap <- function(
     # For optimize_params, original code looked up
     # predicted_label_optimized explicitly
     if (model_type == "DLBCLone_optimize_params" &&
-        "predicted_label_optimized" %in% names(DLBCLone_model$predictions)) {
+        pred_col %in% names(DLBCLone_model$predictions)) {
       sample_class <- DLBCLone_model$predictions %>%
         dplyr::filter(.data$sample_id == .env$this_sample_id) %>%
-        dplyr::pull(.data$predicted_label_optimized) %>% as.character()
+        dplyr::pull(.data[[pred_col]]) %>% as.character()
+      sample_greedy_class <- DLBCLone_model$predictions %>%
+        dplyr::filter(.data$sample_id == .env$this_sample_id) %>%
+        dplyr::pull(.data[[greedy_col]]) %>% as.character()
     }
   }
-  
+
   # Align rows to feature matrix order for annotation
   row_df <- row_df %>% tibble::column_to_rownames("sample_id")
   row_df <- row_df[rownames(xx), , drop = FALSE]
@@ -245,6 +258,7 @@ nearest_neighbor_heatmap <- function(
   anno_list <- list()
   if (truth_column %in% colnames(row_df)) anno_list[[truth_column]] <- anno_colours
   if (!is.null(pred_col) && pred_col %in% colnames(row_df)) anno_list[[pred_col]] <- anno_colours
+  if (!is.null(greedy_col) && greedy_col %in% colnames(row_df)) anno_list[[greedy_col]] <- anno_colours
   if (!is.null(metadata_cols)) {
     for (mc in metadata_cols) {
       if (mc %in% colnames(row_df)) anno_list[[mc]] <- anno_colours
@@ -253,13 +267,13 @@ nearest_neighbor_heatmap <- function(
   # Title
   title_text <- paste("Sample", this_sample_id, "classified as",
     ifelse(is.na(sample_class), "<NA>", sample_class))
-  
+
   if(gene_orientation == "column"){
     row_anno <- ComplexHeatmap::rowAnnotation(
         df  = row_df,
         col = anno_list,
         annotation_name_gp = grid::gpar(fontsize = font_size),
-        show_legend = TRUE
+        show_legend = show_legend
       )
           # Draw heatmap
       ht <- ComplexHeatmap::Heatmap(
@@ -267,10 +281,14 @@ nearest_neighbor_heatmap <- function(
         col = col_fun,
         right_annotation = row_anno,
         clustering_distance_rows = clustering_distance,
-        show_heatmap_legend = FALSE,
         column_title = title_text,
+
+        column_names_gp = grid::gpar(fontsize = font_size),
         column_title_gp = grid::gpar(fontsize = font_size),
-        column_names_gp = grid::gpar(fontsize = font_size)
+        row_names_gp = grid::gpar(fontsize = font_size),
+        show_heatmap_legend = FALSE,
+        cluster_rows = cluster_rows,
+        cluster_columns = cluster_columns
       )
 
   }else{
@@ -282,7 +300,7 @@ nearest_neighbor_heatmap <- function(
       df  = annot_df,
       col = anno_list,  # keep if you want coloured discrete annotations
       annotation_name_gp = grid::gpar(fontsize = font_size),
-      show_legend = TRUE,
+      show_legend = show_legend,
       which = "column"
     )
 
@@ -295,387 +313,27 @@ nearest_neighbor_heatmap <- function(
       column_title = title_text,
       column_title_gp = grid::gpar(fontsize = font_size),
       row_names_gp = grid::gpar(fontsize = font_size),
-      column_names_gp = grid::gpar(fontsize = font_size)
+      column_names_gp = grid::gpar(fontsize = font_size),
+      show_heatmap_legend=FALSE,
+      cluster_rows = cluster_rows,
+      cluster_columns = cluster_columns
     )
 
   }
-  
+  if(draw){
+    ComplexHeatmap::draw(
+      ht,
+      heatmap_legend_side = "bottom",
+      annotation_legend_side = "bottom"
+    )
+  }else{
+    return(ht)
+  }
 
-  
-
-  
-  ComplexHeatmap::draw(
-    ht,
-    heatmap_legend_side = "bottom",
-    annotation_legend_side = "bottom"
-  )
 }
 
 
 
-#' Heatmap visualization of mutations in nearest neighbors for a sample
-#'
-#' Generates a heatmap of feature values for the nearest neighbors of a specified sample,
-#' based on a DLBCLone model object. This visualization helps to inspect the feature profiles
-#' of samples most similar to the query sample.
-#'
-#' @param this_sample_id Character. The sample ID for which to plot the nearest neighbor heatmap.
-#' @param DLBCLone_model List. A DLBCLone model object, either from \code{DLBCLone_optimize_params}
-#'   or \code{DLBCLone_KNN} (with \code{predict_unlabeled = TRUE}).
-#'
-#' @return A ComplexHeatmap object showing the feature matrix for the nearest neighbors of the sample.
-#'
-#' @details
-#' - For models of type \code{DLBCLone_optimize_params}, uses the \code{neighbors} and \code{lyseq_status} fields.
-#' - For models of type \code{DLBCLone_KNN}, uses the \code{unlabeled_neighbors} field.
-#' - The function extracts the feature matrix rows corresponding to the nearest neighbors of the specified sample,
-#'   and plots a heatmap of features with nonzero values.
-#'
-#' @importFrom dplyr filter
-#' @import ComplexHeatmap
-#' @importFrom grid gpar
-#' @importFrom circlize colorRamp2
-#'
-#' @examples
-#' # Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
-#' and "SomeSample_ID" is a valid sample ID from among the test (not training) samples
-#' \dontrun{
-#' nearest_neighbor_heatmap("SomeSample_ID", predicted_out)
-#'}
-#' 
-
-
-depr_nearest_neighbor_heatmap <- function(
-  this_sample_id,
-  DLBCLone_model,
-  truth_column = "lymphgen",
-  metadata_cols = NULL,
-  clustering_distance = "binary",
-  font_size = 14
-){
-
-  if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model)){
-    if(DLBCLone_model$type == "DLBCLone_KNN"){
-
-      if(!"unlabeled_neighbors" %in% names(DLBCLone_model)){
-        print(names(DLBCLone_model))
-        stop("DLBCLone_model must be the output of DLBCLone_KNN with predict_unlabeled = TRUE")
-      }else if(is.null(DLBCLone_model$unlabeled_neighbors)){
-        #no neighbors found for any of the incoming samples
-        message("No neighbors found for any sample. Returning NULL.")
-        return(NULL)
-      }
-      neighbor_df = DLBCLone_model$unlabeled_neighbors
-      neighbor_transpose = filter(neighbor_df,sample_id==this_sample_id) 
-      if(nrow(neighbor_transpose) == 0){
-        message("No neighbors found for sample ", this_sample_id, ". Returning NULL.")
-        return(NULL)
-      }
-      neighbor_transpose = neighbor_transpose %>% t()
-      #deal with fewer than K neighbours
-      neighbor_transpose = neighbor_transpose[!is.na(neighbor_transpose)]
-      pred_column = "DLBCLone_ko"
-    
-    }else if(DLBCLone_model$type %in% c("predict_single_sample_DLBCLone","DLBCLone_optimize_params")){
-      DLBCLone_model$predictions <- DLBCLone_model$predictions %>%
-        filter(sample_id %in% this_sample_id)
-      
-      neighbor_ids = DLBCLone_model$predictions %>%
-        pull(neighbor_id) %>%
-        strsplit(",") %>%
-        unlist()
-      if(DLBCLone_model$type=="DLBCLone_optimize_params"){
-        neighbor_df <- DLBCLone_model$features %>% 
-        rownames_to_column("sample_id") %>%
-        filter(sample_id %in% c(neighbor_ids,this_sample_id)) %>%
-        column_to_rownames("sample_id")
-        neighbor_transpose = neighbor_df[this_sample_id,]
-        
-
-      }else{
-        neighbor_df <- DLBCLone_model$features_df %>% 
-          rownames_to_column("sample_id") %>%
-          filter(sample_id %in% c(neighbor_ids,this_sample_id)) %>%
-          column_to_rownames("sample_id")
-        neighbor_transpose = neighbor_df[this_sample_id,]
-      }
-      if(nrow(neighbor_transpose) == 0){
-        message("No features found for sample ", this_sample_id, ". Returning NULL.")
-        return(NULL)
-      }
-      print(head(neighbor_transpose))
-      
-      neighbor_transpose = neighbor_transpose %>% t()
-      #deal with fewer than K neighbours
-      
-      #neighbor_transpose = neighbor_transpose[!is.na(neighbor_transpose)]
-      #return(neighbor_transpose)
-      pred_column = "predicted_label_optimized"
-    }
-  }else{
-    stop("DLBCLone_model must be the output of DLBCLone_optimize_params, DLBCLone_KNN or predict_single_sample_DLBCLone")
-  }
-  print(head(neighbor_transpose))
-  # Gather the base columns
-  cols_to_select <- c("sample_id", truth_column)
-
-  # Add any non-null metadata columns
-  extra_cols <- c(pred_column,metadata_cols)
-  extra_cols <- extra_cols[!is.null(extra_cols)]
-  cols_to_select <- c(cols_to_select, extra_cols)
-
-  xx = DLBCLone_model$features_df[neighbor_transpose,]
-  
-  if(any(is.na(rownames(xx)))){
-    print(neighbor_transpose)
-    stop("something went wrong. Some samples are missing from features_df")
-  }
-
-  top = max(xx)
-  mid = top/2
-  col_fun = circlize::colorRamp2(c(0, mid, top), c("white", "#FFB3B3", "red"))
-
-  if(DLBCLone_model$type == "predict_single_sample_DLBCLone"){
-
-  row_df = DLBCLone_model$optimized_predictions %>%
-    select(all_of(cols_to_select)) %>%
-    filter(sample_id %in% rownames(neighbor_df)) 
-
-  if(!this_sample_id %in% row_df$sample_id){
-    new_row <- DLBCLone_model$predictions %>%
-      filter(sample_id %in% this_sample_id) %>%
-      mutate(
-        !!sym(truth_column) := NA,
-        !!sym(pred_column) := DLBCLone_model$predictions$predicted_label
-      )
-    
-    # ensure extra metadata columns exist in the new row
-    for(col in extra_cols){
-      if(!col %in% names(new_row)){
-        new_row[[col]] <- NA
-      }
-    }
-
-    new_row <- new_row %>%
-      select(all_of(cols_to_select))
-    row_df <- bind_rows(row_df, new_row)
-
-  }else{
-    # create an NA row with all needed columns
-    missing_row <- as.data.frame(setNames(rep(NA, length(cols_to_select)), cols_to_select))
-    missing_row$sample_id <- this_sample_id
-    row_df <- bind_rows(row_df, missing_row)
-  }
-
-  }else{
-
-    #row_df = DLBCLone_model$predictions %>%
-    row_df = left_join(DLBCLone_model$predictions, DLBCLone_model$metadata) %>%
-      select(all_of(cols_to_select)) %>% 
-      filter(sample_id %in% rownames(xx)) 
-
-    if(!this_sample_id %in% row_df$sample_id){
-      if("unlabeled_predictions" %in% names(DLBCLone_model)){
-        print("=====")
-        row_df = bind_rows(
-          row_df,
-          select(
-            DLBCLone_model$unlabeled_predictions, 
-            sample_id, 
-            !!sym(truth_column), 
-            !!sym(pred_column)
-          ) %>% 
-            filter(sample_id %in% rownames(xx))
-        )
-        print(row_df)
-        sample_class = filter(DLBCLone_model$unlabeled_predictions, sample_id == this_sample_id) %>%
-        pull(!!sym(pred_column))
-        print(sample_class)
-             
-      }else{
-        sample_class = NULL
-        row_df = bind_rows(
-          row_df,
-          tibble(
-            sample_id = this_sample_id,
-            !!rlang::sym(truth_column) := NA_character_,
-            !!rlang::sym(pred_column) := NA_character_)
-          ) 
-      }
-    }
-  } 
-
-  feats_df <- DLBCLone_model$features_df %>%
-    rownames_to_column("sample_id") %>%
-    filter(sample_id %in% row_df$sample_id) %>%
-    column_to_rownames("sample_id")
-  
-  row_df = row_df %>% 
-    column_to_rownames("sample_id")
-    
-  anno_colours = get_gambl_colours()
-
-  anno_list = list() 
-
-  anno_list[[truth_column]] <- anno_colours
-
-  for(col in extra_cols){
-    anno_list[[col]] <- anno_colours
-  }
-
-  row_anno = rowAnnotation(
-    df = row_df[rownames(feats_df),,drop=FALSE],
-    col = anno_list,
-    annotation_name_gp = gpar(fontsize = font_size),
-    show_legend = TRUE
-  )
-
-  title_text = paste(
-    "Sample", 
-    this_sample_id, 
-    "classified as", 
-    pred_column
-  )
-
-  ht <- Heatmap(
-    feats_df[,colSums(feats_df)>0],
-    col = col_fun,
-    column_names_gp = gpar(fontsize = font_size),
-    right_annotation = row_anno,
-    clustering_distance_rows = clustering_distance,
-    show_heatmap_legend = FALSE,
-    column_title = title_text
-  )
-
-  draw(
-    ht,
-    heatmap_legend_side = "bottom",
-    annotation_legend_side = "bottom"
-  )
-}
-#' @export
-og_nearest_neighbor_heatmap <- function(this_sample_id,
-                                     DLBCLone_model,
-                                     truth_column = "lymphgen",
-                                     clustering_distance = "binary",
-                                     font_size = 14){
-  pred_name = NULL
-  if(!missing(DLBCLone_model) && "type" %in% names(DLBCLone_model)){
-    if(DLBCLone_model$type == "DLBCLone_optimize_params"){
-      neighbor_df = DLBCLone_model$predictions %>%
-        filter(sample_id == this_sample_id) %>%
-        select(sample_id, neighbor_id) %>% 
-        separate(neighbor_id, into = paste0("V",1:DLBCLone_model$best_params$k), sep = ",")
-      neighbor_transpose = neighbor_df %>% t()
-      print(neighbor_transpose)
-      
-      xx=DLBCLone_model$features[neighbor_transpose[,1],]
-      print(xx)
-      print(max(xx))
-      print("here")
-      pred_name = "predicted_label_optimized"
-    }else if(DLBCLone_model$type == "DLBCLone_KNN"){
-      if(!"unlabeled_neighbors" %in% names(DLBCLone_model)){
-        print(names(DLBCLone_model))
-        stop("DLBCLone_model must be the output of DLBCLone_KNN with predict_unlabeled = TRUE")
-      }else if(is.null(DLBCLone_model$unlabeled_neighbors)){
-        #no neighbors found for any of the incoming samples
-        message("No neighbors found for any sample. Returning NULL.")
-        return(NULL)
-      }
-      neighbor_df = DLBCLone_model$unlabeled_neighbors
-      neighbor_transpose = filter(neighbor_df,sample_id==this_sample_id) 
-      if(nrow(neighbor_transpose) == 0){
-        message("No neighbors found for sample ", this_sample_id, ". Returning NULL.")
-        return(NULL)
-      }
-      neighbor_transpose = neighbor_transpose %>% t()
-      #deal with fewer than K neighbours
-      neighbor_transpose = neighbor_transpose[!is.na(neighbor_transpose)]
-      pred_name = "DLBCLone_ko"
-      xx=DLBCLone_model$features_df[neighbor_transpose,]
-    }
-
-  }else{
-    stop("DLBCLone_model must be the output of DLBCLone_optimize_params or DLBCLone_KNN")
-  }
-  
-  
-  if(any(is.na(rownames(xx)))){
-    print(neighbor_transpose)
-    stop("something went wrong. Some samples are missing from features_df")
-  }
-  top = max(xx)
-  mid = top/2
-  col_fun = circlize::colorRamp2(c(0, mid, top), c("white", "#FFB3B3", "red"))
-  if(!truth_column %in% colnames(DLBCLone_model$predictions)){
-    print(head(DLBCLone_model$predictions))
-    stop("missing",truth_column)
-  }
-  print("297")
-  row_df = select(DLBCLone_model$predictions, sample_id, !!sym(truth_column), !!sym(pred_name)) %>% 
-    filter(sample_id %in% rownames(xx)) 
-  print("299")
-  if(!this_sample_id %in% row_df$sample_id){
-    if("unlabeled_predictions" %in% names(DLBCLone_model)){
-      print("=====")
-      row_df = bind_rows(row_df,
-                        select(DLBCLone_model$unlabeled_predictions, sample_id, !!sym(truth_column), !!sym(pred_name)) %>% 
-                            filter(sample_id %in% rownames(xx))
-                        )
-      print(row_df)
-       sample_class = filter(DLBCLone_model$unlabeled_predictions, sample_id == this_sample_id) %>%
-        pull(!!sym(pred_name))
-      print(sample_class)
-             
-    }else{
-      print("315")
-      if(DLBCLone_model$type == "DLBCLone_optimize_params"){
-        print("317")
-        sample_class = filter(DLBCLone_model$predictions, sample_id == this_sample_id) %>%
-          pull(predicted_label_optimized)
-        print("SAMPLE CLASS:", sample_class)
-      }else{
-        sample_class = NULL
-        row_df = bind_rows(row_df,
-                       tibble(sample_id = this_sample_id,
-                       !!rlang::sym(truth_column) := NA_character_,
-                       !!rlang::sym(pred_name) := NA_character_)) 
-
-      }
-          }
-  }else{
-    sample_class = filter(DLBCLone_model$predictions, sample_id == this_sample_id) %>%
-          pull(predicted_label_optimized)
-  }
-  row_df = row_df %>% 
-    column_to_rownames("sample_id") 
-  anno_colours = get_gambl_colours()
-  anno_list = list()
-
-  anno_list[[truth_column]] = anno_colours
-  if (!is.null(pred_name)) {
-    anno_list[[pred_name]] = anno_colours
-  }
-  xx = xx[,colSums(xx)>0,drop=FALSE]
-  row_anno = rowAnnotation(
-    df = row_df[rownames(xx),,drop=FALSE],
-    col = anno_list,
-    #annotation_name_side = "left",
-    annotation_name_gp = gpar(fontsize = font_size),
-    show_legend = FALSE
-  )
-
-  title_text = paste("Sample", this_sample_id, "classified as", sample_class)
-  Heatmap(xx,
-          col = col_fun,
-          right_annotation = row_anno,
-          clustering_distance_rows = clustering_distance,
-          show_heatmap_legend = FALSE,
-          column_title = title_text,
-          column_title_gp = gpar(fontsize=font_size),
-          column_names_gp = gpar(fontsize=font_size))
-}
 
 #' Basic UMAP Scatterplot
 #'
@@ -693,12 +351,12 @@ og_nearest_neighbor_heatmap <- function(this_sample_id,
 #'
 #' @return A ggplot object.
 #' @export
-#' 
-#' @examples 
-#' 
+#'
+#' @examples
+#'
 #' \dontrun{
 #' my_umap = make_and_annotate_umap(my_data, my_metadata)
-#' 
+#'
 #' basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
 #'                        plot_samples = "some_sample_ID",
 #'                        colour_by = "DLBCLone_ko")
@@ -804,9 +462,9 @@ message("colour_by: ", colour_by)
 #' @return No return value. Side effect: writes multiple PDF files to disk.
 #'
 #' @import ggalluvial
-#' 
+#'
 #' @export
-#' 
+#'
 #' @examples
 #' \dontrun{
 #' DLBCLone_summarize_model(optimized_model = all_features_optimized,
@@ -822,7 +480,7 @@ DLBCLone_summarize_model = function(base_name,
   #save the predictions
   pred_out = paste0(full_dir,"/DLBCLone_predictions_bulk.tsv")
   print(paste("Saving predictions to",pred_out))
-  to_save = optimized_model$predictions %>% 
+  to_save = optimized_model$predictions %>%
     select(sample_id,!!sym(optimized_model$truth_column),DLBCLone_i:DLBCLone_wo,confidence:other_score,V1,V2)
 
   write_tsv(to_save,
@@ -833,7 +491,7 @@ DLBCLone_summarize_model = function(base_name,
                             title="all samples, projected")
   print(p)
   dev.off()
-  
+
   umap2 = paste0(full_dir,"/UMAP_no_Other.pdf")
   cairo_pdf(umap2,width=8,height=8)
   p = make_umap_scatterplot(optimized_model$df,
@@ -880,7 +538,7 @@ DLBCLone_summarize_model = function(base_name,
 #' @description
 #' Generates a UMAP plot highlighting the neighborhood of a given sample, showing its nearest neighbors and their group assignments.
 #'
-#' @param single_sample_prediction_output A list containing prediction results and annotation data frames. 
+#' @param single_sample_prediction_output A list containing prediction results and annotation data frames.
 #'        Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).
 #' @param training_predictions The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)
 #' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
@@ -899,7 +557,7 @@ DLBCLone_summarize_model = function(base_name,
 #'
 #' @export
 #' @examples
-#' 
+#'
 #' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
 #' # and 'output' is the result of DLBCLone_predict_single_sample
 #' # on sample_id "SAMPLE123":
@@ -912,7 +570,7 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
                                   prediction_in_title = TRUE,
                                   add_circle = TRUE,
                                   label_column = "DLBCLone_io",
-                                  point_size = 0.5, 
+                                  point_size = 0.5,
                                   point_alpha = 0.9,
                                   line_alpha = 0.9) {
 
@@ -925,18 +583,18 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
   }
   if(missing(training_predictions)){
     #training_predictions = single_sample_prediction_output$anno_df
-    training_predictions = 
+    training_predictions =
     left_join(select(single_sample_prediction_output$anno_df,sample_id,lymphgen),
       select(single_sample_prediction_output$df,sample_id,V1,V2))
   }else if(missing(single_sample_prediction_output)){
 
     #Just plot the single sample in the context of the rest based on the optimization
     single_sample_prediction_output = list()
-    single_sample_prediction_output[["prediction"]] = filter(training_predictions, sample_id==this_sample_id) 
+    single_sample_prediction_output[["prediction"]] = filter(training_predictions, sample_id==this_sample_id)
      single_sample_prediction_output[["anno_df"]] = training_predictions
   }else{
     single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
-  
+
   }
 xmin = min(training_predictions$V1, na.rm = TRUE)
   xmax = max(training_predictions$V1, na.rm = TRUE)
@@ -944,7 +602,7 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
   ymax = max(training_predictions$V2, na.rm = TRUE)
   #extract the sample_id for all the nearest neighbors with non-Other labels
   my_neighbours = filter(single_sample_prediction_output$prediction,
-                         sample_id == this_sample_id) %>% 
+                         sample_id == this_sample_id) %>%
                   pull(neighbor_id) %>% strsplit(.,",") %>% unlist()
 
   #set up links connecting each neighbor to the sample's point
@@ -966,13 +624,13 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
   }
   links_df = mutate(links_df,my_x=my_x,my_y=my_y)
   links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
-  
-  
+
+
   pp=ggplot(mutate(training_predictions,group=lymphgen),
-         aes(x=V1,y=V2,colour=group)) + 
-    geom_point(alpha=point_alpha,size=point_size) + 
+         aes(x=V1,y=V2,colour=group)) +
+    geom_point(alpha=point_alpha,size=point_size) +
     geom_segment(data=links_df,aes(x=V1,y=V2,xend=my_x,yend=my_y),alpha=line_alpha)+
-    scale_colour_manual(values=get_gambl_colours()) + 
+    scale_colour_manual(values=get_gambl_colours()) +
     ggtitle(title)+
     xlim(c(xmin,xmax)) +
     ylim(c(ymin,ymax)) +
@@ -993,16 +651,20 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
 
 #' Make UMAP scatterplot
 #'
-#' @param df 
-#' @param drop_composite 
-#' @param colour_by 
-#' @param drop_other 
-#' @param high_confidence 
-#' @param custom_colours 
-#' @param add_labels 
+#' @param df Data frame containing UMAP coordinates (V1, V2) and grouping columns.
+#' Typically this is the `df` element from the output of `make_and_annotate_umap()`.
+#' @param drop_composite Logical; if TRUE, drops samples with composite labels (e.g., "EZB-COMP").
+#' @param colour_by Column name to color points by (default: "lymphgen").
+#' @param drop_other Logical; if TRUE, drops (hides) samples with "Other" labels.
+#' @param high_confidence Logical; if TRUE, only includes samples with high confidence predictions.
+#' @param custom_colours Named vector of custom colors for each group.
+#' @param add_labels Logical; if TRUE, adds labels to points.
+#' @param title Plot title.
+#' @param base_size Base font and point size for the plot (passed to theme_Morons()).
+#' @param alpha Point transparency (default: 0.8).
 #'
-#' @returns
-#' 
+#' @returns A ggplot object.
+#'
 #' @import ggside
 #' @export
 #'
@@ -1015,7 +677,8 @@ make_umap_scatterplot = function(df,
                                  custom_colours,
                                  add_labels = FALSE,
                                  title = NULL,
-                                 base_size=8){
+                                 base_size=8,
+                                 alpha = 0.8){
   xmin = min(df$V1,na.rm=TRUE)
   xmax = max(df$V1,na.rm=TRUE)
   ymin = min(df$V2,na.rm=TRUE)
@@ -1037,9 +700,12 @@ make_umap_scatterplot = function(df,
   if(high_confidence){
     df = filter(df,Confidence > 0.7)
   }
+  if(is.numeric(df[[colour_by]])){
+    df[[colour_by]]=factor(df[[colour_by]])
+  }
   if(add_labels){
     labels = group_by(df,!!sym(colour_by)) %>%
-      summarise(median_x = median(V1),median_y = median(V2)) 
+      summarise(median_x = median(V1),median_y = median(V2))
   }
   unique_lg = unique(df[[colour_by]])
 
@@ -1050,16 +716,16 @@ make_umap_scatterplot = function(df,
   }
   point_size = base_size/12
   p = ggplot(df,
-             aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) + 
-             geom_point(alpha=0,size=point_size) + 
-             geom_point(data=df %>% filter(!!sym(colour_by) =="Other"),alpha=0.8,size=point_size) + 
-             geom_point(data=df %>% filter(!!sym(colour_by) !="Other"),alpha=0.8,size=point_size) + 
-    scale_colour_manual(values=cols) + 
-    scale_fill_manual(values=cols) + 
-    theme_Morons(base_size = base_size) + 
-    guides(colour = guide_legend(nrow = 1)) + 
-    xlim(xmin,xmax) + 
-    ylim(ymin,ymax) + 
+             aes(x=V1,y=V2,colour=!!sym(colour_by),label=cohort)) +
+             geom_point(alpha=0,size=point_size) +
+             geom_point(data=df %>% filter(!!sym(colour_by) =="Other"),alpha=alpha,size=point_size) +
+             geom_point(data=df %>% filter(!!sym(colour_by) !="Other"),alpha=alpha,size=point_size) +
+    scale_colour_manual(values=cols) +
+    scale_fill_manual(values=cols) +
+    theme_Morons(base_size = base_size) +
+    guides(colour = guide_legend(nrow = 1)) +
+    xlim(xmin,xmax) +
+    ylim(ymin,ymax) +
     theme(axis.title.x = element_blank(),
       axis.title.y = element_blank())
   if(!is.null(title)){
@@ -1070,7 +736,7 @@ make_umap_scatterplot = function(df,
   }
   #p = ggMarginal(p,groupColour = TRUE,groupFill=TRUE)
   p <- p +
-  
+
   ggside::geom_xsidedensity(aes(y = after_stat(density), fill = !!sym(colour_by)),
                             alpha = 0.3, size = 0.2) +
   ggside::geom_ysidedensity(aes(x = after_stat(density), fill = !!sym(colour_by)),
@@ -1124,33 +790,33 @@ report_accuracy <- function(predictions,
     stopifnot(length(truth) == length(pred))
     truth <- factor(truth)
     pred  <- factor(pred, levels = levels(truth))  # align levels
-    
+
     classes <- levels(truth)
     if (drop_other && other_label %in% classes) {
       classes <- setdiff(classes, other_label)
     }
-    
+
     f1_per_class <- sapply(classes, function(cls) {
       tp <- sum(truth == cls & pred == cls)
       fp <- sum(truth != cls & pred == cls)
       fn <- sum(truth == cls & pred != cls)
-      
+
       prec <- if ((tp + fp) == 0) NA_real_ else tp / (tp + fp)
       rec  <- if ((tp + fn) == 0) NA_real_ else tp / (tp + fn)
-      
+
       if (is.na(prec) || is.na(rec) || (prec + rec) == 0) {
         if (na_rm) return(NA_real_) else return(0)  # choose policy
       }
       2 * prec * rec / (prec + rec)
     })
-    
+
    mean(f1_per_class, na.rm = na_rm)
-   
+
   }
   all_classes <- unique(predictions[[truth]])
   no_other_true <- filter(predictions, !!sym(truth) != "Other")
   no_other_pred <- filter(predictions, !!sym(pred) != "Other")
-  
+
   classification_rate = nrow(no_other_pred) / nrow(predictions)
   #print(paste(classification_rate,"=", nrow(no_other_pred) ,"/" ,nrow(predictions)))
   if (verbose) {
@@ -1160,7 +826,7 @@ report_accuracy <- function(predictions,
       "non-Other samples were assigned to a non-Other class"))
   }
 
-  
+
   conf_matrix_no <- confusionMatrix(
     factor(no_other_true[[pred]], levels = all_classes),
     factor(no_other_true[[truth]], levels = all_classes)
@@ -1193,7 +859,7 @@ report_accuracy <- function(predictions,
     harm = NA
   }
 
-  
+
   overall <- conf_matrix$overall[["Accuracy"]]
   return(list(
     no_other = acc_no,
@@ -1217,7 +883,7 @@ report_accuracy <- function(predictions,
 #' This function generates a detailed alluvial plot to visualize the concordance
 #' and discordance between original (e.g., Lymphgen) and predicted
 #' (e.g., DLBCLone) class assignments for samples.
-#' It supports annotation of concordance rates, per-group accuracy, 
+#' It supports annotation of concordance rates, per-group accuracy,
 #' unclassified rates, and flexible labeling and coloring options.
 #'
 #' @param optimized List containing prediction results and metadata,
@@ -1245,7 +911,8 @@ report_accuracy <- function(predictions,
 #' @param label_line_flip_colour Logical; controls color assignment for label lines.
 #' @param label_box_flip_colour Logical; controls color assignment for label boxes.
 #' @param concordant_label_relative_pos Position for concordant labels: 0 (left), 0.5 (middle), or 1 (right).
-#'
+#' @param rotate
+#' 
 #' @return A ggplot2 object representing the alluvial plot.
 #'
 #' @details
@@ -1284,7 +951,8 @@ make_alluvial <- function(
     concordant_label_relative_pos = 0.5, #we only handle 0, 0.5 and 1
     verbose = FALSE,
     custom_colours = NULL,
-    hide_legend = TRUE
+    hide_legend = TRUE,
+    rotate = FALSE
 ) {
   predictions = optimized$predictions
   if(!truth_column %in% colnames(predictions)){
@@ -1300,7 +968,7 @@ make_alluvial <- function(
     }else{
       group_order = sort(unique(c(predictions[[pred_column]],predictions[[truth_column]])))
     }
-    
+
     #print("setting group order:")
     #print(group_order)
   }
@@ -1309,18 +977,22 @@ make_alluvial <- function(
 
 
   if (accuracy_per_group) {
-    accuracies <- report_accuracy(predictions, 
+    accuracies <- report_accuracy(predictions,
         truth = truth_column,
         pred = pred_column,
         per_group = accuracy_per_group,
         skip_F1 = TRUE)
+  }else{
+    add_accuracy_to_title = FALSE
+    add_percent = FALSE
   }
   if(count_excluded_as_other){
     excluded_meta = optimized$sample_metadata_no_features %>%
       mutate(!!pred_column := "Other")
     predictions = bind_rows(excluded_meta,predictions)
-  }
-  if("total_samples_available" %in% names(optimized)){
+    full_denominator = nrow(predictions)
+
+  } else if("total_samples_available" %in% names(optimized)){
       full_denominator = optimized$total_samples_available
   }else{
     full_denominator = nrow(predictions)
@@ -1329,8 +1001,8 @@ make_alluvial <- function(
   xx <- predictions %>%
     rename(
       !!truth_name := !!sym(truth_column)
- 
-    ) 
+
+    )
 
   xx <- xx %>% rename (
     !!pred_name := !!sym(pred_column))
@@ -1367,8 +1039,11 @@ make_alluvial <- function(
       title = paste0(title," Concordance (non-Other): ",pc_conc,"%")
     }
   }
-  bacc = round(accuracies$mean_balanced_accuracy,4)
+  if(accuracy_per_group){
+    bacc = round(accuracies$mean_balanced_accuracy,4)
+  }
   
+
   # One side sort
 
   xx <- xx %>%
@@ -1377,7 +1052,7 @@ make_alluvial <- function(
     ungroup() %>%
     mutate(flow_id = row_number(), flow_label = ifelse(num > min_flip_n, as.character(num), ""))
 
-  xx = xx %>% 
+  xx = xx %>%
     group_by(!!sym(pred_name)) %>%
     arrange(!!sym(truth_name),.by_group=TRUE) %>%
     ungroup() %>%
@@ -1421,7 +1096,7 @@ make_alluvial <- function(
       flow_y = stratum_base + flow_bottom + num / 2
     ) %>%
     ungroup()
-  
+
 
 
 
@@ -1432,7 +1107,7 @@ make_alluvial <- function(
     mutate(left_group = factor(left_group,levels=levels(stratum))) %>%
     group_by(axis, stratum) %>%
     arrange(
-      
+
       desc(right_group),
       desc(left_group),
       num,
@@ -1460,8 +1135,8 @@ make_alluvial <- function(
       filter(axis==1)
     #position on far left
   }else if(concordant_label_relative_pos == 1){
-    
-    lodes_mean = lodes_mean_right  %>% 
+
+    lodes_mean = lodes_mean_right  %>%
       mutate(y=flow_y) %>%
       filter(axis==2)
     #position on far right
@@ -1473,20 +1148,20 @@ make_alluvial <- function(
       filter(axis==2) %>%
       mutate(nudge_dir = 0)
     #middle
-    
+
   }else{
     stop("unhandled value for concordant_label_relative_pos. Provide 0 (left), 0.5 (middle) or 1 (right)")
   }
 
-lodes_right  = filter(lodes_mean_right,axis==2,left_group!=right_group) %>% 
+lodes_right  = filter(lodes_mean_right,axis==2,left_group!=right_group) %>%
   arrange(flow_id2) %>%
   mutate(nudge_dir = -nudge) %>%
-  mutate(left_char=as.character(left_group),right_char = as.character(right_group))  
+  mutate(left_char=as.character(left_group),right_char = as.character(right_group))
 
 
-lodes_left = filter(lodes_mean_left,axis==1,left_group!=right_group) %>% 
+lodes_left = filter(lodes_mean_left,axis==1,left_group!=right_group) %>%
   arrange(flow_id) %>%
-  mutate(left_char=as.character(left_group),right_char = as.character(right_group))  %>% 
+  mutate(left_char=as.character(left_group),right_char = as.character(right_group))  %>%
   ungroup()
 
 lodes_left = lodes_left %>%
@@ -1499,7 +1174,7 @@ lodes_right = lodes_right %>%
   mutate(label_fill = if(!label_box_flip_colour) right_group else left_group) %>%
   mutate(nudge_dir = -nudge)
 
-lodes_match = filter(lodes_mean,left_group==right_group) %>% 
+lodes_match = filter(lodes_mean,left_group==right_group) %>%
   mutate(nudge_dir=0)
 
 xx_denom <- predictions %>%
@@ -1511,9 +1186,9 @@ xx_denom <- predictions %>%
 if(add_percent){
     lodes_match = left_join(lodes_match,xx_denom,by="stratum") %>%
       mutate(percent = round(100*num/denom,1)) %>%
-      filter(!is.na(denom)) %>% 
-      mutate(flow_label = paste0(left_group, " concordant: ", num," (",percent,"%",")"))
-    
+      filter(!is.na(denom)) %>%
+      mutate(flow_label = paste0(left_group, ": ", num," (",percent,"%",")"))
+
   }
   if(add_unclass_rate){
     right_other = filter(lodes_mean_right,right_group=="Other",axis==2) %>%
@@ -1566,9 +1241,10 @@ if(add_percent){
         label = flow_label,
         fill = right_group
       )
-      
-    ) +
 
+    ) 
+    if(!rotate){
+    pp = pp + 
     geom_label_repel(
       data = filter(lodes_right,flow_label!=""),
       min.segment.length = 0,
@@ -1586,7 +1262,7 @@ if(add_percent){
         fill = label_fill,
         segment.colour = segment_colour
       )
-      
+
     ) +
     geom_label_repel(
       data = filter(lodes_left,flow_label!=""),
@@ -1602,17 +1278,19 @@ if(add_percent){
         flow_y,
         label = flow_label,
         fill = label_fill,
-       
+
         segment.colour = segment_colour
-        
+
       )
-      
-    ) +
+
+    )
+    }
+    pp = pp +
     scale_x_discrete(limits = c(truth_name, pred_name), expand = c(.1, .05)) +
     scale_fill_manual(values = group_colours) +
     scale_colour_manual(values = group_colours,
                         aesthetics = c("color", "segment.color")) +
-    
+
     #guides(color = "none",segment_color = "none") +
     labs(
       y = "Number of Samples",
@@ -1620,25 +1298,513 @@ if(add_percent){
     ) +
     theme_minimal() +
     ggtitle(title)
+
+  if(rotate){
+    pp = pp + theme_minimal() + coord_flip()
+  }
   if(hide_legend){
     pp = pp +
-      theme(legend.position = "none") 
-   
+      theme(legend.position = "none")
+
   }
   if(add_unclass_rate){
-    pp = pp + 
+    pp = pp +
       geom_label_repel(data=left_other,
                        direction = "x",
                        x=1,y=20,
-                 aes(fill=!!sym(truth_name),label=label)) +
+                 aes(fill=!!sym(truth_name),label=label),size=label_size) +
       geom_label_repel(data=right_other,
                        direction = "x",
                        x=2,y=20,
-                 aes(fill=!!sym(pred_name),label=label))
+                 aes(fill=!!sym(pred_name),label=label),size=label_size)
   }
   pp + guides(
     fill = guide_legend(override.aes = list(label = "", colour = NA)),
   color = "none",
   segment.colour = "none",
-  fill = guide_legend(title = "Class")) 
+  fill = guide_legend(title = "Class"))
+}
+
+#' Plot the result of a DLBCLone classification
+#'
+#' @param test_df Data frame containing the test data with UMAP coordinates
+#' @param train_df Data frame containing the training data with UMAP coordinates
+#' @param predictions_df Data frame containing the predictions with UMAP coordinates
+#' @param other_df Data frame containing the predictions for samples in the "Other" class
+#' @param details Single-row data frame with the best parameters from DLBCLone_optimize_params
+#' @param annotate_accuracy Set to true to add labels with accuracy values
+#' @param classes Vector of classes that were used in the training and testing
+#' @param label_offset Length of the label offset for the accuracy labels
+#' @param title1 additional argument
+#' @param title2 additional argument
+#' @param title3 additional argument
+#'
+#' @returns a ggplot object
+#' @export
+#'
+#' @examples
+#' #add the dataset name to the metadata if it's not already there (required for the plot work)
+#' lymphgen_A53_DLBCLone$df$dataset = "GAMBL"
+#'
+#' DLBCLone_train_test_plot(
+#'  test_df = lymphgen_A53_DLBCLone$df,
+#'  train_df = lymphgen_A53_DLBCLone$df,
+#'  predictions_df = lymphgen_A53_DLBCLone$predictions,
+#'  #other_df = lymphgen_A53_DLBCLone$predictions_other, #required only when "Other" was in the truth_classes
+#'  details = lymphgen_A53_DLBCLone$best_params,
+#'  classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"),
+#'  annotate_accuracy=TRUE,label_offset = 1)
+#'
+DLBCLone_train_test_plot = function(test_df,
+                           train_df,
+                           predictions_df,
+                           other_df,
+                           details,
+                           annotate_accuracy = FALSE,
+
+                           classes = c("BN2","ST2","MCD","EZB","N1"),
+                           label_offset = 2,
+                           title1="Original Class",
+                           title2="DLBCLone Predicted Class",
+                           title3 ="DLBCLone Predicted Class (Other)",base_size = 1){
+  title = ""
+  if(!missing(details)){
+    title = paste0("N_class:",details$num_classes," N_feats:",details$num_features," k=",details$k," threshold=",details$threshold," bacc=",round(details$accuracy,3))
+
+  }
+  if(annotate_accuracy){
+    if("BN2" %in% classes){
+      acc_df = data.frame(lymphgen = classes,
+                          accuracy = c(
+                            details$BN2_bacc,
+                            details$EZB_bacc,
+                            details$MCD_bacc,
+                            details$ST2_bacc,
+                            details$Other_bacc,
+                            details$A53_bacc))
+    }else if("C1" %in% classes){
+      acc_df = data.frame(lymphgen = c("C1","C2","C3","C4","C5"),
+                          accuracy = c(details$C1_bacc,
+                                       details$C2_bacc,
+                                       details$C3_bacc,
+                                       details$C4_bacc,
+                                       details$C5_bacc))
+    }else{
+      stop("no labels to add?")
+    }
+
+  }
+  # Add the predicted labels for Other (unclassified) cases, if provided
+  if(!missing(other_df)){
+    in_df = bind_rows(train_df,
+                      test_df,
+                      mutate(predictions_df,dataset=title2,lymphgen=predicted_label),
+                      mutate(other_df,dataset=title3,lymphgen=predicted_label)
+                      )
+    in_df = mutate(in_df,dataset = factor(dataset,levels=unique(c(unique(train_df$dataset),title1,title2,title3))))
+  }else{
+    in_df = bind_rows(train_df,
+                      test_df,
+                      mutate(predictions_df,dataset=title2,lymphgen=predicted_label)
+                      )
+    in_df = mutate(in_df,dataset = factor(dataset,levels=unique(c(unique(train_df$dataset),title1,title2))))
+  }
+
+  pp = ggplot(in_df) +
+    geom_point(aes(x=V1,y=V2,colour=lymphgen),alpha=0.8) +
+    scale_colour_manual(values=get_gambl_colours()) +
+    facet_wrap(~dataset,ncol=1) +
+    theme_Morons(base_size=base_size) + ggtitle(title)
+  if(annotate_accuracy){
+    #add labels and set nudge direction based on what quadrant each group sits in
+    centroids = filter(predictions_df,predicted_label %in% classes) %>%
+      group_by(predicted_label) %>%
+      summarise(mean_V1=median(V1),mean_V2=median(V2)) %>%
+      mutate(nudge_x=sign(mean_V1),nudge_y = sign(mean_V2)) %>%
+      mutate(lymphgen=predicted_label)
+    #print(centroids)
+    centroids = left_join(centroids,acc_df) %>%
+      mutate(label=paste(lymphgen,":",round(accuracy,3)))
+
+    centroids$dataset = title2
+    pp = pp + geom_label_repel(data=filter(centroids,nudge_y < 0, nudge_x < 0),
+                              aes(x=mean_V1,y=mean_V2,label=label),fill="white",size=5,nudge_y = -1 * label_offset , nudge_x = -1 * label_offset) +
+      geom_label_repel(data=filter(centroids,nudge_y < 0, nudge_x > 0),
+                      aes(x=mean_V1,y=mean_V2,label=label),size=5,nudge_y = -1 * label_offset , nudge_x = 1 * label_offset) +
+      geom_label_repel(data=filter(centroids,nudge_y > 0, nudge_x < 0),
+                      aes(x=mean_V1,y=mean_V2,label=label),size=5,nudge_y = 1 * label_offset , nudge_x = -1 * label_offset) +
+      geom_label_repel(data=filter(centroids,nudge_y > 0, nudge_x > 0),
+                      aes(x=mean_V1,y=mean_V2,label=label),fill="white",size=5,nudge_y = 1 * label_offset , nudge_x = 1 * label_offset)
+  }
+  pp + guides(colour = guide_legend(nrow = 1))
+}
+
+#' Determine feature enrichment per class using truth or predicted labels
+#'
+#' This function identifies the top N features (genes) for
+#' each subtype based on their prevalence in the dataset using either
+#' the truth labels or the predicted subgroups from DLBCLone.
+#'
+#' @param sample_metadata Data frame containing sample metadata with class labels,
+#' by default in a column named "lymphgen". Use `label_column` to specify a different column.
+#' @param label_column Name of the column containing the
+#' class labels. The default is to use "lymphgen", the default truth class. 
+#' @param truth_classes Vector of class labels to consider (default: c("BN2","EZB","MCD","ST2","N1")).
+#' @param method Method to determine top features: "frequency" for most abundant
+#' features, "chi_square" for top differentially mutated features in the classes
+#' vs all other classes (default : "frequency").
+#' @param num_feats Number of top features to display per subtype (default: 10).
+#' @param separate_plot_per_group If TRUE, creates separate plots for each group
+#' and also combines them with ggarrange (default: FALSE).
+#' @param title Title for the plot (default: NULL).
+#' @param p_threshold Maximum P value to retain (when method is fisher)
+#' @param base_size Base font size used (passed to theme_Morons)
+#' 
+#'
+#' @return A ggplot2 object representing the stacked bar plot.
+#' 
+#' @import dplyr ggplot2 tidyr rlang ggpubr
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' # Assuming my_DLBCLone_opt is the output from DLBCLone_optimize_params
+#' plot_list <- posthoc_feature_enrichment(
+#'     my_DLBCLone_opt$predictions,
+#'     features=DLBCLone_model$features,
+#'     method = "chi_square",
+#'     num_feats = 10,
+#'     title = "LymphGen"
+#' ) 
+#' print(plot_list$bar_plot)
+#' 
+#' plot_list <- posthoc_feature_enrichment(
+#'    label_column = "lymphgen",
+#'    sample_metadata = my_DLBCLone_opt$predictions,
+#'    features = my_DLBCLone_opt$features,
+#'    method = "fisher",
+#'    num_feats = 10,
+#'    base_size=9
+#' )
+#' print(plot_list$forest_plot)
+#' }
+#'
+posthoc_feature_enrichment <- function(
+  sample_metadata,
+  features,
+  label_column = "lymphgen",
+  truth_classes = c("BN2","EZB","MCD","ST2","N1"),
+  method = "frequency",
+  num_feats = 10,
+  p_threshold = 0.01,
+  title = NULL,
+  base_size = 7,
+  separate_plot_per_group = TRUE
+){
+
+
+  bad_cols <- colSums(features) <= 0.02 * nrow(features)
+  features <- features[, !bad_cols]
+  features_binary = features %>% select(-ends_with("_feats")) #in case meta-features are present
+  features_binary[features_binary>0]=1
+  annotated_feats <- features_binary %>%
+    rownames_to_column("sample_id") %>%
+    left_join(
+      sample_metadata %>% select(sample_id, !!sym(label_column)), 
+      by = "sample_id"
+    ) %>%
+    column_to_rownames("sample_id") 
+
+  annotated_feats[[label_column]] <- as.factor(annotated_feats[[label_column]])
+
+  gene_cols <- setdiff(colnames(annotated_feats), c("sample_id", label_column))
+  subtypes <- truth_classes
+
+  top_genes_per_subtype <- list()
+  to_return = list()
+  if(method == "frequency"){
+
+    for(subtype in subtypes){
+      subtype_samples <- annotated_feats[annotated_feats[[label_column]] == subtype, ]
+      
+      gene_counts <- colSums(subtype_samples[, gene_cols, drop = FALSE])
+      gene_ranking <- order(gene_counts, decreasing = TRUE)
+      
+      # Top genes for this subtype
+      top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
+    }
+  }else if(grepl("chi_square",method)){
+
+    for(subtype in subtypes){
+      # Create binary class: subtype vs rest
+      y_binary <- factor(ifelse(annotated_feats[[label_column]] == subtype, subtype, paste0("not_", subtype)))
+  
+      chi_stats <- numeric(length(gene_cols))
+  
+      for(i in seq_along(gene_cols)){
+        gene <- gene_cols[i]
+        tbl <- table(annotated_feats[[gene]], y_binary)
+        test <- suppressWarnings(chisq.test(tbl))
+        chi_stats[i] <- test$`p.value`
+      }
+  
+      gene_ranking <- order(chi_stats, decreasing = FALSE)
+  
+      # Top genes for this subtype
+      top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
+    }
+    
+  }else if(grepl("fisher",method)){
+    inout_df = data.frame()
+    annotated_feats_no_other = filter(annotated_feats,!!sym(label_column)!="Other")
+    for(subtype in subtypes){
+      # Create binary class: subtype vs rest
+      y_binary <- factor(ifelse(annotated_feats_no_other[[label_column]] == subtype,
+        subtype, paste0("not_", subtype)),levels=c(paste0("not_", subtype),subtype))
+  
+      for(i in seq_along(gene_cols)){
+        gene <- gene_cols[i]
+        tbl <- table(annotated_feats_no_other[[gene]], y_binary)
+        
+        test <- suppressWarnings(fisher.test(tbl))
+        fisher.res = broom::tidy(test)
+        fisher.res$group = subtype
+        fisher.res$gene = gene
+        inout_df = bind_rows(inout_df,fisher.res)
+      }
+    }
+    p_threshold = 0.01
+    inout_df = arrange(inout_df,desc(estimate)) %>% 
+      filter(estimate > 1,p.value < p_threshold) %>%
+      group_by(group) %>% 
+      slice_head(n=num_feats) %>%
+      ungroup()
+    if(separate_plot_per_group){
+        use_global_x <- TRUE        # Consider making this an optional argument. For now, leave hardcoded
+        pad_mult     <- 0.01        # 1% padding on each side
+
+        global_xlim <- NULL
+        if (use_global_x) {
+          df_all <- dplyr::filter(inout_df, group %in% subtypes)
+
+          # collect all x values used across panels (on the *log* scale used in the plot)
+          x_all <- c(log(df_all$estimate), log(df_all$conf.low), log(df_all$conf.high))
+          x_all <- x_all[is.finite(x_all)]
+
+          if (length(x_all)) {
+            rng <- range(x_all)
+            pad <- diff(rng) * pad_mult
+            global_xlim <- c(rng[1] - pad, rng[2] + pad)
+          }
+        }
+     # per-group plots
+        plots <- list()
+
+        cols <- get_gambl_colours()
+        cols <- cols[match(truth_classes, names(cols))]
+        names(cols) <- truth_classes
+
+        last_idx <- length(subtypes)
+        row_sizes <- numeric()
+        max_n <- num_feats
+        min_rows <- 3 
+        overhead_rows <- 0
+        cap_len <- grid::unit(0.5, "mm")
+
+        for (i in seq_along(subtypes)) {
+          subtype <- subtypes[[i]]
+
+          sub_df <- inout_df |>
+            dplyr::filter(group == subtype) |>
+            dplyr::arrange(dplyr::desc(estimate)) |>
+            dplyr::slice_head(n = max_n) |>
+            dplyr::mutate(group = factor(group, levels = truth_classes))
+          
+
+          # order genes for this panel
+          real_levels <- rev(unique(sub_df$gene))
+          
+          need_pad <- max(0, min_rows - length(real_levels))
+          pad_levels <- if (need_pad > 0) paste0("<<pad_", seq_len(need_pad), ">>") else character(0)
+          sub_df$gene <- factor(sub_df$gene, levels = c(real_levels, pad_levels))
+
+          eff_rows <- max(length(real_levels), min_rows)
+          row_sizes <- c(row_sizes, (eff_rows + overhead_rows) / (max_n + overhead_rows))
+
+          # ----- legend seed: make sure x is always finite -----
+          x_candidates <- c(log(sub_df$estimate), log(sub_df$conf.low), log(sub_df$conf.high))
+          x_candidates <- x_candidates[is.finite(x_candidates)]
+          x_dummy <- if (length(x_candidates)) mean(x_candidates) else 0  # safe fallback
+
+          legend_seed <- data.frame(
+            group = factor(truth_classes, levels = truth_classes),
+            gene  = factor(rep(levels(sub_df$gene)[1], length(truth_classes)),
+                          levels = levels(sub_df$gene)),
+            x     = x_dummy
+          )
+
+          p_sub <- ggplot(sub_df, aes(x = log(estimate), y = gene, colour = group)) +
+          geom_segment(
+            aes(x = log(conf.low), xend = log(conf.high), y = gene, yend = gene),
+            arrow = grid::arrow(length = cap_len, angle = 90, ends = "both", type = "open"),
+            lineend = "butt",
+            show.legend = FALSE   # <- so our segments don't contribute to legend graphic
+          ) +
+          geom_point() +
+          # legend seeding layer you already have (keep as-is) ...
+          geom_point(data = legend_seed, aes(x = x, y = gene, colour = group),
+                    inherit.aes = FALSE, alpha = 0, show.legend = TRUE) +
+          scale_colour_manual(
+            name   = NULL,
+            values = cols,
+            limits = truth_classes,
+            breaks = truth_classes,
+            drop   = FALSE,
+            na.translate = FALSE
+          ) +
+          guides(colour = guide_legend(
+            title = NULL,
+            ncol = 1,
+            byrow = TRUE,                    # <- vertical legend
+            override.aes = list(shape = 16, size = 3,  # <- point appearance in legend
+                                linetype = 0, alpha = 1)
+          )) +
+            theme_Morons(base_size = base_size) +
+            theme(legend.position = "none",axis.title.y = element_blank()) 
+
+          p_sub <- p_sub +
+          scale_y_discrete(
+            limits = c(real_levels, pad_levels),
+            breaks = real_levels,
+            expand = ggplot2::expansion(add = c(0.5, 0.5))  # ~0.5 row below and above
+          )
+          if (i != last_idx) {
+            p_sub <- p_sub +
+              theme(
+                axis.title.x = element_blank(),
+                plot.margin  = ggplot2::margin(t = 2, r = 5, b = 0, l = 5, unit = "pt")
+              )
+          } else {
+            p_sub <- p_sub +
+              labs(x = "log(estimate)") +
+              theme(plot.margin = ggplot2::margin(t = 2, r = 5, b = 2, l = 5, unit = "pt"))
+          }
+          if (!is.null(global_xlim)) {
+            # same x range for every panel; prevents dropping data & keeps arrow caps visible
+            p_sub <- p_sub +
+              scale_x_continuous(expand = expansion(mult = 0)) +
+              coord_cartesian(xlim = global_xlim, clip = "off")
+          }
+          plots[[i]] <- p_sub
+        }
+
+        p <- ggpubr::ggarrange(plotlist = plots, ncol = 1,
+                              heights = row_sizes,
+                              align = "v",
+                              common.legend = TRUE,
+                              legend = "right") + 
+                              ggtitle(label= paste("Top", num_feats, "genes per subtype by", method))
+
+    } else{
+
+      p = ggplot(inout_df,aes(x=log(estimate),y=gene,colour=group)) + 
+        geom_point() + 
+        geom_segment(aes(x = log(estimate), y = gene,
+                     xend = log(conf.high), yend = gene),
+                     arrow = arrow(angle=90,length = unit(0.02, "npc"))) +
+    geom_segment(aes(x = log(estimate), y = gene,
+                     xend = log(conf.low), yend = gene),
+                     arrow = arrow(angle=90,length = unit(0.02, "npc"))) +
+        scale_colour_manual(values=get_gambl_colours()) +
+        facet_wrap(~group,scales="free_y") + 
+        theme_Morons(base_size = base_size)
+    }
+
+
+    to_return[["forest_plot"]] = p
+    to_return[["results"]] = inout_df
+    for(subtype in subtypes){
+      top_genes_per_subtype[[subtype]] <- filter(inout_df,group==subtype) %>% pull(gene)
+    }
+
+  } else{
+    stop(
+      paste(
+        "Must specify a valid method:",
+        "'frequency'     - for most abundant features",
+        "'fisher_test' - Use Fisher's exact test",
+        "'chi_square' - for significance in-class vs out-of-class",
+        sep = "\n"
+      )
+    )
+  }
+
+  plot_df <- bind_rows(lapply(names(top_genes_per_subtype), function(subtype){
+    genes <- top_genes_per_subtype[[subtype]]
+    subtype_samples <- annotated_feats[annotated_feats[[label_column]] == subtype, ]
+    n_subtype <- nrow(subtype_samples)  # total samples in this subtype
+  
+    counts <- colSums(subtype_samples[, genes, drop = FALSE] > 0)  # ensure 0/1
+    plot_df <- tibble(
+      subtype = subtype,
+      gene = names(counts),
+      count = as.numeric(counts),
+      prop_gene = as.numeric(counts) / n_subtype
+  )
+  }))
+  plot_df <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      prop = count / sum(count),
+      rank = rank(-count, ties.method = "first")  # rank genes within subtype
+    ) %>%
+    ungroup()
+
+  # cumulative position for placing labels
+  plot_df <- plot_df %>%
+    group_by(subtype) %>%
+    arrange(rank) %>%
+    mutate(
+      cum_prop = cumsum(prop),         
+      pos = cum_prop - prop / 2       
+    ) %>%
+    ungroup()
+
+  colours <- get_gambl_colours()
+  n_colours <- max(plot_df$rank)
+
+  fill_map <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      base_col = ifelse(!is.na(colours[subtype]), colours[subtype], "grey"),
+      ramp = list(colorRampPalette(c(first(base_col), "white"))(max(rank))),
+      fill_color = ramp[[1]][rank]
+    ) %>%
+    ungroup()
+
+  # merge colors back into plot_df
+  plot_df$fill_color <- fill_map$fill_color
+
+  p = ggplot(plot_df, aes(x = subtype, y = prop, fill = fill_color)) +
+    geom_bar(stat = "identity", color = "black", position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(label = paste0(gene, " ", scales::percent(prop_gene, accuracy = 1))),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      size = 3
+    ) +
+    scale_fill_identity() +   
+    labs(
+      title = paste(title, " Top", num_feats, "genes per subtype (method:", method, ")"),
+      x = "Subtype",
+      y = "Proportion of Samples with Mutation"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 0, hjust = 1),
+      legend.position = "none"
+    )
+  to_return[["bar_plot"]] = p
+  return(to_return)
 }
