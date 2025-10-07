@@ -1439,3 +1439,360 @@ DLBCLone_train_test_plot = function(test_df,
   pp + guides(colour = guide_legend(nrow = 1))
 }
 
+#' Determine feature enrichment per class using truth or predicted labels
+#'
+#' This function identifies the top N features (genes) for
+#' each subtype based on their prevalence in the dataset using either
+#' the truth labels or the predicted subgroups from DLBCLone.
+#'
+#' @param sample_metadata Data frame containing sample metadata with class labels,
+#' by default in a column named "lymphgen". Use `label_column` to specify a different column.
+#' @param label_column Name of the column containing the
+#' class labels. The default is to use "lymphgen", the default truth class. 
+#' @param truth_classes Vector of class labels to consider (default: c("BN2","EZB","MCD","ST2","N1")).
+#' @param method Method to determine top features: "frequency" for most abundant
+#' features, "chi_square" for top differentially mutated features in the classes
+#' vs all other classes (default : "frequency").
+#' @param num_feats Number of top features to display per subtype (default: 10).
+#' @param separate_plot_per_group If TRUE, creates separate plots for each group
+#' and also combines them with ggarrange (default: FALSE).
+#' @param title Title for the plot (default: NULL).
+#' @param p_threshold Maximum P value to retain (when method is fisher)
+#' @param base_size Base font size used (passed to theme_Morons)
+#' 
+#'
+#' @return A ggplot2 object representing the stacked bar plot.
+#' 
+#' @import dplyr ggplot2 tidyr rlang ggpubr
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' library(GAMBLR.predict)
+#' 
+#' # Assuming my_DLBCLone_opt is the output from DLBCLone_optimize_params
+#' plot_list <- posthoc_feature_enrichment(
+#'     my_DLBCLone_opt$predictions,
+#'     features=DLBCLone_model$features,
+#'     method = "chi_square",
+#'     num_feats = 10,
+#'     title = "LymphGen"
+#' ) 
+#' }
+#'
+posthoc_feature_enrichment <- function(
+  sample_metadata,
+  features,
+  label_column = "lymphgen",
+  truth_classes = c("BN2","EZB","MCD","ST2","N1"),
+  method = "frequency",
+  num_feats = 10,
+  p_threshold = 0.01,
+  title = NULL,
+  base_size = 7,
+  separate_plot_per_group = TRUE
+){
+
+
+  bad_cols <- colSums(features) <= 0.02 * nrow(features)
+  features <- features[, !bad_cols]
+  features_binary = features %>% select(-ends_with("_feats")) #in case meta-features are present
+  features_binary[features_binary>0]=1
+  annotated_feats <- features_binary %>%
+    rownames_to_column("sample_id") %>%
+    left_join(
+      sample_metadata %>% select(sample_id, !!sym(label_column)), 
+      by = "sample_id"
+    ) %>%
+    column_to_rownames("sample_id") 
+
+  annotated_feats[[label_column]] <- as.factor(annotated_feats[[label_column]])
+
+  gene_cols <- setdiff(colnames(annotated_feats), c("sample_id", label_column))
+  subtypes <- truth_classes
+
+  top_genes_per_subtype <- list()
+  to_return = list()
+  if(method == "frequency"){
+
+    for(subtype in subtypes){
+      subtype_samples <- annotated_feats[annotated_feats[[label_column]] == subtype, ]
+      
+      gene_counts <- colSums(subtype_samples[, gene_cols, drop = FALSE])
+      gene_ranking <- order(gene_counts, decreasing = TRUE)
+      
+      # Top genes for this subtype
+      top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
+    }
+  }else if(grepl("chi_square",method)){
+
+    for(subtype in subtypes){
+      # Create binary class: subtype vs rest
+      y_binary <- factor(ifelse(annotated_feats[[label_column]] == subtype, subtype, paste0("not_", subtype)))
+  
+      chi_stats <- numeric(length(gene_cols))
+  
+      for(i in seq_along(gene_cols)){
+        gene <- gene_cols[i]
+        tbl <- table(annotated_feats[[gene]], y_binary)
+        test <- suppressWarnings(chisq.test(tbl))
+        chi_stats[i] <- test$`p.value`
+      }
+  
+      gene_ranking <- order(chi_stats, decreasing = FALSE)
+  
+      # Top genes for this subtype
+      top_genes_per_subtype[[subtype]] <- gene_cols[gene_ranking[1:num_feats]]
+    }
+    
+  }else if(grepl("fisher",method)){
+    inout_df = data.frame()
+    annotated_feats_no_other = filter(annotated_feats,!!sym(label_column)!="Other")
+    for(subtype in subtypes){
+      # Create binary class: subtype vs rest
+      y_binary <- factor(ifelse(annotated_feats_no_other[[label_column]] == subtype,
+        subtype, paste0("not_", subtype)),levels=c(paste0("not_", subtype),subtype))
+  
+      for(i in seq_along(gene_cols)){
+        gene <- gene_cols[i]
+        tbl <- table(annotated_feats_no_other[[gene]], y_binary)
+        
+        test <- suppressWarnings(fisher.test(tbl))
+        fisher.res = broom::tidy(test)
+        fisher.res$group = subtype
+        fisher.res$gene = gene
+        inout_df = bind_rows(inout_df,fisher.res)
+      }
+    }
+    p_threshold = 0.01
+    inout_df = arrange(inout_df,desc(estimate)) %>% 
+      filter(estimate > 1,p.value < p_threshold) %>%
+      group_by(group) %>% 
+      slice_head(n=num_feats) %>%
+      ungroup()
+    if(separate_plot_per_group){
+        use_global_x <- TRUE        # Consider making this an optional argument. For now, leave hardcoded
+        pad_mult     <- 0.01        # 1% padding on each side
+
+        global_xlim <- NULL
+        if (use_global_x) {
+          df_all <- dplyr::filter(inout_df, group %in% subtypes)
+
+          # collect all x values used across panels (on the *log* scale used in the plot)
+          x_all <- c(log(df_all$estimate), log(df_all$conf.low), log(df_all$conf.high))
+          x_all <- x_all[is.finite(x_all)]
+
+          if (length(x_all)) {
+            rng <- range(x_all)
+            pad <- diff(rng) * pad_mult
+            global_xlim <- c(rng[1] - pad, rng[2] + pad)
+          }
+        }
+     # per-group plots
+        plots <- list()
+
+        cols <- get_gambl_colours()
+        cols <- cols[match(truth_classes, names(cols))]
+        names(cols) <- truth_classes
+
+        last_idx <- length(subtypes)
+        row_sizes <- numeric()
+        max_n <- num_feats
+        min_rows <- 3 
+        overhead_rows <- 0
+        cap_len <- grid::unit(0.5, "mm")
+
+        for (i in seq_along(subtypes)) {
+          subtype <- subtypes[[i]]
+
+          sub_df <- inout_df |>
+            dplyr::filter(group == subtype) |>
+            dplyr::arrange(dplyr::desc(estimate)) |>
+            dplyr::slice_head(n = max_n) |>
+            dplyr::mutate(group = factor(group, levels = truth_classes))
+          
+
+          # order genes for this panel
+          real_levels <- rev(unique(sub_df$gene))
+          
+          need_pad <- max(0, min_rows - length(real_levels))
+          pad_levels <- if (need_pad > 0) paste0("<<pad_", seq_len(need_pad), ">>") else character(0)
+          sub_df$gene <- factor(sub_df$gene, levels = c(real_levels, pad_levels))
+
+          eff_rows <- max(length(real_levels), min_rows)
+          row_sizes <- c(row_sizes, (eff_rows + overhead_rows) / (max_n + overhead_rows))
+
+          # ----- legend seed: make sure x is always finite -----
+          x_candidates <- c(log(sub_df$estimate), log(sub_df$conf.low), log(sub_df$conf.high))
+          x_candidates <- x_candidates[is.finite(x_candidates)]
+          x_dummy <- if (length(x_candidates)) mean(x_candidates) else 0  # safe fallback
+
+          legend_seed <- data.frame(
+            group = factor(truth_classes, levels = truth_classes),
+            gene  = factor(rep(levels(sub_df$gene)[1], length(truth_classes)),
+                          levels = levels(sub_df$gene)),
+            x     = x_dummy
+          )
+
+          p_sub <- ggplot(sub_df, aes(x = log(estimate), y = gene, colour = group)) +
+          geom_segment(
+            aes(x = log(conf.low), xend = log(conf.high), y = gene, yend = gene),
+            arrow = grid::arrow(length = cap_len, angle = 90, ends = "both", type = "open"),
+            lineend = "butt",
+            show.legend = FALSE   # <- so our segments don't contribute to legend graphic
+          ) +
+          geom_point() +
+          # legend seeding layer you already have (keep as-is) ...
+          geom_point(data = legend_seed, aes(x = x, y = gene, colour = group),
+                    inherit.aes = FALSE, alpha = 0, show.legend = TRUE) +
+          scale_colour_manual(
+            name   = NULL,
+            values = cols,
+            limits = truth_classes,
+            breaks = truth_classes,
+            drop   = FALSE,
+            na.translate = FALSE
+          ) +
+          guides(colour = guide_legend(
+            title = NULL,
+            ncol = 1,
+            byrow = TRUE,                    # <- vertical legend
+            override.aes = list(shape = 16, size = 3,  # <- point appearance in legend
+                                linetype = 0, alpha = 1)
+          )) +
+            theme_Morons(base_size = base_size) +
+            theme(legend.position = "none",axis.title.y = element_blank()) 
+
+          p_sub <- p_sub +
+          scale_y_discrete(
+            limits = c(real_levels, pad_levels),
+            breaks = real_levels,
+            expand = ggplot2::expansion(add = c(0.5, 0.5))  # ~0.5 row below and above
+          )
+          if (i != last_idx) {
+            p_sub <- p_sub +
+              theme(
+                axis.title.x = element_blank(),
+                plot.margin  = ggplot2::margin(t = 2, r = 5, b = 0, l = 5, unit = "pt")
+              )
+          } else {
+            p_sub <- p_sub +
+              labs(x = "log(estimate)") +
+              theme(plot.margin = ggplot2::margin(t = 2, r = 5, b = 2, l = 5, unit = "pt"))
+          }
+          if (!is.null(global_xlim)) {
+            # same x range for every panel; prevents dropping data & keeps arrow caps visible
+            p_sub <- p_sub +
+              scale_x_continuous(expand = expansion(mult = 0)) +
+              coord_cartesian(xlim = global_xlim, clip = "off")
+          }
+          plots[[i]] <- p_sub
+        }
+
+        p <- ggpubr::ggarrange(plotlist = plots, ncol = 1,
+                              heights = row_sizes,
+                              align = "v",
+                              common.legend = TRUE,
+                              legend = "right")
+
+    } else{
+
+      p = ggplot(inout_df,aes(x=log(estimate),y=gene,colour=group)) + 
+        geom_point() + 
+        geom_segment(aes(x = log(estimate), y = gene,
+                     xend = log(conf.high), yend = gene),
+                     arrow = arrow(angle=90,length = unit(0.02, "npc"))) +
+    geom_segment(aes(x = log(estimate), y = gene,
+                     xend = log(conf.low), yend = gene),
+                     arrow = arrow(angle=90,length = unit(0.02, "npc"))) +
+        scale_colour_manual(values=get_gambl_colours()) +
+        facet_wrap(~group,scales="free_y") + 
+        theme_Morons(base_size = base_size)
+    }
+
+
+    to_return[["forest_plot"]] = p
+    to_return[["results"]] = inout_df
+    for(subtype in subtypes){
+      top_genes_per_subtype[[subtype]] <- filter(inout_df,group==subtype) %>% pull(gene)
+    }
+
+  } else{
+    stop(
+      paste(
+        "Must specify a valid method:",
+        "'frequency'     - for most abundant features",
+        "'fisher_test' - Use Fisher's exact test",
+        "'chi_square' - for significance in-class vs out-of-class",
+        sep = "\n"
+      )
+    )
+  }
+
+  plot_df <- bind_rows(lapply(names(top_genes_per_subtype), function(subtype){
+    genes <- top_genes_per_subtype[[subtype]]
+    subtype_samples <- annotated_feats[annotated_feats[[label_column]] == subtype, ]
+    n_subtype <- nrow(subtype_samples)  # total samples in this subtype
+  
+    counts <- colSums(subtype_samples[, genes, drop = FALSE] > 0)  # ensure 0/1
+    plot_df <- tibble(
+      subtype = subtype,
+      gene = names(counts),
+      count = as.numeric(counts),
+      prop_gene = as.numeric(counts) / n_subtype
+  )
+  }))
+  plot_df <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      prop = count / sum(count),
+      rank = rank(-count, ties.method = "first")  # rank genes within subtype
+    ) %>%
+    ungroup()
+
+  # cumulative position for placing labels
+  plot_df <- plot_df %>%
+    group_by(subtype) %>%
+    arrange(rank) %>%
+    mutate(
+      cum_prop = cumsum(prop),         
+      pos = cum_prop - prop / 2       
+    ) %>%
+    ungroup()
+
+  colours <- get_gambl_colours()
+  n_colours <- max(plot_df$rank)
+
+  fill_map <- plot_df %>%
+    group_by(subtype) %>%
+    mutate(
+      base_col = ifelse(!is.na(colours[subtype]), colours[subtype], "grey"),
+      ramp = list(colorRampPalette(c(first(base_col), "white"))(max(rank))),
+      fill_color = ramp[[1]][rank]
+    ) %>%
+    ungroup()
+
+  # merge colors back into plot_df
+  plot_df$fill_color <- fill_map$fill_color
+
+  p = ggplot(plot_df, aes(x = subtype, y = prop, fill = fill_color)) +
+    geom_bar(stat = "identity", color = "black", position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(label = paste0(gene, " ", scales::percent(prop_gene, accuracy = 1))),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      size = 3
+    ) +
+    scale_fill_identity() +   
+    labs(
+      title = paste(title, " Top", num_feats, "genes per subtype (method:", method, ")"),
+      x = "Subtype",
+      y = "Proportion of Samples with Mutation"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 0, hjust = 1),
+      legend.position = "none"
+    )
+  to_return[["bar_plot"]] = p
+  return(to_return)
+}
