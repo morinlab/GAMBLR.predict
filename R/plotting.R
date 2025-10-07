@@ -1478,6 +1478,17 @@ DLBCLone_train_test_plot = function(test_df,
 #'     num_feats = 10,
 #'     title = "LymphGen"
 #' ) 
+#' print(plot_list$bar_plot)
+#' 
+#' plot_list <- posthoc_feature_enrichment(
+#'    label_column = "lymphgen",
+#'    sample_metadata = my_DLBCLone_opt$predictions,
+#'    features = my_DLBCLone_opt$features,
+#'    method = "fisher",
+#'    num_feats = 10,
+#'    base_size=9
+#' )
+#' print(plot_list$forest_plot)
 #' }
 #'
 posthoc_feature_enrichment <- function(
@@ -1693,7 +1704,8 @@ posthoc_feature_enrichment <- function(
                               heights = row_sizes,
                               align = "v",
                               common.legend = TRUE,
-                              legend = "right")
+                              legend = "right") + 
+                              ggtitle(label= paste("Top", num_feats, "genes per subtype by", method))
 
     } else{
 

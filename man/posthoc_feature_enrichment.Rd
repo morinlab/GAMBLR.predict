@@ -61,6 +61,17 @@ plot_list <- posthoc_feature_enrichment(
     num_feats = 10,
     title = "LymphGen"
 ) 
+print(plot_list$bar_plot)
+
+plot_list <- posthoc_feature_enrichment(
+   label_column = "lymphgen",
+   sample_metadata = my_DLBCLone_opt$predictions,
+   features = my_DLBCLone_opt$features,
+   method = "fisher",
+   num_feats = 10,
+   base_size=9
+)
+print(plot_list$forest_plot)
 }
 
 }
