@@ -607,9 +607,9 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
 
   #set up links connecting each neighbor to the sample's point
   links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
-  my_x = filter(single_sample_prediction_output$anno_out,
+  my_x = filter(single_sample_prediction_output$projection,
                 sample_id==this_sample_id) %>% pull(V1)
-  my_y = filter(single_sample_prediction_output$anno_out,
+  my_y = filter(single_sample_prediction_output$projection,
                 sample_id==this_sample_id) %>% pull(V2)
   if(prediction_in_title){
     title = paste(this_sample_id,
@@ -624,7 +624,6 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
   }
   links_df = mutate(links_df,my_x=my_x,my_y=my_y)
   links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
-
 
   pp=ggplot(mutate(training_predictions,group=lymphgen),
          aes(x=V1,y=V2,colour=group)) +
