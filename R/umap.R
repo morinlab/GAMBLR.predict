@@ -2711,6 +2711,7 @@ DLBCLone_predict <- function(
   to_return = list(
     prediction  = predictions_test_df,
     projection  = projection_test$df,
+    training_predictions = optimized_model$predictions,
     umap_input  = optimized_model$features,      # input feature space of the model
     model       = optimized_model$model,         # the model actually used
     features_df = test_df |> tibble::column_to_rownames("sample_id"),

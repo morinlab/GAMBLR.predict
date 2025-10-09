@@ -565,7 +565,6 @@ DLBCLone_summarize_model = function(base_name,
 #'  make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
 #' }
 make_neighborhood_plot <- function(single_sample_prediction_output,
-                                   training_predictions,
                                   this_sample_id,
                                   prediction_in_title = TRUE,
                                   add_circle = TRUE,
@@ -581,36 +580,28 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
     yy <- center[2] + r * sin(tt)
     return(data.frame(x = xx, y = yy))
   }
-  if(missing(training_predictions)){
-    #training_predictions = single_sample_prediction_output$anno_df
-    training_predictions =
-    left_join(select(single_sample_prediction_output$anno_df,sample_id,lymphgen),
-      select(single_sample_prediction_output$df,sample_id,V1,V2))
-  }else if(missing(single_sample_prediction_output)){
 
-    #Just plot the single sample in the context of the rest based on the optimization
-    single_sample_prediction_output = list()
-    single_sample_prediction_output[["prediction"]] = filter(training_predictions, sample_id==this_sample_id)
-     single_sample_prediction_output[["anno_df"]] = training_predictions
-  }else{
-    single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
+  single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
 
-  }
-xmin = min(training_predictions$V1, na.rm = TRUE)
-  xmax = max(training_predictions$V1, na.rm = TRUE)
-  ymin = min(training_predictions$V2, na.rm = TRUE)
-  ymax = max(training_predictions$V2, na.rm = TRUE)
+  #training_predictions <- single_sample_prediction_output$training_predictions
+
+  xmin = min(single_sample_prediction_output$training_predictions$V1, na.rm = TRUE)
+  xmax = max(single_sample_prediction_output$training_predictions$V1, na.rm = TRUE)
+  ymin = min(single_sample_prediction_output$training_predictions$V2, na.rm = TRUE)
+  ymax = max(single_sample_prediction_output$training_predictions$V2, na.rm = TRUE)
   #extract the sample_id for all the nearest neighbors with non-Other labels
   my_neighbours = filter(single_sample_prediction_output$prediction,
                          sample_id == this_sample_id) %>%
                   pull(neighbor_id) %>% strsplit(.,",") %>% unlist()
 
   #set up links connecting each neighbor to the sample's point
-  links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
+  links_df = filter(single_sample_prediction_output$training_predictions,
+                sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
   my_x = filter(single_sample_prediction_output$projection,
                 sample_id==this_sample_id) %>% pull(V1)
   my_y = filter(single_sample_prediction_output$projection,
                 sample_id==this_sample_id) %>% pull(V2)
+
   if(prediction_in_title){
     title = paste(this_sample_id,
                   pull(single_sample_prediction_output$prediction,
@@ -625,7 +616,7 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
   links_df = mutate(links_df,my_x=my_x,my_y=my_y)
   links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
 
-  pp=ggplot(mutate(training_predictions,group=lymphgen),
+  pp=ggplot(mutate(single_sample_prediction_output$training_predictions,group=lymphgen),
          aes(x=V1,y=V2,colour=group)) +
     geom_point(alpha=point_alpha,size=point_size) +
     geom_segment(data=links_df,aes(x=V1,y=V2,xend=my_x,yend=my_y),alpha=line_alpha)+
@@ -646,7 +637,6 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
   }
   return(pp)
 }
-
 
 #' Make UMAP scatterplot
 #'

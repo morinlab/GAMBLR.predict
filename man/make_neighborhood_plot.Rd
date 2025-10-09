@@ -6,7 +6,6 @@
 \usage{
 make_neighborhood_plot(
   single_sample_prediction_output,
-  training_predictions,
   this_sample_id,
   prediction_in_title = TRUE,
   add_circle = TRUE,
@@ -20,8 +19,6 @@ make_neighborhood_plot(
 \item{single_sample_prediction_output}{A list containing prediction results and annotation data frames.
 Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).}
 
-\item{training_predictions}{The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)}
-
 \item{this_sample_id}{Character. The sample ID for which the neighborhood plot will be generated.}
 
 \item{prediction_in_title}{Logical. If \code{TRUE}, includes the predicted label in the plot title.}
@@ -29,6 +26,8 @@ Must include elements \code{prediction} (data frame with prediction results) and
 \item{add_circle}{Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.}
 
 \item{label_column}{Does nothing, i.e. this is not currently working.}
+
+\item{training_predictions}{The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)}
 }
 \value{
 A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
