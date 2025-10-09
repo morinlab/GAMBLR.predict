@@ -236,6 +236,7 @@ DLBCLone_shiny <- function(...){
         ),
         default_model
     )
+    default_knn <- DLBCLone_activate(default_knn, force = TRUE)
 
     pred_dir <- file.path(tempdir(), "predictions")
     dir.create(pred_dir, showWarnings = FALSE, recursive = TRUE)
@@ -911,6 +912,7 @@ DLBCLone_shiny <- function(...){
                 ),
                 input$panel
             )
+            updated_result <- DLBCLone_activate(updated_result, force = TRUE)
             dlbclone_result(updated_result)
 
             feature_str <- paste(input$features, collapse = ",")
