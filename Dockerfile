@@ -32,10 +32,23 @@ RUN R -e "BiocManager::install('IRanges',ask=FALSE)"
 # Install GitHub packages
 
 RUN R -e "remotes::install_github('jokergoo/ComplexHeatmap')"
-RUN R -e "remotes::install_github('morinlab/GAMBLR.data')"
-RUN R -e "remotes::install_github('morinlab/GAMBLR.helpers')"
 RUN apt-get install -y cmake 
 RUN R -e "install.packages('ggpubr',dependencies=TRUE)"
 RUN R -e "install.packages('plotly',dependencies=TRUE)"
 RUN R -e "remotes::install_github('jlmelville/uwot')"
-RUN R -e "remotes::install_github('morinlab/GAMBLR.predict')"
+
+# Install morinlab packages one by one with smoke tests after each
+# Special settings to reduce memory usage during installation, which sometimes kills Docker
+RUN set -eu && \
+    Rscript -e "options(warn=2); \
+                Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS='true'); \
+                remotes::install_github('morinlab/GAMBLR.data', upgrade='never', \
+                    INSTALL_opts=c('--no-multiarch','--no-byte-compile','--no-lazy-data'), \
+                    Ncpus=1); \
+                stopifnot(requireNamespace('GAMBLR.data', quietly=FALSE)); \
+                cat('GAMBLR.data version:', as.character(packageVersion('GAMBLR.data')), '\n')"
+
+RUN set -eu && Rscript -e "remotes::install_github('morinlab/GAMBLR.helpers', upgrade='never'); stopifnot(requireNamespace('GAMBLR.helpers', quietly=FALSE));"
+RUN set -eu && Rscript -e "remotes::install_github('morinlab/GAMBLR.predict', upgrade='never'); stopifnot(requireNamespace('GAMBLR.predict', quietly=FALSE));"
+
+RUN R -e "install.packages('readxl')"
