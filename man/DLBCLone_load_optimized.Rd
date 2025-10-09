@@ -23,8 +23,8 @@ in \code{path}. Defaults to \code{"DLBCLone"}.}
 training samples (both batch and iterative modes, when available) and
 confirms that the coordinates match the saved embeddings (within a small
 tolerance). This requires that the saved model list contains
-\code{embedding_batch} and/or \code{embedding_iterative}. Defaults to
-\code{FALSE}.}
+\code{projection_train}, which is a consequence of activating the model
+with \code{DLBCLone_activate()}.}
 }
 \value{
 A list representing the reconstructed DLBCLone model, suitable for

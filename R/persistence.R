@@ -15,8 +15,8 @@
 #'   training samples (both batch and iterative modes, when available) and
 #'   confirms that the coordinates match the saved embeddings (within a small
 #'   tolerance). This requires that the saved model list contains
-#'   \code{embedding_batch} and/or \code{embedding_iterative}. Defaults to
-#'   \code{FALSE}.
+#'   \code{projection_train}, which is a consequence of activating the model
+#'   with \code{DLBCLone_activate()}.
 #'
 #' @return A list representing the reconstructed DLBCLone model, suitable for
 #'   downstream use with \code{DLBCLone_predict()} or utilities that expect
@@ -86,25 +86,22 @@ DLBCLone_load_optimized <- function(
   umap_model = load_uwot(umap_file)
   DLBCLone_model$model = umap_model
   if(check_integrity){
-    if("embedding_batch" %in% names(DLBCLone_model)){
-      message("confirming integrity of model against existing embeddings using batch mode")
-      batch_test = make_and_annotate_umap(DLBCLone_model$features,
-                                           DLBCLone_model$df %>% select(sample_id),
-                                           DLBCLone_model,
-                                           individually = FALSE)
-      compare_embeddings(DLBCLone_model$embedding_batch,batch_test$df)
-    }else{
-      print(names(DLBCLone_model))
-      stop("Can't find embedded_batch!")
-    }
-    if("embedding_iterative" %in% names(DLBCLone_model)){
+    if("projection_train" %in% names(DLBCLone_model)){
       message("confirming integrity of model against existing embeddings using iterative mode")
       batch_test = make_and_annotate_umap(DLBCLone_model$features,
                                            DLBCLone_model$df %>% select(sample_id),
                                            DLBCLone_model,
                                            individually = TRUE)
-      compare_embeddings(DLBCLone_model$embedding_iterative,batch_test$df)
+      compare_embeddings(DLBCLone_model$projection_train,batch_test$df)
+    }else{
+      print(names(DLBCLone_model))
+      stop("No training projection found in model. Cannot check integrity.")
     }
+  }else{
+    #remove potentially stale embeddings to force the user to re-project
+    #if they want to use them. This ensures that only a model that has been verified
+    #with check_integrity = TRUE will retain the embeddings.
+    DLBCLone_model$projection_train = NULL
   }
   return(DLBCLone_model)
 }
