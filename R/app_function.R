@@ -30,8 +30,6 @@ DLBCLone_shiny <- function(...){
     )  %>%
         pull(Gene)
 
-    default_panel <- "Coyle"
-
     full_status <- read_tsv(
         file = system.file(
                 package = "GAMBLR.predict",
@@ -182,6 +180,23 @@ DLBCLone_shiny <- function(...){
 
     panels <- load_gene_panels(full_status)
 
+    pretrained_models <- list.files(
+        dirname(
+            system.file(
+                "extdata/models",
+                "best_opt_model.rds",
+                package = "GAMBLR.predict"
+            )
+        )
+    )
+
+    pretrained_models <- gsub(
+        "_model.rds",
+        "",
+        pretrained_models[grepl("rds", pretrained_models)]
+    )
+
+    default_model <- "best_opt_w"
     demo_samples <- rownames(prototypes)
 
     default_umap_df <- read_tsv(
@@ -219,7 +234,7 @@ DLBCLone_shiny <- function(...){
                 package = "GAMBLR.predict"
             )
         ),
-        "best_opt_w"
+        default_model
     )
 
     pred_dir <- file.path(tempdir(), "predictions")
@@ -276,8 +291,8 @@ DLBCLone_shiny <- function(...){
                 ),
                 selectInput("panel",
                     label = "Pre-defined gene panel",
-                    choices = names(panels),
-                    selected = default_panel
+                    choices = pretrained_models,
+                    selected = default_model
                 ),
                 actionButton(
                     "regenerate",
@@ -487,7 +502,7 @@ DLBCLone_shiny <- function(...){
             use_core = FALSE,
             mode  = "Lenient",
             k_range = c(k_low, k_high),
-            panel = default_panel
+            panel = default_model
         )
 
         # Build a query string from a named list (handles URL encoding)
@@ -539,7 +554,7 @@ DLBCLone_shiny <- function(...){
             committed$core  <- if (committed$use_core) (input$core_features %||% character()) else character()
             committed$mode <- input$mode %||% "Lenient"
             committed$k_range <- input$k_range %||% c(k_low, k_high)
-            committed$panel <- input$panel %||% default_panel
+            committed$panel <- input$panel %||% default_model
 
             init_done(TRUE)
             shinyjs::enable("predict")  # allow Run Classifier on fresh load
@@ -632,7 +647,7 @@ DLBCLone_shiny <- function(...){
             if (is.null(run_log())) {
                 feature_str <- paste(colnames(full_status), collapse = ",")
                 default_link <- paste0(
-                    "?panel=", default_panel,
+                    "?panel=", default_model,
                     "&k_min=", k_low,
                     "&k_max=", k_high,
                     "&features=", URLencode(feature_str)
@@ -652,7 +667,7 @@ DLBCLone_shiny <- function(...){
                 run_log(data.frame(
                     timestamp = format(Sys.time(), "%b %d, %Y %I:%M %p"),
                     run_id = run_id,
-                    panel = default_panel,
+                    panel = default_model,
                     Unclass = filter(default_knn$predictions, DLBCLone_wo == "Other") %>% nrow(),
                     k_range = paste(k_low, k_high, sep = " - "),
                     k_used = default_knn$best_params$k,
@@ -873,12 +888,11 @@ DLBCLone_shiny <- function(...){
 
         # re-generate and evaluate the classifier
         observeEvent(input$regenerate, {
-            status <- full_status %>% select(all_of(input$features))
-            optimize_for_other = if_else(input$mode == "Stringent", TRUE, FALSE)
+            status <- full_status %>%
+                select(all_of(input$features))
+            optimize_for_other <- if_else(input$mode == "Stringent", TRUE, FALSE)
             truth_col <- input$truth_column
             other_lbl <- "Other"
-            #core_feats = core_features()
-            core_feats = selected_core()
             meta_classes <- dlbcl_meta_clean[[truth_col]] %>%
                 unique() %>%
                 setdiff(NA) %>%
@@ -886,31 +900,33 @@ DLBCLone_shiny <- function(...){
             meta_classes = sort(meta_classes[meta_classes!=other_lbl])
 
             meta_classes = c(meta_classes,other_lbl)
-            # TODO: here switch to loading pre-existing models
-            updated_result <- DLBCLone_KNN(status,
-            dlbcl_meta_clean,
-            core_features = core_feats,
-            min_k = input$k_range[1],
-            max_k = input$k_range[2],
-            optimize_for_other = optimize_for_other,
-            truth_column = truth_col,
-            truth_classes = meta_classes,
-            other_class = other_lbl
+
+            updated_result <- DLBCLone_load_optimized(
+                dirname(
+                    system.file(
+                        "extdata/models",
+                        "best_opt_model.rds",
+                        package = "GAMBLR.predict"
+                    )
+                ),
+                input$panel
             )
             dlbclone_result(updated_result)
 
             feature_str <- paste(input$features, collapse = ",")
             link <- paste0(
-            # session$clientData$url_hostname, session$clientData$url_pathname,
-            "?panel=", input$panel,
-            "&sample=", input$sample,
-            "&k_min=", input$k_range[1],
-            "&k_max=", input$k_range[2],
-            "&features=", URLencode(feature_str)
+                # session$clientData$url_hostname, session$clientData$url_pathname,
+                "?panel=", input$panel,
+                "&sample=", input$sample,
+                "&k_min=", input$k_range[1],
+                "&k_max=", input$k_range[2],
+                "&features=", URLencode(feature_str)
             )
             run_id <- paste0(length(input$features), "_features_", as.integer(Sys.time()))
-
-            tsv_path <- file.path(pred_dir, paste0("DLBCLone_predictions_", run_id, ".tsv"))
+            tsv_path <- file.path(
+                pred_dir,
+                paste0("DLBCLone_predictions_", run_id, ".tsv")
+            )
             write_tsv(updated_result$predictions, file = tsv_path)
 
             log_df <- run_log()
@@ -922,9 +938,9 @@ DLBCLone_shiny <- function(...){
                 panel = input$panel,
                 Unclass = filter(updated_result$predictions, DLBCLone_wo == "Other") %>% nrow(),
                 k_range = paste(input$k_range[1], input$k_range[2], sep = " - "),
-                k_used = updated_result$DLBCLone_k_best_k,
-                accuracy = round(default_knn$best_params$mean_balanced_accuracy, 3),
-                purity_threshold = round(default_knn$best_params$threshold, 3),
+                k_used = updated_result$best_params$k,
+                accuracy = round(updated_result$best_params$mean_balanced_accuracy, 3),
+                purity_threshold = round(updated_result$best_params$threshold, 3),
                 n_features = length(input$features),
                 download = paste0(
                 "<a class='btn btn-sm btn-primary' href='predictions/DLBCLone_predictions_", run_id,
@@ -938,10 +954,10 @@ DLBCLone_shiny <- function(...){
             # snapshot the settings that produced this model
             committed$features <- input$features %||% character()
             committed$use_core <- isTRUE(input$use_core)
-            committed$core     <- if (committed$use_core) (input$core_features %||% character()) else character()
-            committed$mode     <- input$mode
-            committed$k_range  <- input$k_range
-            committed$panel    <- input$panel
+            committed$core <- if (committed$use_core) (input$core_features %||% character()) else character()
+            committed$mode <- input$mode
+            committed$k_range <- input$k_range
+            committed$panel <- input$panel
             committed$truth_column <- input$truth_column
 
             # (optional) ensure Predict is enabled immediately after training
@@ -1095,7 +1111,7 @@ DLBCLone_shiny <- function(...){
             pred_column = "DLBCLone_wo",
 
             label_size = 4,
-            title = paste0("Optimal K=", result$DLBCLone_k_best_k, ",")
+            title = paste0("Optimal K=", result$best_params$k, ",")
             )
         })
     }
