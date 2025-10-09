@@ -2621,17 +2621,21 @@ DLBCLone_predict <- function(
   # ids
   train_df  <- tibble::rownames_to_column(train_df, "sample_id")
   test_df   <- tibble::rownames_to_column(test_df,  "sample_id")
-  #train_id  <- train_df$sample_id
-  #test_id   <- test_df$sample_id
 
-  projection_train <- make_and_annotate_umap(
-    df          = train_df,
-    umap_out    = umap_model,         # <- use supplied model/settings
-    ret_model   = FALSE,              # <- don't retrain; just (re)project
-    seed        = seed,
-    join_column = "sample_id",
-    na_vals     = best_params$na_option
-  )
+  if(!"projection_train" %in% names(optimized_model)){
+    message("No training projection found in model. Will re-project training data.")
+    message("If you want to avoid this, run DLBCLone_activate() on the model first.")
+    projection_train <- make_and_annotate_umap(
+      df          = train_df,
+      umap_out    = umap_model,         # <- use supplied model/settings
+      ret_model   = FALSE,              # <- don't retrain; just (re)project
+      seed        = seed,
+      join_column = "sample_id",
+      na_vals     = best_params$na_option
+    )
+  }else{
+    projection_train = list(df = optimized_model$projection_train)
+  }
   projection_test <- make_and_annotate_umap(
     df          = test_df,
     umap_out    = umap_model,         # <- use supplied model/settings
@@ -2713,7 +2717,7 @@ DLBCLone_predict <- function(
     projection  = projection_test$df,
     umap_input  = optimized_model$features,      # input feature space of the model
     model       = optimized_model$model,         # the model actually used
-    features_df = test_df |> tibble::column_to_rownames("sample_id"),
+    features_df = mutation_status,
     df          = predictions_test_df,
     metadata = optimized_model$df,
     type        = "DLBCLone_predict",
@@ -2923,3 +2927,102 @@ to_return = list(gaussian_mixture_model = gmm_supervised,
 return(to_return)
 }
 
+
+#' Activate a DLBCLone model by embedding its training set once
+#'
+#' Computes the UMAP projection for the model's training features and stores
+#' it inside the model object as `projection_train`. If already present and
+#' `force = FALSE`, returns the model unchanged.
+#'
+#' @param optimized_model A DLBCLone optimized model (list) that contains at least
+#'   $model (frozen uwot model), $features (training feature matrix with rownames),
+#'   $df (training metadata incl. sample_id and labels), $best_params$na_option,
+#'   and $truth_column.
+#' @param seed Integer seed for reproducibility (passed to make_and_annotate_umap).
+#' @param force Logical; if TRUE, recompute even if projection is already present.
+#' @param store_labeled Logical; if TRUE, also store a pre-joined
+#'   `projection_train_labeled` with coordinates + truth labels.
+#'
+#' @return The same `optimized_model` list with `$projection_train` added (and
+#'   optionally `$projection_train_labeled`). Each are data frames containing the
+#'  UMAP coordinates for the training samples, joined to `sample_id` and (if
+#'  requested) the truth labels, in the latter.
+#' 
+#' 
+#' @examples 
+#' \dontrun{
+#' 
+#' # activating a model after optimization
+#' optimized_model <- DLBCLone_optimize(
+#'  df = df_LySeqST,
+#'  features = feat_status_LySeqST
+#' )
+#' activated_model <- DLBCLone_activate(optimized_model)
+#' # projection_train is now present and will be used by DLBCLone_predict()
+#' 
+#' # activating a model after loading from disk
+#'  loaded_model <- DLBCLone_load_optimized(
+#'  path = "models",
+#'  name_prefix = "DLBCLone_LySeqST")
+#' loaded_model <- DLBCLone_activate(loaded_model, force = TRUE)
+#' }
+#' @export
+DLBCLone_activate <- function(
+  optimized_model,
+  seed = 12345,
+  force = FALSE,
+  store_labeled = TRUE
+){
+  stopifnot(!is.null(optimized_model))
+  if (!force && "projection_train" %in% names(optimized_model)) {
+    message("DLBCLone_activate: training projection already present; skipping (use force=TRUE to recompute).")
+    return(optimized_model)
+  }
+
+  # Basic sanity checks
+  req <- c("model", "features", "df", "best_params", "truth_column")
+  missing_req <- req[!req %in% names(optimized_model)]
+  if (length(missing_req)) {
+    stop("DLBCLone_activate: optimized_model is missing required fields: ",
+         paste(missing_req, collapse = ", "))
+  }
+  if (is.null(optimized_model$best_params$na_option)) {
+    stop("DLBCLone_activate: optimized_model$best_params$na_option is required.")
+  }
+
+  # Prepare training DF with sample_id
+  train_df <- optimized_model$features
+  if (is.null(rownames(train_df))) {
+    stop("DLBCLone_activate: optimized_model$features must have rownames as sample IDs.")
+  }
+  train_df <- tibble::rownames_to_column(train_df, "sample_id")
+
+  # Project training set using the frozen model/settings
+  set.seed(seed)
+  projection_train <- make_and_annotate_umap(
+    df          = train_df,
+    umap_out    = optimized_model,   # contains the frozen UMAP + settings
+    ret_model   = FALSE,             # do not retrain
+    seed        = seed,
+    join_column = "sample_id",
+    na_vals     = optimized_model$best_params$na_option
+  )
+
+  # Store full projection object so downstream code can use $df directly
+  optimized_model$projection_train <- projection_train$df
+
+  # Optionally store a pre-labeled version to speed up predict()
+  if (isTRUE(store_labeled)) {
+    truth_column <- optimized_model$truth_column
+    optimized_model$projection_train_labeled <- projection_train$df |>
+      dplyr::select(sample_id, V1, V2) |>
+      dplyr::left_join(
+        optimized_model$df |>
+          dplyr::select(sample_id, !!rlang::sym(truth_column)),
+        by = "sample_id"
+      ) |>
+      dplyr::filter(!is.na(!!rlang::sym(truth_column)))
+  }
+
+  optimized_model
+}

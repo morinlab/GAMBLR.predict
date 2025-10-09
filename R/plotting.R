@@ -80,11 +80,13 @@ nearest_neighbor_heatmap <- function(
       pred_col  <- "DLBCLone_ko"
       greedy_col <- "DLBCLone_k"
     } else {
-      # DLBCLone_predict stores neighbor_ids in prediction$neighbor_id
+      # DLBCLone_predict stores neighbor_ids in prediction$neighbor_id (for non-self rows)
+      # and unprocessed_votes$neighbor_id (for self rows)
       # Reconstruct a tiny neighbors df on the fly to reuse helper
 
       DLBCLone_model$predictions = DLBCLone_model$prediction
-      pred_row <- DLBCLone_model$prediction %>%
+
+      pred_row <- DLBCLone_model$unprocessed_votes %>%
         dplyr::filter(.data$sample_id == .env$this_sample_id)
       if (nrow(pred_row) == 0 || !"neighbor_id" %in% names(pred_row)) {
         message("No neighbors found for sample ", this_sample_id, ". Returning NULL.")
@@ -94,13 +96,24 @@ nearest_neighbor_heatmap <- function(
       neighbors <- as.character(na.omit(neighbors))
       pred_col <- "DLBCLone_wo" #eventually needs to support io or wo
       greedy_col <- "DLBCLone_w"
-
+      pred_row <- DLBCLone_model$prediction %>%
+        dplyr::filter(.data$sample_id == .env$this_sample_id)
+      print(pred_row)
     }
 
-    feats_mat <- DLBCLone_model$features_df
-    if (is.null(feats_mat)) {
-      stop("features_df is missing in the provided model object.")
+    #feats_mat <- DLBCLone_model$features_df
+    #if (is.null(feats_mat)) {
+    #  stop("features_df is missing in the provided model object.")
+    #}
+    index_feats_mat <- DLBCLone_model$features #features for index sample
+    other_feats_mat <- DLBCLone_model$umap_input #features for all training samples
+    #check that index_feats_mat and other_feats_mat have the same columns
+    if(!all(colnames(index_feats_mat) == colnames(other_feats_mat))){
+      stop("features and umap_input must have the same columns")
     }
+
+    feats_mat <- rbind(index_feats_mat, other_feats_mat)
+
 
   } else if (model_type == "DLBCLone_optimize_params") {
     # neighbors via predictions$neighbor_id for the sample
@@ -127,6 +140,7 @@ nearest_neighbor_heatmap <- function(
     }
 
 
+
   } else {
     stop("DLBCLone_model$type must be one of: DLBCLone_KNN, DLBCLone_predict, DLBCLone_optimize_params")
   }
@@ -139,7 +153,9 @@ nearest_neighbor_heatmap <- function(
   }
 
   # Subset feature matrix; require that all neighbor rows exist
+
   xx <- feats_mat[neighbors, , drop = FALSE]
+
   if(!keep_metafeatures){
     xx <- xx %>% select(-ends_with("_feats"))
   }
@@ -163,7 +179,12 @@ nearest_neighbor_heatmap <- function(
 
   # ----- Build row annotation data -----
   # Start from predictions; join metadata if present
-  preds <- DLBCLone_model$predictions
+  if(DLBCLone_model$type=="DLBCLone_predict"){
+    preds <- DLBCLone_model$prediction
+    
+  }else{
+    preds <- DLBCLone_model$predictions
+  }
 
   if (is.null(preds) || !"sample_id" %in% names(preds)) {
     stop("Model object missing predictions with 'sample_id'.")
@@ -174,7 +195,8 @@ nearest_neighbor_heatmap <- function(
     if(DLBCLone_model$type=="DLBCLone_predict"){
       #need to pool together training sample metadata with predictions
       train_meta = DLBCLone_model$metadata %>%
-        dplyr::select(dplyr::all_of(c("sample_id", truth_column, metadata_cols)))
+        dplyr::select(dplyr::all_of(c("sample_id", truth_column, metadata_cols))) %>%
+        filter(!sample_id %in% preds$sample_id)
        #preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
 
       preds <- dplyr::bind_rows(
@@ -607,9 +629,9 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
 
   #set up links connecting each neighbor to the sample's point
   links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
-  my_x = filter(single_sample_prediction_output$anno_out,
+  my_x = filter(single_sample_prediction_output$projection,
                 sample_id==this_sample_id) %>% pull(V1)
-  my_y = filter(single_sample_prediction_output$anno_out,
+  my_y = filter(single_sample_prediction_output$projection,
                 sample_id==this_sample_id) %>% pull(V2)
   if(prediction_in_title){
     title = paste(this_sample_id,
@@ -1515,10 +1537,11 @@ posthoc_feature_enrichment <- function(
       sample_metadata %>% select(sample_id, !!sym(label_column)), 
       by = "sample_id"
     ) %>%
+    filter(!is.na(!!sym(label_column)),!!sym(label_column) %in% truth_classes) %>%
     column_to_rownames("sample_id") 
 
   annotated_feats[[label_column]] <- as.factor(annotated_feats[[label_column]])
-
+  
   gene_cols <- setdiff(colnames(annotated_feats), c("sample_id", label_column))
   subtypes <- truth_classes
 
@@ -1740,9 +1763,10 @@ posthoc_feature_enrichment <- function(
       )
     )
   }
-
+  
   plot_df <- bind_rows(lapply(names(top_genes_per_subtype), function(subtype){
     genes <- top_genes_per_subtype[[subtype]]
+    test = annotated_feats[[label_column]] == subtype
     subtype_samples <- annotated_feats[annotated_feats[[label_column]] == subtype, ]
     n_subtype <- nrow(subtype_samples)  # total samples in this subtype
   

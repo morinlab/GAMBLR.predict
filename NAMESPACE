@@ -3,6 +3,7 @@
 export("%>%")
 export(DLBCLone_KNN)
 export(DLBCLone_KNN_predict)
+export(DLBCLone_activate)
 export(DLBCLone_ensemble_postprocess)
 export(DLBCLone_load_optimized)
 export(DLBCLone_optimize_params)
