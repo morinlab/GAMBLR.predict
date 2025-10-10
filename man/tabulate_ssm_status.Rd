@@ -78,6 +78,7 @@ Currently only the grch37 genome build is supported for hotspot annotation
 and review for this version of the function.
 }
 \examples{
+\dontrun{
 coding_tabulated_df = tabulate_ssm_status(
  maf_data = get_coding_ssm(),
  gene_symbols = c("EZH2","KMT2D","CREBBP","MYC")
@@ -93,5 +94,5 @@ coding_tabulated_df = tabulate_ssm_status(maf_data=
                         get_coding_ssm(projection = "hg38"))
 # Error in tabulate_ssm_status(maf_data = get_coding_ssm(projection = "hg38")) :
 # Currently only grch37 projection (hg19 genome build) is supported.
-
+}
 }

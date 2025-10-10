@@ -41,7 +41,8 @@ frequency will be removed, as well as any samples with 0 features.
 Consistent with NMF input, in the input data frame each row is a feature, and each column is a sample. The input is expected to be numeric 1/0 with row and column names.
 }
 \examples{
+\dontrun{
 data = system.file("extdata", "sample_matrix.tsv", package = "GAMBLR.predict") \%>\% read_tsv() \%>\% column_to_rownames("Feature")
 NMF_input = massage_matrix_for_clustering(data)
-
+}
 }

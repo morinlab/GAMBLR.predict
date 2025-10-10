@@ -23,11 +23,14 @@ assemble_genetic_features(
 )
 }
 \arguments{
-\item{these_samples_metadata}{Data frame with sample metadata, must include seq_type and sample_id.}
+\item{these_samples_metadata}{Data frame with sample metadata,
+must include seq_type and sample_id.}
 
-\item{sv_from_metadata}{A named vector that specifies the columns containing the oncogene
+\item{sv_from_metadata}{A named vector that specifies the columns
+containing the oncogene
 translocation status for any SV that is annotated in the metadata
-Where the name is the oncogene and the value is the column name in the metadata.
+Where the name is the oncogene and the value is the column name in
+the metadata.
 The column created in the output will be "\if{html}{\out{<oncogeneName>}}_SV".}
 
 \item{genes}{Vector of gene symbols to include.}
@@ -53,22 +56,26 @@ specifying any row corresponding to a hotspot mutation.}
 \item{include_ashm}{Logical; if TRUE, use GAMBLR.results::get_ssm_by_region
 to retrieve all non-coding mutations for each gene in synon_genes and
 use these to infer mutation status (default: FALSE).
-WARNING: This feature is experimental and is likely not going to give comparable
-results if you are using a mix of genome and capture data. It also relies on GAMBLR.results
-which is not a core dependency of GAMBLR.predict.}
+WARNING: This feature is experimental and is likely not going to give
+comparable results if you are using a mix of genome and capture data.
+It also relies on GAMBLR.results, which is not a core dependency of
+GAMBLR.predict.}
 
 \item{annotated_sv}{Data frame in bedpe format with annotated SVs from
-GAMBLR.utils::annotate_sv(). If provided, the oncogene SV status will be based on the union
-of the SVs in this data frame and the metadata columns specified in sv_from_metadata.}
+GAMBLR.utils::annotate_sv(). If provided, the oncogene SV status will
+be based on the union of the SVs in this data frame and the metadata
+columns specified in sv_from_metadata.}
 
-\item{include_GAMBL_sv}{Logical; if TRUE, SVs from GAMBLR.results will automatically be
-retrieved and annotated.
-WARNING: This feature is experimental and is likely not going to give comparable
-results if you are using a mix of genome and capture data. It also relies on GAMBLR.results
-which is not a core dependency of GAMBLR.predict.}
+\item{include_GAMBL_sv}{Logical; if TRUE, SVs from GAMBLR.results will
+automatically be retrieved and annotated.
+WARNING: This feature is experimental and is likely not going to give
+comparable results if you are using a mix of genome and capture data.
+It also relies on GAMBLR.results, which is not a core dependency of
+GAMBLR.predict.}
 
-\item{review_hotspots}{Logical; if TRUE, any gene in hotspot_genes that is compatible with review_hotspots
-will have its hotspots annotated. For more information, see GAMBLR.helpers::review_hotspots}
+\item{review_hotspots}{Logical; if TRUE, any gene in hotspot_genes
+that is compatible with review_hotspots will have its hotspots
+annotated. For more information, see GAMBLR.helpers::review_hotspots}
 
 \item{verbose}{Defaults to FALSE}
 }
@@ -78,7 +85,8 @@ Matrix of assembled features for each sample.
 \description{
 This function assembles a matrix of genetic features for each sample,
 including mutation status, aSHM counts, and structural variant status
-for BCL2, BCL6, and MYC. It supports both genome and capture sequencing types.
+for BCL2, BCL6, and MYC. It supports both genome and capture
+sequencing (data) types.
 }
 \examples{
 \dontrun{

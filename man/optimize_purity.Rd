@@ -19,30 +19,52 @@ optimize_purity(
 )
 }
 \arguments{
-\item{truth_column}{Name of the column in \code{processed_votes} containing the true class labels.}
+\item{truth_column}{Name of the column in \code{processed_votes}
+containing the true class labels.}
 
-\item{processed_votes}{Data frame output from \code{process_votes}, containing at least the columns for score ratio, by_score_opt, and the relevant prediction and truth columns.}
+\item{processed_votes}{Data frame output from \code{process_votes},
+containing at least the columns for score ratio, by_score_opt,
+and the relevant prediction and truth columns.}
 
-\item{prediction_column}{Name of the column in \code{processed_votes} to update with the optimized prediction.}
+\item{prediction_column}{Name of the column in \code{processed_votes}
+to update with the optimized prediction.}
 }
 \value{
-A list with two elements: \code{best_accuracy} (numeric, the highest accuracy achieved) and \code{best_purity_threshold} (numeric, the threshold at which this accuracy was achieved).
+A list with two elements: \code{best_accuracy} (numeric, the
+highest accuracy achieved) and \code{best_purity_threshold} (numeric,
+the threshold at which this accuracy was achieved).
 }
 \description{
-This function searches for the optimal purity threshold to assign samples to their predicted class or to "Other" based on the score ratio in processed kNN vote results.
-It iteratively tests a range of purity thresholds, updating the predicted class if the score ratio meets or exceeds the threshold, and computes the accuracy for each threshold.
-The function returns the best accuracy achieved and the corresponding purity threshold.
-NOTE: This is a helper function and is not intended to be called directly by the user
+This function searches for the optimal purity threshold to assign
+samples to their predicted class or to "Other" based on the score
+ratio in processed kNN vote results.
+It iteratively tests a range of purity thresholds, updating the
+predicted class if the score ratio meets or exceeds the threshold,
+and computes the accuracy for each threshold.
+The function returns the best accuracy achieved and the corresponding
+purity threshold.
+NOTE: This is a helper function and is not intended to be called
+directly by the user
 }
 \details{
 \itemize{
-\item For each threshold in the range 0.1 to 0.95 (step 0.05), the function updates the prediction column to assign the class from \code{by_score_opt} if the score ratio meets the threshold, otherwise assigns "Other".
-\item Accuracy is computed as the proportion of correct assignments (diagonal of the confusion matrix).
-\item The function is intended for use in optimizing classification purity in kNN-based workflows, especially when distinguishing between confident class assignments and ambiguous ("Other") cases.
+\item For each threshold in the range 0.1 to 0.95 (step 0.05),
+the function updates the prediction column to assign the
+class from \code{by_score_opt} if the score ratio meets the threshold,
+otherwise assigns "Other".
+\item Accuracy is computed as the proportion of correct assignments
+(diagonal of the confusion matrix).
+\item The function is intended for use in optimizing classification
+purity in kNN-based workflows, especially when distinguishing between
+confident class assignments and ambiguous ("Other") cases.
 }
 }
 \examples{
 # Example usage:
-# result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+\dontrun{
+result <- optimize_purity(processed_votes,
+  prediction_column = "pred_label",
+  truth_column = "true_label")
+}
 
 }

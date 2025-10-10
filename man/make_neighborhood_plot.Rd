@@ -16,32 +16,47 @@ make_neighborhood_plot(
 )
 }
 \arguments{
-\item{single_sample_prediction_output}{A list containing prediction results and annotation data frames.
-Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).}
+\item{single_sample_prediction_output}{A list containing prediction
+results and annotation data frames.
+Must include elements \code{prediction} (data frame with prediction
+results) and \code{anno_df} (data frame with UMAP coordinates and
+annotations).}
 
-\item{this_sample_id}{Character. The sample ID for which the neighborhood plot will be generated.}
+\item{this_sample_id}{Character. The sample ID for which the neighborhood
+plot will be generated.}
 
-\item{prediction_in_title}{Logical. If \code{TRUE}, includes the predicted label in the plot title.}
+\item{prediction_in_title}{Logical. If \code{TRUE}, includes the predicted
+label in the plot title.}
 
-\item{add_circle}{Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.}
+\item{add_circle}{Plot will include a circle surrounding the set of
+neighbors. Set to FALSE to disable.}
 
-\item{label_column}{Specify the column that contains the DLBCLone prediction you want to show.
+\item{label_column}{Specify the column that contains the DLBCLone
+prediction you want to show.
 Default: the optimized Other-balanced "DLBCLone_wo".}
 
-\item{point_size}{Numeric. The size of the points in the plot. Default: 0.5.}
+\item{point_size}{Numeric. The size of the points in the plot.
+Default: 0.5.}
 
-\item{point_alpha}{Numeric. The transparency level of the points in the plot. Default: 0.9.}
+\item{point_alpha}{Numeric. The transparency level of the points
+in the plot. Default: 0.9.}
 
-\item{line_alpha}{Numeric. The transparency level of the lines connecting the sample to its neighbors. Default: 0.9.}
+\item{line_alpha}{Numeric. The transparency level of the lines
+connecting the sample to its neighbors. Default: 0.9.}
 }
 \value{
-A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
+A \code{ggplot2} object representing the UMAP plot with
+the selected sample and its neighbors highlighted.
 }
 \description{
-Generates a UMAP plot highlighting the neighborhood of a given sample, showing its nearest neighbors and their group assignments.
+Generates a UMAP plot highlighting the neighborhood of a given sample,
+showing its nearest neighbors and their group assignments.
 }
 \details{
-The function extracts the nearest neighbors of the specified sample, draws segments connecting the sample to its neighbors, and colors points by group (e.g., lymphgen subtype). The plot title can optionally include the predicted label.
+The function extracts the nearest neighbors of the specified sample,
+draws segments connecting the sample to its neighbors, and colors
+points by group (e.g., lymphgen subtype). The plot title can optionally
+include the predicted label.
 }
 \examples{
 

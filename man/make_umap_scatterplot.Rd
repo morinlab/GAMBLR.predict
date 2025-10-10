@@ -21,13 +21,16 @@ make_umap_scatterplot(
 \item{df}{Data frame containing UMAP coordinates (V1, V2) and grouping columns.
 Typically this is the \code{df} element from the output of \code{make_and_annotate_umap()}.}
 
-\item{drop_composite}{Logical; if TRUE, drops samples with composite labels (e.g., "EZB-COMP").}
+\item{drop_composite}{Logical; if TRUE, drops samples with
+composite labels (e.g., "EZB-COMP").}
 
 \item{colour_by}{Column name to color points by (default: "lymphgen").}
 
-\item{drop_other}{Logical; if TRUE, drops (hides) samples with "Other" labels.}
+\item{drop_other}{Logical; if TRUE, drops (hides) samples with
+"Other" labels.}
 
-\item{high_confidence}{Logical; if TRUE, only includes samples with high confidence predictions.}
+\item{high_confidence}{Logical; if TRUE, only includes samples
+with high confidence predictions.}
 
 \item{custom_colours}{Named vector of custom colors for each group.}
 
@@ -35,7 +38,8 @@ Typically this is the \code{df} element from the output of \code{make_and_annota
 
 \item{title}{Plot title.}
 
-\item{base_size}{Base font and point size for the plot (passed to theme_Morons()).}
+\item{base_size}{Base font and point size for the plot
+(passed to theme_Morons()).}
 
 \item{alpha}{Point transparency (default: 0.8).}
 }
@@ -44,4 +48,14 @@ A ggplot object.
 }
 \description{
 Make UMAP scatterplot
+}
+\examples{
+
+\dontrun{
+my_umap = make_and_annotate_umap(my_data, my_metadata)
+p = make_umap_scatterplot(my_umap$df,
+                          colour_by = "lymphgen",
+                          drop_other = TRUE)
+print(p)
+}
 }

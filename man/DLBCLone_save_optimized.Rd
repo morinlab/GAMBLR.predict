@@ -50,13 +50,14 @@ can be verified later with \code{check_integrity = TRUE} in
 \code{DLBCLone_load_optimized()}.
 }
 \examples{
+\dontrun{
 # Save a trained model; error if files exist
 DLBCLone_save_optimized(
   DLBCLone_model = trained_model,
   base_path = "save_optimized/trial_folder",
   name_prefix = "test_A"
 )
-
+}
 \dontrun{
 # Save with embedded test embeddings, overwriting if present
 DLBCLone_save_optimized(

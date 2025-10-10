@@ -15,9 +15,10 @@ summarize_all_ssm_status(
 )
 }
 \arguments{
-\item{maf_df}{A data frame containing mutation annotation format (MAF) data,
-with at least the following columns:
-\code{Hugo_Symbol}, \code{Variant_Classification}, and \code{Tumor_Sample_Barcode}.}
+\item{maf_df}{A data frame containing mutation annotation format
+(MAF) data, with at least the following columns:
+\code{Hugo_Symbol}, \code{Variant_Classification}, and
+\code{Tumor_Sample_Barcode}.}
 
 \item{these_samples_metadata}{A data frame containing metadata for the samples,
 with at least a \code{sample_id} column.
@@ -29,7 +30,8 @@ in the summary. If missing, defaults to all Tier 1 B-cell lymphoma genes.}
 \item{synon_genes}{(Optional) A character vector of gene symbols for which
 synonymous mutations should be included.}
 
-\item{silent_maf_df}{(Optional) A separate data frame containing silent mutation data if
+\item{silent_maf_df}{(Optional) A separate data frame containing
+silent mutation data if
 the user doesn't want to pull silent mutation status from \code{maf_df}.
 This argument is useful when you want to combine mutations from
 the output of get_coding_ssm and get_ssm_by_region or get_ssm_by_gene}
@@ -57,8 +59,10 @@ in each sample per mutation category.
 \itemize{
 \item Mutations are grouped and optionally separated by mutation
 class for genes specified in \code{separate_by_class_genes}
-\item Synonymous mutations can be counted as another separate feature for genes specified by \code{synon_genes} genes.
-\item The function simplifies mutation annotations and pivots the data to a wide format suitable for downstream analysis.
+\item Synonymous mutations can be counted as another separate feature
+for genes specified by \code{synon_genes} genes.
+\item The function simplifies mutation annotations and pivots the data
+to a wide format suitable for downstream analysis.
 }
 }
 \examples{

@@ -1,15 +1,19 @@
 #' Heatmap visualization of mutations in nearest neighbors for a sample
 #'
-#' Generates a heatmap of feature values for the nearest neighbors of a specified sample,
+#' Generates a heatmap of feature values for the nearest neighbors
+#' of a specified sample,
 #' based on a DLBCLone model object. Supports outputs from:
 #' - DLBCLone_KNN (with predict_unlabeled = TRUE)
 #' - DLBCLone_optimize_params
 #' - predict_single_sample_DLBCLone
 #'
-#' @param this_sample_id Character. The sample ID for which to plot the nearest neighbor heatmap.
+#' @param this_sample_id Character. The sample ID for which to plot
+#' the nearest neighbor heatmap.
 #' @param DLBCLone_model List. A DLBCLone model object as described above.
-#' @param truth_column Character. Column name in predictions/metadata to use as truth (default "lymphgen").
-#' @param metadata_cols Optional character vector of additional metadata columns to annotate on rows.
+#' @param truth_column Character. Column name in predictions/metadata
+#' to use as truth (default "lymphgen").
+#' @param metadata_cols Optional character vector of additional metadata
+#' columns to annotate on rows.
 #' @param clustering_distance Distance for row clustering (default "binary").
 #' @param font_size Numeric. Font size for labels (default 14).
 #'
@@ -20,9 +24,7 @@
 #' @import ComplexHeatmap
 #' @importFrom grid gpar
 #' @importFrom circlize colorRamp2
-#' @examples
-#' # Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
-#'
+#' @importFrom stats setNames
 #' @export
 nearest_neighbor_heatmap <- function(
   this_sample_id,
@@ -359,17 +361,26 @@ nearest_neighbor_heatmap <- function(
 
 #' Basic UMAP Scatterplot
 #'
-#' Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
+#' Generates a simple UMAP scatterplot for visualizing sample
+#' clustering or separation.
 #'
-#' @param optimized Data frame containing at least V1, V2, sample_id, and grouping columns.
-#' @param plot_samples Optional character vector of sample_ids to label in the plot
-#' @param colour_by Column name to color points by. Defaults to `truth_column`.
-#' @param truth_column Name of the truth/ground-truth column (default: "lymphgen").
-#' @param pred_column  Name of the predicted-class column (default: "DLBCLone_ko").
-#' @param other_label  Label used for the outgroup/unclassified class (default: "Other").
+#' @param optimized Data frame containing at least V1, V2,
+#' sample_id, and grouping columns.
+#' @param plot_samples Optional character vector of sample_ids
+#' to label in the plot
+#' @param colour_by Column name to color points by. Defaults
+#' to `truth_column`.
+#' @param truth_column Name of the truth/ground-truth column
+#' (default: "lymphgen").
+#' @param pred_column  Name of the predicted-class column
+#' (default: "DLBCLone_ko").
+#' @param other_label  Label used for the outgroup/unclassified
+#' class (default: "Other").
 #' @param title Plot title.
-#' @param use_plotly Logical; if FALSE and `plot_samples` provided, draw static labels.
-#' @param custom_colours Optional named vector of colors for groups; falls back to `get_gambl_colours()`.
+#' @param use_plotly Logical; if FALSE and `plot_samples` provided,
+#' draw static labels.
+#' @param custom_colours Optional named vector of colors for groups;
+#' falls back to `get_gambl_colours()`.
 #'
 #' @return A ggplot object.
 #' @export
@@ -379,7 +390,7 @@ nearest_neighbor_heatmap <- function(
 #' \dontrun{
 #' my_umap = make_and_annotate_umap(my_data, my_metadata)
 #'
-#' basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
+#' basic_umap_scatterplot(my_umap$df,
 #'                        plot_samples = "some_sample_ID",
 #'                        colour_by = "DLBCLone_ko")
 #' }
@@ -472,18 +483,20 @@ message("colour_by: ", colour_by)
 #'
 #' @param base_name Character. The base name (and directory)
 #' for saving output files.
-#' @param optimized_model List. The output from DLBCLone optimization, containing predictions, features, and metadata.
+#' @param optimized_model List. The output from DLBCLone optimization,
+#' containing predictions, features, and metadata.
 #'
 #' @details
 #' - Creates a directory for results if it does not exist.
 #' - Saves UMAP scatterplots for all samples and for non-"Other" samples.
 #' - Generates alluvial plots for different DLBCLone predictions
 #' - Exports an oncoplot summarizing mutation and classification results.
-#' - Uses `make_umap_scatterplot`, `make_alluvial`, and `prettyOncoplot` for visualization.
+#' - Uses `make_umap_scatterplot`, `make_alluvial`, and `prettyOncoplot`
+#' for visualization.
 #'
 #' @return No return value. Side effect: writes multiple PDF files to disk.
 #'
-#' @import ggalluvial
+#' @import ggalluvial grDevices
 #'
 #' @export
 #'
@@ -558,22 +571,37 @@ DLBCLone_summarize_model = function(base_name,
 
 #' @title Make Neighborhood Plot
 #' @description
-#' Generates a UMAP plot highlighting the neighborhood of a given sample, showing its nearest neighbors and their group assignments.
+#' Generates a UMAP plot highlighting the neighborhood of a given sample,
+#' showing its nearest neighbors and their group assignments.
 #'
-#' @param single_sample_prediction_output A list containing prediction results and annotation data frames.
-#'        Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).
-#' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
-#' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted label in the plot title.
-#' @param add_circle Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.
-#' @param label_column Specify the column that contains the DLBCLone prediction you want to show.
+#' @param single_sample_prediction_output A list containing prediction
+#' results and annotation data frames.
+#'        Must include elements \code{prediction} (data frame with prediction
+#' results) and \code{anno_df} (data frame with UMAP coordinates and
+#' annotations).
+#' @param this_sample_id Character. The sample ID for which the neighborhood
+#' plot will be generated.
+#' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted
+#' label in the plot title.
+#' @param add_circle Plot will include a circle surrounding the set of
+#' neighbors. Set to FALSE to disable.
+#' @param label_column Specify the column that contains the DLBCLone
+#' prediction you want to show.
 #' Default: the optimized Other-balanced "DLBCLone_wo". 
-#' @param point_size Numeric. The size of the points in the plot. Default: 0.5.
-#' @param point_alpha Numeric. The transparency level of the points in the plot. Default: 0.9.
-#' @param line_alpha Numeric. The transparency level of the lines connecting the sample to its neighbors. Default: 0.9.
-#' @return A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
+#' @param point_size Numeric. The size of the points in the plot.
+#' Default: 0.5.
+#' @param point_alpha Numeric. The transparency level of the points
+#' in the plot. Default: 0.9.
+#' @param line_alpha Numeric. The transparency level of the lines
+#' connecting the sample to its neighbors. Default: 0.9.
+#' @return A \code{ggplot2} object representing the UMAP plot with
+#' the selected sample and its neighbors highlighted.
 #'
 #' @details
-#' The function extracts the nearest neighbors of the specified sample, draws segments connecting the sample to its neighbors, and colors points by group (e.g., lymphgen subtype). The plot title can optionally include the predicted label.
+#' The function extracts the nearest neighbors of the specified sample,
+#' draws segments connecting the sample to its neighbors, and colors
+#' points by group (e.g., lymphgen subtype). The plot title can optionally
+#' include the predicted label.
 #'
 #' @import dplyr
 #' @import ggplot2
@@ -673,14 +701,18 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
 #'
 #' @param df Data frame containing UMAP coordinates (V1, V2) and grouping columns.
 #' Typically this is the `df` element from the output of `make_and_annotate_umap()`.
-#' @param drop_composite Logical; if TRUE, drops samples with composite labels (e.g., "EZB-COMP").
+#' @param drop_composite Logical; if TRUE, drops samples with
+#' composite labels (e.g., "EZB-COMP").
 #' @param colour_by Column name to color points by (default: "lymphgen").
-#' @param drop_other Logical; if TRUE, drops (hides) samples with "Other" labels.
-#' @param high_confidence Logical; if TRUE, only includes samples with high confidence predictions.
+#' @param drop_other Logical; if TRUE, drops (hides) samples with
+#' "Other" labels.
+#' @param high_confidence Logical; if TRUE, only includes samples
+#' with high confidence predictions.
 #' @param custom_colours Named vector of custom colors for each group.
 #' @param add_labels Logical; if TRUE, adds labels to points.
 #' @param title Plot title.
-#' @param base_size Base font and point size for the plot (passed to theme_Morons()).
+#' @param base_size Base font and point size for the plot
+#' (passed to theme_Morons()).
 #' @param alpha Point transparency (default: 0.8).
 #'
 #' @returns A ggplot object.
@@ -689,6 +721,14 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
 #' @export
 #'
 #' @examples
+#' 
+#' \dontrun{
+#' my_umap = make_and_annotate_umap(my_data, my_metadata)
+#' p = make_umap_scatterplot(my_umap$df,
+#'                           colour_by = "lymphgen",
+#'                           drop_other = TRUE)
+#' print(p)
+#' }
 make_umap_scatterplot = function(df,
                                  drop_composite = TRUE,
                                  colour_by="lymphgen",
@@ -771,8 +811,10 @@ make_umap_scatterplot = function(df,
 
 #' Calculate Classification Accuracy and Per-Class Metrics based on Predictions
 #'
-#' Computes overall accuracy, balanced accuracy, and sensitivity for predicted vs. true class labels.
-#' Optionally excludes samples assigned to the "Other" class from accuracy calculations.
+#' Computes overall accuracy, balanced accuracy, and sensitivity
+#' for predicted vs. true class labels.
+#' Optionally excludes samples assigned to the "Other" class from
+#' accuracy calculations.
 #'
 #' @param predictions Data frame containing predicted and true class labels.
 #' @param truth Name of the column with true class labels (default: "lymphgen").
@@ -792,10 +834,11 @@ make_umap_scatterplot = function(df,
 #' - Returns per-class metrics for further analysis.
 #'
 #' @examples
+#' \dontrun{
 #' result <- report_accuracy(predictions_df)
 #' result$overall
 #' result$per_class
-#'
+#' }
 #' @export
 report_accuracy <- function(predictions,
                             truth = "lymphgen",
@@ -915,7 +958,8 @@ report_accuracy <- function(predictions,
 #' @param title Plot title (default: empty string).
 #' @param group_order Character vector specifying the order of groups/classes
 #' for axes and coloring.
-#' @param add_accuracy_to_title Logical; if TRUE, adds accuracy/concordance rate to the plot title.
+#' @param add_accuracy_to_title Logical; if TRUE, adds accuracy/concordance
+#' rate to the plot title.
 #' @param accuracy_per_group Logical; if TRUE, computes and displays per-group accuracy.
 #' @param accuracy_type Type of accuracy to report (default: "sensitivity").
 #' @param original_name Name for the original class column (default: "Lymphgen").
@@ -930,20 +974,24 @@ report_accuracy <- function(predictions,
 #' @param label_lock_y Logical; if TRUE, locks label movement to the x-axis only.
 #' @param label_line_flip_colour Logical; controls color assignment for label lines.
 #' @param label_box_flip_colour Logical; controls color assignment for label boxes.
-#' @param concordant_label_relative_pos Position for concordant labels: 0 (left), 0.5 (middle), or 1 (right).
+#' @param concordant_label_relative_pos Position for concordant labels:
+#' 0 (left), 0.5 (middle), or 1 (right).
 #' @param rotate
 #' 
 #' @return A ggplot2 object representing the alluvial plot.
 #'
 #' @details
-#' - Visualizes flows between original and predicted classes, highlighting concordant and discordant assignments.
-#' - Annotates concordance rate, per-group accuracy, and unclassified rate as specified.
-#' - Supports flexible labeling, coloring, and axis ordering for publication-quality plots.
+#' - Visualizes flows between original and predicted classes,
+#' highlighting concordant and discordant assignments.
+#' - Annotates concordance rate, per-group accuracy, and unclassified
+#' rate as specified.
+#' - Supports flexible labeling, coloring, and axis ordering for
+#' publication-quality plots.
 #'
 #' @examples
-#' # Example usage:
-#' # make_alluvial(optimized_result)
-#'
+#' \dontrun{
+#'   make_alluvial(optimized_result)
+#' }
 #' @import ggrepel
 #' @export
 make_alluvial <- function(
@@ -1347,14 +1395,22 @@ if(add_percent){
 
 #' Plot the result of a DLBCLone classification
 #'
-#' @param test_df Data frame containing the test data with UMAP coordinates
-#' @param train_df Data frame containing the training data with UMAP coordinates
-#' @param predictions_df Data frame containing the predictions with UMAP coordinates
-#' @param other_df Data frame containing the predictions for samples in the "Other" class
-#' @param details Single-row data frame with the best parameters from DLBCLone_optimize_params
-#' @param annotate_accuracy Set to true to add labels with accuracy values
-#' @param classes Vector of classes that were used in the training and testing
-#' @param label_offset Length of the label offset for the accuracy labels
+#' @param test_df Data frame containing the test data with
+#' UMAP coordinates
+#' @param train_df Data frame containing the training data
+#' with UMAP coordinates
+#' @param predictions_df Data frame containing the predictions
+#' with UMAP coordinates
+#' @param other_df Data frame containing the predictions for
+#' samples in the "Other" class
+#' @param details Single-row data frame with the best parameters
+#' from DLBCLone_optimize_params
+#' @param annotate_accuracy Set to true to add labels with
+#' accuracy values
+#' @param classes Vector of classes that were used in the
+#' training and testing
+#' @param label_offset Length of the label offset for the
+#' accuracy labels
 #' @param title1 additional argument
 #' @param title2 additional argument
 #' @param title3 additional argument
@@ -1363,18 +1419,21 @@ if(add_percent){
 #' @export
 #'
 #' @examples
-#' #add the dataset name to the metadata if it's not already there (required for the plot work)
+#' \dontrun{
+#' #add the dataset name to the metadata if it's not already
+#' #there (required for the plot work)
 #' lymphgen_A53_DLBCLone$df$dataset = "GAMBL"
 #'
 #' DLBCLone_train_test_plot(
 #'  test_df = lymphgen_A53_DLBCLone$df,
 #'  train_df = lymphgen_A53_DLBCLone$df,
 #'  predictions_df = lymphgen_A53_DLBCLone$predictions,
-#'  #other_df = lymphgen_A53_DLBCLone$predictions_other, #required only when "Other" was in the truth_classes
+#'  #other_df = lymphgen_A53_DLBCLone$predictions_other,
+#'  #required only when "Other" was in the truth_classes
 #'  details = lymphgen_A53_DLBCLone$best_params,
 #'  classes = c("MCD","EZB","BN2","ST2","N1","A53","Other"),
 #'  annotate_accuracy=TRUE,label_offset = 1)
-#'
+#' }
 DLBCLone_train_test_plot = function(test_df,
                            train_df,
                            predictions_df,

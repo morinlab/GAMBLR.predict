@@ -10,7 +10,8 @@ DLBCLone_summarize_model(base_name, optimized_model)
 \item{base_name}{Character. The base name (and directory)
 for saving output files.}
 
-\item{optimized_model}{List. The output from DLBCLone optimization, containing predictions, features, and metadata.}
+\item{optimized_model}{List. The output from DLBCLone optimization,
+containing predictions, features, and metadata.}
 }
 \value{
 No return value. Side effect: writes multiple PDF files to disk.
@@ -28,7 +29,8 @@ base name.
 \item Saves UMAP scatterplots for all samples and for non-"Other" samples.
 \item Generates alluvial plots for different DLBCLone predictions
 \item Exports an oncoplot summarizing mutation and classification results.
-\item Uses \code{make_umap_scatterplot}, \code{make_alluvial}, and \code{prettyOncoplot} for visualization.
+\item Uses \code{make_umap_scatterplot}, \code{make_alluvial}, and \code{prettyOncoplot}
+for visualization.
 }
 }
 \examples{

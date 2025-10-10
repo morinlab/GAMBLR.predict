@@ -16,26 +16,36 @@ classify_dlbcl_lymphgenerator(
 )
 }
 \arguments{
-\item{these_samples_metadata}{The metadata data frame that contains sample_id column with ids for the samples to be classified. Must also contain column pathology.}
+\item{these_samples_metadata}{The metadata data frame that contains
+sample_id column with ids for the samples to be classified. Must also
+contain column pathology.}
 
-\item{maf_data}{The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.}
+\item{maf_data}{The MAF data frame to be used for matrix assembling.
+At least must contain the first 45 columns of standard MAF format.}
 
-\item{sv_data}{The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.}
+\item{sv_data}{The SV data frame to be used for matrix assembling.
+Must be of standard BEDPE formatting, for example, as returned by
+get_combined_sv.}
 
-\item{seg_data}{The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments. Must be already adjusted for ploidy.}
+\item{seg_data}{The SEG data frame to be used for matrix assembling.
+Must be of standard SEG formatting, for example, as returned by
+get_sample_cn_segments. Must be already adjusted for ploidy.}
 
 \item{seq_type}{String of the seq type for the sample set.}
 
-\item{projection}{String of projection of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to grch37.}
+\item{projection}{String of projection of the samples. Only used to
+retrieve data through GAMBLR.data when it is not provided. Defaults to grch37.}
 
 \item{output}{The output to be returned. Currently only matrix is supported.}
 
-\item{drop_after_flattening}{Boolean on whether to remove features (rows) after flattening. Defaults to FALSE.}
+\item{drop_after_flattening}{Boolean on whether to remove features
+(rows) after flattening. Defaults to FALSE.}
 }
 \value{
 binary matrix
 }
 \description{
-Use the LymphGenerator features to construct matrix. Optionally, flatten some features having the same
+Use the LymphGenerator features to construct matrix. Optionally,
+flatten some features having the same
 biological information.
 }

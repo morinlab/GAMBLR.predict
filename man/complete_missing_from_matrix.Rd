@@ -30,7 +30,8 @@ A data frame with maintained orientation (rows and columns) where samples from t
 If some samples are missing from the matrix, add them with filled in 0 as value and normalize their ordering for consistency.
 }
 \examples{
+\dontrun{
 partial_matrix = get_coding_ssm_status(these_samples_metadata = (get_gambl_metadata(case_set = "BL--DLBCL") \%>\% filter(pairing_status == "unmatched")), include_hotspots = FALSE)
 complete_matrix = complete_missing_from_matrix(partial_matrix, get_gambl_metadata() \%>\% pull(sample_id))
-
+}
 }

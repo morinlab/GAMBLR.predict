@@ -45,13 +45,13 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' # Restore a model for use in a fresh R session
 #' DLBCLone_myfeats_opt <- DLBCLone_load_optimized(
 #'   path = ".",
 #'   name_prefix = "DLBCLone_myfeats"
 #' )
 #'
-#' \dontrun{
 #' # Restore and verify that saved embeddings can be reproduced
 #' confirmed_DLBCLone <- DLBCLone_load_optimized(
 #'   path = ".",
@@ -144,13 +144,14 @@ DLBCLone_load_optimized <- function(
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' # Save a trained model; error if files exist
 #' DLBCLone_save_optimized(
 #'   DLBCLone_model = trained_model,
 #'   base_path = "save_optimized/trial_folder",
 #'   name_prefix = "test_A"
 #' )
-#'
+#' }
 #' \dontrun{
 #' # Save with embedded test embeddings, overwriting if present
 #' DLBCLone_save_optimized(

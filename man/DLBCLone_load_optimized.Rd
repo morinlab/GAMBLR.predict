@@ -53,13 +53,13 @@ If \code{check_integrity = TRUE}, the function computes fresh embeddings via
 mismatch larger than \code{0.01} in either axis will throw an error.
 }
 \examples{
+\dontrun{
 # Restore a model for use in a fresh R session
 DLBCLone_myfeats_opt <- DLBCLone_load_optimized(
   path = ".",
   name_prefix = "DLBCLone_myfeats"
 )
 
-\dontrun{
 # Restore and verify that saved embeddings can be reproduced
 confirmed_DLBCLone <- DLBCLone_load_optimized(
   path = ".",

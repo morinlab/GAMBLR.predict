@@ -45,7 +45,8 @@ to missing features are counted as "Other" in the plot.}
 \item{group_order}{Character vector specifying the order of groups/classes
 for axes and coloring.}
 
-\item{add_accuracy_to_title}{Logical; if TRUE, adds accuracy/concordance rate to the plot title.}
+\item{add_accuracy_to_title}{Logical; if TRUE, adds accuracy/concordance
+rate to the plot title.}
 
 \item{accuracy_per_group}{Logical; if TRUE, computes and displays per-group accuracy.}
 
@@ -71,7 +72,8 @@ for axes and coloring.}
 
 \item{label_box_flip_colour}{Logical; controls color assignment for label boxes.}
 
-\item{concordant_label_relative_pos}{Position for concordant labels: 0 (left), 0.5 (middle), or 1 (right).}
+\item{concordant_label_relative_pos}{Position for concordant labels:
+0 (left), 0.5 (middle), or 1 (right).}
 
 \item{rotate}{}
 
@@ -94,13 +96,16 @@ unclassified rates, and flexible labeling and coloring options.
 }
 \details{
 \itemize{
-\item Visualizes flows between original and predicted classes, highlighting concordant and discordant assignments.
-\item Annotates concordance rate, per-group accuracy, and unclassified rate as specified.
-\item Supports flexible labeling, coloring, and axis ordering for publication-quality plots.
+\item Visualizes flows between original and predicted classes,
+highlighting concordant and discordant assignments.
+\item Annotates concordance rate, per-group accuracy, and unclassified
+rate as specified.
+\item Supports flexible labeling, coloring, and axis ordering for
+publication-quality plots.
 }
 }
 \examples{
-# Example usage:
-# make_alluvial(optimized_result)
-
+\dontrun{
+  make_alluvial(optimized_result)
+}
 }
