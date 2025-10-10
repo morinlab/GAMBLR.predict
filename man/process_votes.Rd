@@ -19,37 +19,55 @@ process_votes(
 )
 }
 \arguments{
-\item{df}{Data frame containing kNN results, including columns with neighbor labels and weighted votes.}
+\item{df}{Data frame containing kNN results, including columns
+with neighbor labels and weighted votes.}
 
-\item{raw_col}{Name of the column containing the comma-separated neighbor labels (default: "label").}
+\item{raw_col}{Name of the column containing the comma-separated
+neighbor labels (default: "label").}
 
-\item{group_labels}{Character vector of all possible class labels to consider (default: c("EZB", "MCD", "ST2", "BN2", "N1", "Other")).}
+\item{group_labels}{Character vector of all possible class labels
+to consider (default: c("EZB", "MCD", "ST2", "BN2", "N1", "Other")).}
 
-\item{vote_labels_col}{Name of the column containing the comma-separated neighbor labels for weighted votes (default: "vote_labels").}
+\item{vote_labels_col}{Name of the column containing the
+comma-separated neighbor labels for weighted votes (default: "vote_labels").}
 
-\item{weighted_votes_col}{Name of the column containing the comma-separated weighted votes (default: "weighted_votes").}
+\item{weighted_votes_col}{Name of the column containing the
+comma-separated weighted votes (default: "weighted_votes").}
 
 \item{k}{Number of neighbors used in kNN (required).}
 
-\item{other_vote_multiplier}{Multiplier for the "Other" class when determining if a sample should be reclassified as "Other" (default: 2).}
+\item{other_vote_multiplier}{Multiplier for the "Other" class
+when determining if a sample should be reclassified as "Other" (default: 2).}
 
-\item{score_purity_requirement}{Minimum ratio of top group score to "Other" score to assign a sample to the top group (default: 1).}
+\item{score_purity_requirement}{Minimum ratio of top group score
+to "Other" score to assign a sample to the top group (default: 1).}
 }
 \value{
-Data frame with additional columns for per-class neighbor counts, scores, top group assignments, and summary statistics for each sample.
+Data frame with additional columns for per-class neighbor
+counts, scores, top group assignments, and summary statistics for
+each sample.
 }
 \description{
-This function processes the raw neighbor label strings and weighted vote scores from k-nearest neighbor (KNN) classification results.
-It computes per-class neighbor counts, weighted scores, and identifies the top group by count and score for each sample.
-The function also supports custom logic for handling the "Other" class, including vote multipliers and purity requirements.
-NOTE: This is a helper function and is not intended to be called directly by the user
+This function processes the raw neighbor label strings and
+weighted vote scores from k-nearest neighbor (KNN) classification
+results.
+It computes per-class neighbor counts, weighted scores, and
+identifies the top group by count and score for each sample.
+The function also supports custom logic for handling the
+"Other" class, including vote multipliers and purity requirements.
+NOTE: This is a helper function and is not intended to be
+called directly by the user
 }
 \details{
 \itemize{
-\item Computes the number of neighbors for each class and the sum of weighted votes per class.
-\item Identifies the top group by count and by weighted score, and applies custom logic for the "Other" class if present.
-\item Adds columns for counts, scores, top group, top group score, score ratios, and optimized group assignments.
-\item Designed for downstream use in DLBCLone and similar kNN-based classification workflows.
+\item Computes the number of neighbors for each class and the sum of
+weighted votes per class.
+\item Identifies the top group by count and by weighted score, and
+applies custom logic for the "Other" class if present.
+\item Adds columns for counts, scores, top group, top group score,
+score ratios, and optimized group assignments.
+\item Designed for downstream use in DLBCLone and similar kNN-based
+classification workflows.
 }
 }
 \examples{

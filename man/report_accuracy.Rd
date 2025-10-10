@@ -34,8 +34,10 @@ A list with:
 \item{overall}{Overall accuracy including all samples}
 }
 \description{
-Computes overall accuracy, balanced accuracy, and sensitivity for predicted vs. true class labels.
-Optionally excludes samples assigned to the "Other" class from accuracy calculations.
+Computes overall accuracy, balanced accuracy, and sensitivity
+for predicted vs. true class labels.
+Optionally excludes samples assigned to the "Other" class from
+accuracy calculations.
 }
 \details{
 \itemize{
@@ -45,8 +47,9 @@ Optionally excludes samples assigned to the "Other" class from accuracy calculat
 }
 }
 \examples{
+\dontrun{
 result <- report_accuracy(predictions_df)
 result$overall
 result$per_class
-
+}
 }

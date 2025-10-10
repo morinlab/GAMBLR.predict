@@ -19,23 +19,36 @@ DLBCLone_ensemble_postprocess(
 \arguments{
 \item{optimized_model}{Output of DLBCLone_optimize_params}
 
-\item{assign_composites}{Logical; if TRUE, samples with split votes across multiple in-group classes will be assigned a composite class (e.g. "EZB/MCD") instead of "Other".}
+\item{assign_composites}{Logical; if TRUE, samples with split votes
+across multiple in-group classes will be assigned a composite class
+(e.g. "EZB/MCD") instead of "Other".}
 
-\item{other_min}{Integer; For comparing across a range of K values, this is the threshold for the number of K values a sample is classified as Other for it to be re-assigned as Other. Set this to a high value if you don't want samples to be reassigned at all.}
+\item{other_min}{Integer; For comparing across a range of K
+values,this is the threshold for the number of K values a sample is
+classified as Other for it to be re-assigned as Other. Set this to
+a high value if you don't want samples to be reassigned at all.}
 
-\item{any_split}{Logical; if TRUE, any split among in-group votes across the Ks tested will triggers reassignment (or composite).}
+\item{any_split}{Logical; if TRUE, any split among in-group
+votes across the Ks tested will triggers reassignment (or composite).}
 
-\item{min_purity}{Numeric \link{0,1}; top in-group vote share required to keep the top class instead of assigning a composite class.}
+\item{min_purity}{Numeric in the range of 0-1;
+top in-group vote share
+required to keep the top class instead of assigning a composite
+class.}
 
-\item{min_gap}{Integer; top minus second in-group votes must be at least this gap to keep top class.}
+\item{min_gap}{Integer; top minus second in-group
+votes must be at least this gap to keep top class.}
 
-\item{optimize_per_class}{Logical; If TRUE, a range of thresholds will be tested per class to optimize the classification/Other cutoff.
-This is a more complex approach that may yield better results but is not yet fully validated.}
+\item{optimize_per_class}{Logical; If TRUE, a range of thresholds
+will be tested per class to optimize the classification/Other cutoff.
+This is a more complex approach that may yield better results
+but is not yet fully validated.}
 }
 \value{
 list with:
 \itemize{
-\item predictions: updated predictions_df (DLBCLone_wo or DLBCLone_wc / DLBCLone_wc_simplified)
+\item predictions: updated predictions_df (DLBCLone_wo or DLBCLone_wc
+/ DLBCLone_wc_simplified)
 \item consistency_report: per-sample counts and decision flags
 }
 }

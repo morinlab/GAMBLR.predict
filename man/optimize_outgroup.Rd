@@ -21,7 +21,7 @@ optimize_outgroup(
 
 \item{true_labels}{Vector of true labels for the samples}
 
-\item{other_score}{Vector of scores for the "Other" class for each sample ()}
+\item{other_score}{Vector of scores for the "Other" class for each sample}
 
 \item{all_classes}{Vector of classes to use for training and testing.
 Default: c("MCD","EZB","BN2","N1","ST2","Other")}
@@ -47,6 +47,6 @@ of the classifier using a range of thresholds and returns the best threshold
 based on the specified metric (balanced accuracy or accuracy).
 }
 \details{
-NOTE: This function is not generally meant to be called directly but rather is
-a helper function used by DLBCLone_optimize_params.
+NOTE: This function is not generally meant to be called directly but
+rather is a helper function used by DLBCLone_optimize_params.
 }

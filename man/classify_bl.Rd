@@ -39,6 +39,7 @@ to classify BL tumors into genetic subgroups. Please see PMID 36201743 on
 genetic subgroups of BL.
 }
 \examples{
+\dontrun{
 test_meta <- get_gambl_metadata()  \%>\%
     filter(pathology == "BL")
 maf <- get_ssm_by_samples(
@@ -53,5 +54,5 @@ predictions <- classify_bl(
      maf_data = maf,
      output = "predictions"
 )
-
+}
 }

@@ -6,45 +6,63 @@
 \usage{
 make_neighborhood_plot(
   single_sample_prediction_output,
-  training_predictions,
   this_sample_id,
   prediction_in_title = TRUE,
   add_circle = TRUE,
-  label_column = "DLBCLone_io",
+  label_column = "DLBCLone_wo",
   point_size = 0.5,
   point_alpha = 0.9,
   line_alpha = 0.9
 )
 }
 \arguments{
-\item{single_sample_prediction_output}{A list containing prediction results and annotation data frames.
-Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).}
+\item{single_sample_prediction_output}{A list containing prediction
+results and annotation data frames.
+Must include elements \code{prediction} (data frame with prediction
+results) and \code{anno_df} (data frame with UMAP coordinates and
+annotations).}
 
-\item{training_predictions}{The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)}
+\item{this_sample_id}{Character. The sample ID for which the neighborhood
+plot will be generated.}
 
-\item{this_sample_id}{Character. The sample ID for which the neighborhood plot will be generated.}
+\item{prediction_in_title}{Logical. If \code{TRUE}, includes the predicted
+label in the plot title.}
 
-\item{prediction_in_title}{Logical. If \code{TRUE}, includes the predicted label in the plot title.}
+\item{add_circle}{Plot will include a circle surrounding the set of
+neighbors. Set to FALSE to disable.}
 
-\item{add_circle}{Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.}
+\item{label_column}{Specify the column that contains the DLBCLone
+prediction you want to show.
+Default: the optimized Other-balanced "DLBCLone_wo".}
 
-\item{label_column}{Does nothing, i.e. this is not currently working.}
+\item{point_size}{Numeric. The size of the points in the plot.
+Default: 0.5.}
+
+\item{point_alpha}{Numeric. The transparency level of the points
+in the plot. Default: 0.9.}
+
+\item{line_alpha}{Numeric. The transparency level of the lines
+connecting the sample to its neighbors. Default: 0.9.}
 }
 \value{
-A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
+A \code{ggplot2} object representing the UMAP plot with
+the selected sample and its neighbors highlighted.
 }
 \description{
-Generates a UMAP plot highlighting the neighborhood of a given sample, showing its nearest neighbors and their group assignments.
+Generates a UMAP plot highlighting the neighborhood of a given sample,
+showing its nearest neighbors and their group assignments.
 }
 \details{
-The function extracts the nearest neighbors of the specified sample, draws segments connecting the sample to its neighbors, and colors points by group (e.g., lymphgen subtype). The plot title can optionally include the predicted label.
+The function extracts the nearest neighbors of the specified sample,
+draws segments connecting the sample to its neighbors, and colors
+points by group (e.g., lymphgen subtype). The plot title can optionally
+include the predicted label.
 }
 \examples{
 
-# Assuming 'optimization_result' is the output of DLBCLone_optimize_params
-# and 'output' is the result of DLBCLone_predict_single_sample
-# on sample_id "SAMPLE123":
+# Assuming 'pred_output' is the result of DLBCLone_predict_single_sample
+# on sample_id "DLBCL10951T". 
 \dontrun{
- make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+ make_neighborhood_plot(pred_output, "DLBCL10951T")
 }
 }

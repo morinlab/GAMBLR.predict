@@ -42,6 +42,7 @@ it to classify FL tummors into cFL/dFL. Please see PMID 37084389 for more
 details on FL genetic subgroups.
 }
 \examples{
+\dontrun{
 meta <- get_gambl_metadata() \%>\%
     filter(pathology == "FL")
 
@@ -59,5 +60,5 @@ classify_fl(
     maf_data = maf,
     output = "both"
 )
-
+}
 }

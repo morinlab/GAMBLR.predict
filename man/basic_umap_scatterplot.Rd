@@ -17,36 +17,45 @@ basic_umap_scatterplot(
 )
 }
 \arguments{
-\item{optimized}{Data frame containing at least V1, V2, sample_id, and grouping columns.}
+\item{optimized}{Data frame containing at least V1, V2,
+sample_id, and grouping columns.}
 
-\item{plot_samples}{Optional character vector of sample_ids to label in the plot}
+\item{plot_samples}{Optional character vector of sample_ids
+to label in the plot}
 
-\item{colour_by}{Column name to color points by. Defaults to \code{truth_column}.}
+\item{colour_by}{Column name to color points by. Defaults
+to \code{truth_column}.}
 
-\item{truth_column}{Name of the truth/ground-truth column (default: "lymphgen").}
+\item{truth_column}{Name of the truth/ground-truth column
+(default: "lymphgen").}
 
-\item{pred_column}{Name of the predicted-class column (default: "DLBCLone_ko").}
+\item{pred_column}{Name of the predicted-class column
+(default: "DLBCLone_ko").}
 
-\item{other_label}{Label used for the outgroup/unclassified class (default: "Other").}
+\item{other_label}{Label used for the outgroup/unclassified
+class (default: "Other").}
 
 \item{title}{Plot title.}
 
-\item{use_plotly}{Logical; if FALSE and \code{plot_samples} provided, draw static labels.}
+\item{use_plotly}{Logical; if FALSE and \code{plot_samples} provided,
+draw static labels.}
 
-\item{custom_colours}{Optional named vector of colors for groups; falls back to \code{get_gambl_colours()}.}
+\item{custom_colours}{Optional named vector of colors for groups;
+falls back to \code{get_gambl_colours()}.}
 }
 \value{
 A ggplot object.
 }
 \description{
-Generates a simple UMAP scatterplot for visualizing sample clustering or separation.
+Generates a simple UMAP scatterplot for visualizing sample
+clustering or separation.
 }
 \examples{
 
 \dontrun{
 my_umap = make_and_annotate_umap(my_data, my_metadata)
 
-basic_umap_scatterplot(my_umap$df, #the data frame containing V1 and V2 from UMAP
+basic_umap_scatterplot(my_umap$df,
                        plot_samples = "some_sample_ID",
                        colour_by = "DLBCLone_ko")
 }
