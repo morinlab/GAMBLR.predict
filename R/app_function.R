@@ -277,13 +277,6 @@ DLBCLone_shiny <- function(...){
                 actionButton("visualize", "Update UMAP", icon("refresh")),
                 helpText("Generate a quick visualization of samples using the selected feature space"),
                 radioButtons(
-                    "truth_column",
-                    "Classification paradigm",
-                    choices  = c("LymphGen" = "lymphgen", "DLBClass" = "DLBClass"),
-                    selected = "lymphgen",
-                    inline = TRUE
-                ),
-                radioButtons(
                     "mode",
                     "Classification Mode",
                     choices = c("Stringent", "Lenient"),
@@ -473,7 +466,7 @@ DLBCLone_shiny <- function(...){
         # Which truth column / classes / outgroup label does the current model use?
         current_truth_column <- reactive({
             res <- dlbclone_result()
-            res$truth_column %||% input$truth_column %||% "lymphgen"
+            res$truth_column %||% "lymphgen"
         })
 
         # TODO: normalize this
@@ -545,7 +538,7 @@ DLBCLone_shiny <- function(...){
             cur_mode <- input$mode
             cur_k <- input$k_range
             cur_panel <- input$panel
-            cur_truth <- input$truth_column
+            cur_truth <- "lymphgen"
 
             !setequal(cur_features, committed$features) ||
             !identical(cur_use_core, committed$use_core) ||
@@ -557,7 +550,7 @@ DLBCLone_shiny <- function(...){
         })
 
         observeEvent(TRUE, {
-            committed$truth_column <- input$truth_column %||% "lymphgen"
+            committed$truth_column <- "lymphgen"
             committed$features <- input$features %||% character()
             committed$use_core <- isTRUE(input$use_core)
             committed$core  <- if (committed$use_core) (input$core_features %||% character()) else character()
@@ -891,7 +884,7 @@ DLBCLone_shiny <- function(...){
             status <- full_status %>%
                 select(all_of(input$features))
             optimize_for_other <- if_else(input$mode == "Stringent", TRUE, FALSE)
-            truth_col <- input$truth_column
+            truth_col <- "lymphgen"
             other_lbl <- "Other"
             meta_classes <- dlbcl_meta_clean[[truth_col]] %>%
                 unique() %>%
@@ -970,7 +963,7 @@ DLBCLone_shiny <- function(...){
             committed$mode <- input$mode
             committed$k_range <- input$k_range
             committed$panel <- input$panel
-            committed$truth_column <- input$truth_column
+            committed$truth_column <- "lymphgen"
 
             # (optional) ensure Predict is enabled immediately after training
             shinyjs::enable("predict")
