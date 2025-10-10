@@ -725,16 +725,7 @@ DLBCLone_shiny <- function(...){
         })
 
         #default features (all)
-        observeEvent(input$panel, {
-            allowed_all <- sort(colnames(full_status))
-            updateCheckboxGroupInput(
-                session,
-                "features",
-                choices  = allowed_all,
-                selected = if (isTRUE(restoring_from_query())) isolate(input$features) else panels[[input$panel]],
-                inline   = TRUE
-            )
-        }, ignoreInit = TRUE)
+
 
 
         ## Testing permalink
@@ -914,6 +905,17 @@ DLBCLone_shiny <- function(...){
             )
             updated_result <- DLBCLone_activate(updated_result, force = TRUE)
             dlbclone_result(updated_result)
+
+            these_are_training_columns <- colnames(updated_result$features)
+            these_are_training_columns <- these_are_training_columns[!grepl("_feats", these_are_training_columns)]
+            
+            updateCheckboxGroupInput(
+                session,
+                "features",
+                choices  = sort(colnames(full_status)),
+                selected = if (isTRUE(restoring_from_query())) isolate(input$features) else these_are_training_columns,
+                inline   = TRUE
+            )
 
             feature_str <- paste(input$features, collapse = ",")
             link <- paste0(
