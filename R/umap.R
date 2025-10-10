@@ -2715,13 +2715,16 @@ DLBCLone_predict <- function(
   to_return = list(
     prediction  = predictions_test_df,
     projection  = projection_test$df,
+    training_predictions = optimized_model$predictions, #needed for some plotting functions
     umap_input  = optimized_model$features,      # input feature space of the model
     model       = optimized_model$model,         # the model actually used
     features_df = mutation_status,
     df          = predictions_test_df,
     metadata = optimized_model$df,
     type        = "DLBCLone_predict",
-    unprocessed_votes = unprocessed
+    unprocessed_votes = unprocessed,
+    truth_classes = optimized_model$truth_classes,
+    truth_column = optimized_model$truth_column
   )
   if(weight_core_features){
     to_return$core_features = core_features

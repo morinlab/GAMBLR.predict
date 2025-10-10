@@ -562,12 +562,14 @@ DLBCLone_summarize_model = function(base_name,
 #'
 #' @param single_sample_prediction_output A list containing prediction results and annotation data frames.
 #'        Must include elements \code{prediction} (data frame with prediction results) and \code{anno_df} (data frame with UMAP coordinates and annotations).
-#' @param training_predictions The equivalent data frame of prediction results for all training samples (e.g. optimized_model$df)
 #' @param this_sample_id Character. The sample ID for which the neighborhood plot will be generated.
 #' @param prediction_in_title Logical. If \code{TRUE}, includes the predicted label in the plot title.
 #' @param add_circle Plot will include a circle surrounding the set of neighbors. Set to FALSE to disable.
-#' @param label_column Does nothing, i.e. this is not currently working.
-#'
+#' @param label_column Specify the column that contains the DLBCLone prediction you want to show.
+#' Default: the optimized Other-balanced "DLBCLone_wo". 
+#' @param point_size Numeric. The size of the points in the plot. Default: 0.5.
+#' @param point_alpha Numeric. The transparency level of the points in the plot. Default: 0.9.
+#' @param line_alpha Numeric. The transparency level of the lines connecting the sample to its neighbors. Default: 0.9.
 #' @return A \code{ggplot2} object representing the UMAP plot with the selected sample and its neighbors highlighted.
 #'
 #' @details
@@ -580,18 +582,16 @@ DLBCLone_summarize_model = function(base_name,
 #' @export
 #' @examples
 #'
-#' # Assuming 'optimization_result' is the output of DLBCLone_optimize_params
-#' # and 'output' is the result of DLBCLone_predict_single_sample
-#' # on sample_id "SAMPLE123":
+#' # Assuming 'pred_output' is the result of DLBCLone_predict_single_sample
+#' # on sample_id "DLBCL10951T". 
 #' \dontrun{
-#'  make_neighborhood_plot(output, optimization_result$df, "SAMPLE123")
+#'  make_neighborhood_plot(pred_output, "DLBCL10951T")
 #' }
 make_neighborhood_plot <- function(single_sample_prediction_output,
-                                   training_predictions,
                                   this_sample_id,
                                   prediction_in_title = TRUE,
                                   add_circle = TRUE,
-                                  label_column = "DLBCLone_io",
+                                  label_column = "DLBCLone_wo",
                                   point_size = 0.5,
                                   point_alpha = 0.9,
                                   line_alpha = 0.9) {
@@ -603,22 +603,22 @@ make_neighborhood_plot <- function(single_sample_prediction_output,
     yy <- center[2] + r * sin(tt)
     return(data.frame(x = xx, y = yy))
   }
-  if(missing(training_predictions)){
-    #training_predictions = single_sample_prediction_output$anno_df
-    training_predictions =
-    left_join(select(single_sample_prediction_output$anno_df,sample_id,lymphgen),
-      select(single_sample_prediction_output$df,sample_id,V1,V2))
-  }else if(missing(single_sample_prediction_output)){
-
-    #Just plot the single sample in the context of the rest based on the optimization
-    single_sample_prediction_output = list()
-    single_sample_prediction_output[["prediction"]] = filter(training_predictions, sample_id==this_sample_id)
-     single_sample_prediction_output[["anno_df"]] = training_predictions
-  }else{
-    single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
-
+  
+ 
+  if(missing(single_sample_prediction_output)){
+    stop("single_sample_prediction_output is required")
   }
-xmin = min(training_predictions$V1, na.rm = TRUE)
+  truth_column = single_sample_prediction_output$truth_column
+  if(missing(this_sample_id)){
+    stop("this_sample_id is required")
+  }
+  if(!this_sample_id %in% single_sample_prediction_output$prediction$sample_id){
+    stop(paste(this_sample_id,"not found in prediction data frame"))
+  }
+  training_predictions = single_sample_prediction_output$training_predictions 
+  single_sample_prediction_output$prediction = filter(single_sample_prediction_output$prediction, sample_id==this_sample_id)
+
+  xmin = min(training_predictions$V1, na.rm = TRUE)
   xmax = max(training_predictions$V1, na.rm = TRUE)
   ymin = min(training_predictions$V2, na.rm = TRUE)
   ymax = max(training_predictions$V2, na.rm = TRUE)
@@ -628,7 +628,8 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
                   pull(neighbor_id) %>% strsplit(.,",") %>% unlist()
 
   #set up links connecting each neighbor to the sample's point
-  links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% mutate(group=lymphgen)
+  links_df = filter(training_predictions,sample_id %in% my_neighbours) %>% 
+    mutate(group=!!sym(truth_column))
   my_x = filter(single_sample_prediction_output$projection,
                 sample_id==this_sample_id) %>% pull(V1)
   my_y = filter(single_sample_prediction_output$projection,
@@ -637,18 +638,15 @@ xmin = min(training_predictions$V1, na.rm = TRUE)
     title = paste(this_sample_id,
                   pull(single_sample_prediction_output$prediction,
                        !!sym(label_column)))
-    if(single_sample_prediction_output$prediction[[label_column]] == "Other" && single_sample_prediction_output$prediction$predicted_label !="Other"){
-      title = paste(title,"(",single_sample_prediction_output$prediction$predicted_label,")")
-    }
-
   }else{
     title = this_sample_id
   }
   links_df = mutate(links_df,my_x=my_x,my_y=my_y)
-  links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>% mutate(length = abs(V1-my_x)+abs(V2-my_y))
+  links_df = links_df %>% select(V1,V2,my_x,my_y,group) %>%
+    mutate(length = abs(V1-my_x)+abs(V2-my_y))
 
 
-  pp=ggplot(mutate(training_predictions,group=lymphgen),
+  pp=ggplot(mutate(training_predictions,group=!!sym(truth_column)),
          aes(x=V1,y=V2,colour=group)) +
     geom_point(alpha=point_alpha,size=point_size) +
     geom_segment(data=links_df,aes(x=V1,y=V2,xend=my_x,yend=my_y),alpha=line_alpha)+

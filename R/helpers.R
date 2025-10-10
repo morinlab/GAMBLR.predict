@@ -143,20 +143,20 @@ process_votes <- function(df,
   score_thresh = 2 * k
 
   count_labels_in_string <- function(string, labels) {
-    tokens <- str_split(string, ",")[[1]]
+    tokens <- stringr::str_split(string, ",")[[1]]
     map_int(labels, ~ sum(tokens == .x))
   }
 
   extract_weighted_scores <- function(label_str, vote_str, labels) {
-    lbls  <- str_split(label_str, ",")[[1]]
-    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    lbls  <- stringr::str_split(label_str, ",")[[1]]
+    votes <- as.numeric(stringr::str_split(vote_str, ",")[[1]])
     map_dbl(labels, ~ sum(votes[lbls == .x])) %>%
       set_names(paste0(labels, "_score"))
   }
 
   get_top_score_group <- function(label_str, vote_str, labels) {
-    lbls  <- str_split(label_str, ",")[[1]]
-    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    lbls  <- stringr::str_split(label_str, ",")[[1]]
+    votes <- as.numeric(stringr::str_split(vote_str, ",")[[1]])
     scores_by_label <- set_names(map_dbl(labels, ~ sum(votes[lbls == .x])), labels)
     top    <- names(scores_by_label)[which.max(scores_by_label)]
     value  <- scores_by_label[[top]]
