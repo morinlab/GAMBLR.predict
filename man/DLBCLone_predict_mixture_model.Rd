@@ -45,7 +45,8 @@ Assigns class predictions and optionally reclassifies samples as "Other" based o
 }
 \examples{
 # Predict on new UMAP data using a trained mixture model:
+\dontrun{
 result <- DLBCLone_predict_mixture_model(model, umap_out)
 head(result$predictions)
-
+}
 }

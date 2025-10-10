@@ -13,22 +13,25 @@ construct_reduced_winning_version(
 )
 }
 \arguments{
-\item{add_missing_features}{Set to TRUE to fill in missing features with zeroes}
+\item{add_missing_features}{Set to TRUE to fill in missing
+features with zeroes}
 
 \item{data}{Data frame of mutation status from DLBCLass supplement}
 
-\item{fisher_test_result}{Fisher's test result from DLBCLass github repository}
+\item{fisher_test_result}{Fisher's test result from DLBCLass
+github repository}
 }
 \value{
-a list of data frames with the full mutation features, collapsed
-21-dimension features and mutation-only (no CNV) features
+a list of data frames with the full mutation features,
+collapsed 21-dimension meta-features and mutation-only (no CNV)
+features
 }
 \description{
 This function is an R port of some of the pre-processing code
 in DLBCLass https://github.com/getzlab/DLBCL-Classifier
 }
 \examples{
-
+\dontrun{
 original_dlbclass_features = construct_reduced_winning_version()
-
+}
 }

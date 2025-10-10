@@ -44,6 +44,8 @@ NOTE: This is not related to the core KNN DLBCLone approach and is mostly here j
 }
 }
 \examples{
-result <- DLBCLone_train_mixture_model(umap_out)
-head(result$predictions)
+\dontrun{
+ result <- DLBCLone_train_mixture_model(umap_out)
+ head(result$predictions)
+}
 }

@@ -26,6 +26,7 @@
 #' @import dplyr readr GAMBLR.data tidyr tibble GAMBLR.helpers
 #'
 #' @examples
+#' \dontrun{
 #' meta <- get_gambl_metadata() %>%
 #'     filter(pathology == "FL")
 #'
@@ -43,7 +44,7 @@
 #'     maf_data = maf,
 #'     output = "both"
 #' )
-#'
+#'}
 classify_fl <- function(
     these_samples_metadata,
     maf_data,
@@ -370,6 +371,7 @@ classify_fl <- function(
 #' @import dplyr readr
 #'
 #' @examples
+#' \dontrun{
 #' metadata <- get_gambl_metadata() %>%
 #'     filter(pathology == "DLBCL")
 #'
@@ -394,7 +396,7 @@ classify_fl <- function(
 #' predictions_lacy <- classify_dlbcl(these_samples_metadata = test_meta, method = "lacy")
 #' predictions_hmrn <- classify_dlbcl(these_samples_metadata = test_meta, method = "hmrn", output = "predictions")
 #' matrix_and_predictions <- classify_dlbcl(these_samples_metadata = test_meta)
-#'
+#'}
 classify_dlbcl <- function(
     these_samples_metadata,
     maf_data,
@@ -617,6 +619,7 @@ classify_dlbcl <- function(
 #' @import dplyr GAMBLR.data tidyr tibble
 #'
 #' @examples
+#' \dontrun{
 #' test_meta <- get_gambl_metadata()  %>%
 #'     filter(pathology == "BL")
 #' maf <- get_ssm_by_samples(
@@ -631,7 +634,7 @@ classify_dlbcl <- function(
 #'      maf_data = maf,
 #'      output = "predictions"
 #' )
-#'
+#'}
 classify_bl <- function(
     these_samples_metadata,
     maf_data,
@@ -861,9 +864,10 @@ classify_bl <- function(
 #' @import dplyr
 #'
 #' @examples
+#' \dontrun{
 #' partial_matrix = get_coding_ssm_status(these_samples_metadata = (get_gambl_metadata(case_set = "BL--DLBCL") %>% filter(pairing_status == "unmatched")), include_hotspots = FALSE)
 #' complete_matrix = complete_missing_from_matrix(partial_matrix, get_gambl_metadata() %>% pull(sample_id))
-#'
+#' }
 complete_missing_from_matrix = function(
     incoming_matrix,
     list_of_samples,
@@ -952,9 +956,10 @@ complete_missing_from_matrix = function(
 #' @import dplyr
 #'
 #' @examples
+#' \dontrun{
 #' data = system.file("extdata", "sample_matrix.tsv", package = "GAMBLR.predict") %>% read_tsv() %>% column_to_rownames("Feature")
 #' NMF_input = massage_matrix_for_clustering(data)
-#'
+#'}
 
 massage_matrix_for_clustering = function(
     incoming_data,

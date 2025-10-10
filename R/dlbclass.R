@@ -5,16 +5,19 @@
 #' in DLBCLass https://github.com/getzlab/DLBCL-Classifier
 #' 
 #' @param data Data frame of mutation status from DLBCLass supplement
-#' @param fisher_test_result Fisher's test result from DLBCLass github repository
-#' @param add_missing_features Set to TRUE to fill in missing features with zeroes
-#' @returns a list of data frames with the full mutation features, collapsed
-#' 21-dimension features and mutation-only (no CNV) features
+#' @param fisher_test_result Fisher's test result from DLBCLass
+#' github repository
+#' @param add_missing_features Set to TRUE to fill in missing
+#' features with zeroes
+#' @returns a list of data frames with the full mutation features,
+#' collapsed 21-dimension meta-features and mutation-only (no CNV)
+#' features
 #' @export
 #'
 #' @examples
-#' 
+#' \dontrun{
 #' original_dlbclass_features = construct_reduced_winning_version()
-#' 
+#' }
 construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLBCL.699.fullGSM.Sep_23_2022.tsv",
                                               fisher_test_result_file = "inst/extdata/fisher_exact_5x2.Sep_23_2022.combined.tsv",
                                               include_cn = TRUE,

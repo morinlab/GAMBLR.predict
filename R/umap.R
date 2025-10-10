@@ -3,12 +3,16 @@
 #'
 #' This function assembles a matrix of genetic features for each sample,
 #' including mutation status, aSHM counts, and structural variant status
-#' for BCL2, BCL6, and MYC. It supports both genome and capture sequencing types.
+#' for BCL2, BCL6, and MYC. It supports both genome and capture
+#' sequencing (data) types.
 #'
-#' @param these_samples_metadata Data frame with sample metadata, must include seq_type and sample_id.
-#' @param sv_from_metadata A named vector that specifies the columns containing the oncogene
+#' @param these_samples_metadata Data frame with sample metadata,
+#' must include seq_type and sample_id.
+#' @param sv_from_metadata A named vector that specifies the columns
+#' containing the oncogene
 #' translocation status for any SV that is annotated in the metadata
-#' Where the name is the oncogene and the value is the column name in the metadata.
+#' Where the name is the oncogene and the value is the column name in
+#' the metadata.
 #' The column created in the output will be "<oncogeneName>_SV".
 #' @param genes Vector of gene symbols to include.
 #' @param synon_genes Vector of gene symbols for synonymous mutations
@@ -26,19 +30,23 @@
 #' @param include_ashm Logical; if TRUE, use GAMBLR.results::get_ssm_by_region
 #' to retrieve all non-coding mutations for each gene in synon_genes and
 #' use these to infer mutation status (default: FALSE). 
-#' WARNING: This feature is experimental and is likely not going to give comparable
-#' results if you are using a mix of genome and capture data. It also relies on GAMBLR.results
-#' which is not a core dependency of GAMBLR.predict.
+#' WARNING: This feature is experimental and is likely not going to give
+#' comparable results if you are using a mix of genome and capture data.
+#' It also relies on GAMBLR.results, which is not a core dependency of
+#' GAMBLR.predict.
 #' @param annotated_sv Data frame in bedpe format with annotated SVs from
-#' GAMBLR.utils::annotate_sv(). If provided, the oncogene SV status will be based on the union
-#' of the SVs in this data frame and the metadata columns specified in sv_from_metadata.
-#' @param include_GAMBL_sv Logical; if TRUE, SVs from GAMBLR.results will automatically be
-#' retrieved and annotated.
-#' WARNING: This feature is experimental and is likely not going to give comparable
-#' results if you are using a mix of genome and capture data. It also relies on GAMBLR.results
-#' which is not a core dependency of GAMBLR.predict.
-#' @param review_hotspots Logical; if TRUE, any gene in hotspot_genes that is compatible with review_hotspots
-#' will have its hotspots annotated. For more information, see GAMBLR.helpers::review_hotspots
+#' GAMBLR.utils::annotate_sv(). If provided, the oncogene SV status will
+#' be based on the union of the SVs in this data frame and the metadata
+#' columns specified in sv_from_metadata.
+#' @param include_GAMBL_sv Logical; if TRUE, SVs from GAMBLR.results will
+#' automatically be retrieved and annotated.
+#' WARNING: This feature is experimental and is likely not going to give
+#' comparable results if you are using a mix of genome and capture data.
+#' It also relies on GAMBLR.results, which is not a core dependency of
+#' GAMBLR.predict.
+#' @param review_hotspots Logical; if TRUE, any gene in hotspot_genes
+#' that is compatible with review_hotspots will have its hotspots
+#' annotated. For more information, see GAMBLR.helpers::review_hotspots
 #' @param verbose Defaults to FALSE
 #'
 #' @return Matrix of assembled features for each sample.
@@ -89,9 +97,11 @@ assemble_genetic_features <- function(these_samples_metadata,
     genome_build = attr(maf_with_synon,"genome_build")
   }
   if(include_ashm){
-    stopifnot( genome_build == "grch37", "other genome builds are not yet supported for aSHM")
+    stopifnot( genome_build == "grch37",
+      "other genome builds are not yet supported for aSHM")
     #TODO: consider shifting this function to GAMBLR.results
-    #TODO: ensure this supports both genome builds correctly. This is currently hard-coded
+    #TODO: ensure this supports both genome builds correctly.
+    # This is currently hard-coded
     some_regions = GAMBLR.utils::create_bed_data(
                   GAMBLR.data::grch37_ashm_regions,
                   fix_names = "concat",
@@ -116,7 +126,8 @@ assemble_genetic_features <- function(these_samples_metadata,
       )
       colnames(ashm_matrix_cap) = gsub("-.+","",colnames(ashm_matrix_cap))
       }
-      if ("genome"  %in% these_samples_metadata$seq_type && "capture" %in% these_samples_metadata$seq_type){
+      if ("genome"  %in% these_samples_metadata$seq_type &&
+        "capture" %in% these_samples_metadata$seq_type){
         ashm_matrix = bind_rows(ashm_matrix_genome, ashm_matrix_cap)
       }else if("genome" %in% these_samples_metadata$seq_type){
         ashm_matrix = ashm_matrix_genome
@@ -245,17 +256,25 @@ assemble_genetic_features <- function(these_samples_metadata,
 #' Run UMAP and attach result to metadata
 #'
 #' @param df Feature matrix with one row per sample and one column per mutation
-#' @param metadata Metadata data frame with one row per sample and a column sample_id that
-#' matches the row names of df. This data frame will be joined to the UMAP output.
-#' @param umap_out Optional UMAP output from a previous run. If provided, the function
-#' will use this model to project the data instead of re-running UMAP. This is useful
-#' for reproducibility and for using the same UMAP model on different datasets.
-#' @param join_column The column name in the metadata data frame that contains the sample IDs (default sample_id).
-#' @param n_neighbors Passed to UMAP2. The number of neighbors to consider when calculating the UMAP embedding.
-#' @param min_dist Passed to UMAP2. The minimum distance between points in the UMAP embedding.
-#' @param metric Passed to UMAP2. The distance metric to use for calculating distances between points.
-#' @param n_epochs Passed to UMAP2. The number of epochs to run the UMAP algorithm.
-#' @param init Passed to UMAP2. The initialization method for the UMAP algorithm.
+#' @param metadata Metadata data frame with one row per sample and
+#' a column sample_id that matches the row names of df. This data
+#' frame will be joined to the UMAP output.
+#' @param umap_out Optional UMAP output from a previous run. If provided,
+#' the function will use this model to project the data instead of re-running
+#' UMAP. This is useful for reproducibility and for using the same UMAP model
+#' on different datasets.
+#' @param join_column The column name in the metadata data frame that contains
+#' the sample IDs (default sample_id).
+#' @param n_neighbors Passed to UMAP2. The number of neighbors to consider when
+#' calculating the UMAP embedding.
+#' @param min_dist Passed to UMAP2. The minimum distance between points in the
+#' UMAP embedding.
+#' @param metric Passed to UMAP2. The distance metric to use for calculating
+#' distances between points.
+#' @param n_epochs Passed to UMAP2. The number of epochs to run the UMAP
+#' algorithm.
+#' @param init Passed to UMAP2. The initialization method for the UMAP
+#' algorithm.
 #' @param na_vals How to deal with NA values. Two options are "drop", which
 #' will remove all columns containing at least one NA or "to_zero", which sets
 #' all NA to zero and leaves the column intact.
@@ -266,23 +285,26 @@ assemble_genetic_features <- function(these_samples_metadata,
 #' @export
 #'
 #' @examples
-#'
+#' \dontrun{
 #' #library(GAMBLR.predict)
 #'
-#' # Load your mutation status data frame and ensure sample_id is moved to row names
+#' # Load your mutation status data frame and
+#' # ensure sample_id is moved to row names
 #' all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",
 #'                                   package = "GAMBLR.predict")) %>%
 #'                                   tibble::column_to_rownames("sample_id")
 #' # Load sample metadata for training/labeling
-#' dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",
-#'                              package = "GAMBLR.predict"))
+#' dlbcl_meta = readr::read_tsv(
+#'   system.file("extdata/dlbcl_meta_with_dlbclass.tsv",
+#'               package = "GAMBLR.predict")
+#' )
 #' my_umap <- make_and_annotate_umap(
 #'   df=all_full_status,
 #'   metadata=dlbcl_meta
 #' )
 #' # Usually you'll immediately want to visualize it
 #' # make_umap_scatterplot(my_umap$df)
-#'
+#' }
 make_and_annotate_umap = function(df,
                               metadata,
                               umap_out,
@@ -336,11 +358,13 @@ make_and_annotate_umap = function(df,
   }
 
   if(missing(df)){
-    stop("provide a data frame or matrix with one row for each sample and a numeric column for each mutation feature")
+    stop("provide a data frame or matrix with one row",
+    "for each sample and a numeric column for each mutation feature")
   }
   if(!is.null(core_features)){
-    if(class(core_features)=="list"){
-      message("list of core features detected. Will group features from each class.")
+    if (is.list(core_features)){
+      message("list of core features detected.",
+        "Will group features from each class.")
       df = df %>%
         rownames_to_column("sample_id") %>%
         rowwise(sample_id)
@@ -350,11 +374,12 @@ make_and_annotate_umap = function(df,
         }else{
           group_name = group
         }
-        if(class(core_feature_multiplier)=="list"){
+        if(is.list(core_feature_multiplier)){
           #different weights for each meta-feature
           if(!group %in% names(core_feature_multiplier)){
             stop(paste("missing",group,"mulitplier.",
-              "If multiplier is supplied as a list then each meta-feature needs a multiplier specified"))
+              "If multiplier is supplied as a list then each",
+              "meta-feature needs a multiplier specified"))
           }
           if(!is.numeric(core_feature_multiplier[[group]])){
             stop("Multipliers must be numeric!")
@@ -558,38 +583,55 @@ make_and_annotate_umap = function(df,
 
 #' Predict DLBCLone Classes for New Samples Using a Trained KNN Model
 #'
-#' Applies a previously optimized DLBCLone KNN model to predict class labels for new (test) samples.
-#' This function combines the training and test feature matrices, ensures feature compatibility, and uses the
-#' parameters from a DLBCLone KNN optimization run to classify the test samples. Optionally, runs in iterative mode
+#' Applies a previously optimized DLBCLone KNN model to predict class
+#' labels for new (test) samples.
+#' This function combines the training and test feature matrices,
+#' ensures feature compatibility, and uses the
+#' parameters from a DLBCLone KNN optimization run to classify
+#' the test samples. Optionally, runs in iterative mode
 #' for more stable results when predicting multiple samples.
 #'
-#' @param train_df Data frame or matrix of features for training samples (rows = samples, columns = features).
-#' @param test_df Data frame or matrix of features for test samples to be classified.
-#' @param metadata Data frame with metadata for all samples, including at least a \code{sample_id} column.
-#' @param core_features Optional character vector of feature names to upweight in the KNN calculation.
-#' @param core_feature_multiplier Numeric. Multiplier to apply to core features (default: 1.5).
-#' @param hidden_features Optional character vector of feature names to exclude from the analysis.
-#' @param DLBCLone_KNN_out List. Output from a previous call to \code{DLBCLone_KNN} containing optimized parameters. (Required)
-#' @param mode Character. If \code{"iterative"}, runs KNN prediction for each test sample individually (recommended for stability).
+#' @param train_df Data frame or matrix of features for training samples
+#' (rows = samples, columns = features).
+#' @param test_df Data frame or matrix of features for test samples to be
+#' classified.
+#' @param metadata Data frame with metadata for all samples, including at
+#' least a \code{sample_id} column.
+#' @param core_features Optional character vector of feature names to
+#' upweight in the KNN calculation.
+#' @param core_feature_multiplier Numeric. Multiplier to apply to core
+#' features (default: 1.5).
+#' @param hidden_features Optional character vector of feature names to
+#' exclude from the analysis.
+#' @param DLBCLone_KNN_out List. Output from a previous call to
+#' \code{DLBCLone_KNN} containing optimized parameters. (Required)
+#' @param mode Character. If \code{"iterative"}, runs KNN prediction
+#' for each test sample individually (recommended for stability).
 #'
-#' @return A list containing the KNN prediction results for the test samples, including predicted class labels and scores.
+#' @return A list containing the KNN prediction results for the test
+#' samples, including predicted class labels and scores.
 #'
 #' @details
-#' - Ensures that the feature columns in \code{train_df} and \code{test_df} are compatible.
-#' - If \code{mode = "iterative"}, runs KNN prediction for each test sample one at a time.
-#' - Uses the parameters (e.g., k, feature weights) from the provided \code{DLBCLone_KNN_out} object.
-#' - Returns the same structure as \code{DLBCLone_KNN}, with predictions for the test samples.
+#' - Ensures that the feature columns in \code{train_df} and
+#' \code{test_df} are compatible.
+#' - If \code{mode = "iterative"}, runs KNN prediction for each
+#' test sample one at a time.
+#' - Uses the parameters (e.g., k, feature weights) from the provided
+#' \code{DLBCLone_KNN_out} object.
+#' - Returns the same structure as \code{DLBCLone_KNN}, with predictions
+#' for the test samples.
 #'
 #' @examples
 #' # Assuming you have run DLBCLone_KNN to get optimized parameters:
 #' # model_out <- DLBCLone_KNN(train_features, train_metadata, ...)
 #' # Predict on new samples:
+#' \dontrun{
 #' predictions <- DLBCLone_KNN_predict(
 #'   train_df = train_features,
 #'   test_df = new_samples,
 #'   metadata = sample_metadata,
 #'   DLBCLone_KNN_out = model_out
-#'
+#'}
 #' @export
 #'
 DLBCLone_KNN_predict <- function(train_df,
@@ -1341,26 +1383,16 @@ DLBCLone_KNN <- function(features_df,
 #'
 #' @examples
 #'
-#'
-#' # Aim to maximize classification of samples into non-Other class
-#' lymphgen_lyseq_no_other =
+#' \dontrun{
+#' 
+#' lymphgen_lyseq =
 #' GAMBLR.predict::DLBCLone_optimize_params(
 #'  dlbcl_status_combined_lyseq,
 #'  dlbcl_meta_lyseq_train,
-#'  min_k = 5,max_k=23,
-#'  optimize_for_other = F,
-#'  truth_classes = c("MCD","EZB","ST2","BN2"))
-#'
-#' # Aim to maximize balanced accuracy while allowing samples to be
-#' # unclassified (assigned to "Other")
-#'
-#' DLBCLone_lymphgen_lyseq_prime_opt =
-#' GAMBLR.predict::DLBCLone_optimize_params(
-#'  dlbcl_status_combined_lyseq_prime,
-#'  dlbcl_meta_lyseq_train,
-#'  min_k = 5,max_k=23,
-#'  optimize_for_other = T,
+#'  min_k = 5,
+#'  max_k=23,
 #'  truth_classes = c("MCD","EZB","ST2","BN2","Other"))
+#' }
 #'
 
 DLBCLone_optimize_params = function(combined_mutation_status_df,
@@ -1393,10 +1425,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     core_features = umap_out$core_features
     #ensure the range is sensible in case the user made a mistake (supplied un-weighted data)
 
-    if(class(core_features)=="list"){
+    if (is.list(core_features)) {
       #TO DO: another sanity check here
-    }else{
-      max_vals = apply(combined_mutation_status_df,2,max)
+    } else {
+      max_vals = apply(combined_mutation_status_df, 2, max)
       #basic core features should have a higher max value than the rest
       core_feature_mask = !colnames(combined_mutation_status_df) %in% core_features
       if (!all(max(max_vals[core_feature_mask]) < max_vals[core_features])){
@@ -1404,11 +1436,11 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
       }
     }
   }
-  extra_classes = setdiff(metadata_df[[truth_column]],truth_classes)
-  if(length(extra_classes)){
+  extra_classes = setdiff(metadata_df[[truth_column]], truth_classes)
+  if (length(extra_classes)) {
 
     warning("extra classes not in truth_classes will be dropped!")
-    metadata_df = filter(metadata_df,!!sym(truth_column) %in% truth_classes)
+    metadata_df = filter(metadata_df, !!sym(truth_column) %in% truth_classes)
     print(nrow(metadata_df))
 
   }
@@ -1832,15 +1864,28 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
 #' and (optionally) assign composite classes
 #'
 #' @param optimized_model Output of DLBCLone_optimize_params
-#' @param other_min        Integer; For comparing across a range of K values, this is the threshold for the number of K values a sample is classified as Other for it to be re-assigned as Other. Set this to a high value if you don't want samples to be reassigned at all.
-#' @param assign_composites Logical; if TRUE, samples with split votes across multiple in-group classes will be assigned a composite class (e.g. "EZB/MCD") instead of "Other".
-#' @param any_split        Logical; if TRUE, any split among in-group votes across the Ks tested will triggers reassignment (or composite).
-#' @param min_purity       Numeric [0,1]; top in-group vote share required to keep the top class instead of assigning a composite class.
-#' @param min_gap          Integer; top minus second in-group votes must be at least this gap to keep top class.
-#' @param optimize_per_class Logical; If TRUE, a range of thresholds will be tested per class to optimize the classification/Other cutoff.
-#'  This is a more complex approach that may yield better results but is not yet fully validated.
+#' @param other_min        Integer; For comparing across a range of K
+#' values,this is the threshold for the number of K values a sample is
+#' classified as Other for it to be re-assigned as Other. Set this to
+#' a high value if you don't want samples to be reassigned at all.
+#' @param assign_composites Logical; if TRUE, samples with split votes
+#' across multiple in-group classes will be assigned a composite class
+#' (e.g. "EZB/MCD") instead of "Other".
+#' @param any_split        Logical; if TRUE, any split among in-group
+#' votes across the Ks tested will triggers reassignment (or composite).
+#' @param min_purity       Numeric in the range of 0-1;
+#' top in-group vote share
+#' required to keep the top class instead of assigning a composite
+#' class.
+#' @param min_gap          Integer; top minus second in-group
+#' votes must be at least this gap to keep top class.
+#' @param optimize_per_class Logical; If TRUE, a range of thresholds
+#' will be tested per class to optimize the classification/Other cutoff.
+#' This is a more complex approach that may yield better results
+#' but is not yet fully validated.
 #' @return list with:
-#'   - predictions: updated predictions_df (DLBCLone_wo or DLBCLone_wc / DLBCLone_wc_simplified)
+#'   - predictions: updated predictions_df (DLBCLone_wo or DLBCLone_wc 
+#' / DLBCLone_wc_simplified)
 #'   - consistency_report: per-sample counts and decision flags
 #'
 #' @import dplyr tidyr
@@ -2566,7 +2611,7 @@ DLBCLone_predict <- function(
     core_features = optimized_model$core_features
     multiplier = optimized_model$core_feature_multiplier
 
-    if(class(core_features)=="list"){
+    if (is.list(core_features)) {
       message("list of core features detected. Will group features from each class.")
       test_df = test_df %>%
         rownames_to_column("sample_id") %>%
@@ -2577,7 +2622,7 @@ DLBCLone_predict <- function(
         } else{
           group_name = group
         }
-        if(class(multiplier)=="list"){
+        if (is.list(multiplier)) {
           #different weights for each meta-feature
           if(!group %in% names(multiplier)){
             stop(paste("missing",group,"mulitplier.",
@@ -2715,13 +2760,16 @@ DLBCLone_predict <- function(
   to_return = list(
     prediction  = predictions_test_df,
     projection  = projection_test$df,
+    training_predictions = optimized_model$predictions, #needed for some plotting functions
     umap_input  = optimized_model$features,      # input feature space of the model
     model       = optimized_model$model,         # the model actually used
     features_df = mutation_status,
     df          = predictions_test_df,
     metadata = optimized_model$df,
     type        = "DLBCLone_predict",
-    unprocessed_votes = unprocessed
+    unprocessed_votes = unprocessed,
+    truth_classes = optimized_model$truth_classes,
+    truth_column = optimized_model$truth_column
   )
   if(weight_core_features){
     to_return$core_features = core_features
@@ -2757,8 +2805,10 @@ DLBCLone_predict <- function(
 #'   \item{probability_threshold}{Probability threshold used for "Other" assignment}
 #'
 #' @examples
-#' result <- DLBCLone_train_mixture_model(umap_out)
-#' head(result$predictions)
+#' \dontrun{
+#'  result <- DLBCLone_train_mixture_model(umap_out)
+#'  head(result$predictions)
+#' }
 #' @import mclust
 #'
 #' @export
@@ -2865,9 +2915,10 @@ return(to_return)
 #'
 #' @examples
 #' # Predict on new UMAP data using a trained mixture model:
+#' \dontrun{
 #' result <- DLBCLone_predict_mixture_model(model, umap_out)
 #' head(result$predictions)
-#'
+#' }
 #' @import mclust
 #' @export
 DLBCLone_predict_mixture_model = function(model,

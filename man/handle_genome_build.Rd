@@ -7,11 +7,13 @@
 handle_genome_build(incoming_genome_build)
 }
 \arguments{
-\item{incoming_genome_build}{The string specifying the genome build that is about to be harmonized.}
+\item{incoming_genome_build}{The string specifying the genome
+build that is about to be harmonized.}
 }
 \value{
 string
 }
 \description{
-Will process different genome build flavors and return it in consistent formatting used throughout this package.
+Will process different genome build flavors and return it in
+consistent formatting used throughout this package.
 }
