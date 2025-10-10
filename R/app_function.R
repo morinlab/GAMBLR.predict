@@ -408,11 +408,19 @@ DLBCLone_shiny <- function(...){
                     ),
                     tabPanel(
                         "UMAP (Lymphgen)",
-                        plotlyOutput("DLBCLone_KNN_plot_truth")
+                        plotOutput(
+                            "DLBCLone_KNN_plot_truth",
+                            height = "800px",
+                            width= "700px"
+                        )
                     ),
                     tabPanel(
                         "UMAP (DLBCLone)",
-                        plotlyOutput("DLBCLone_KNN_plot_prediction")
+                        plotOutput(
+                            "DLBCLone_KNN_plot_prediction",
+                            height = "800px",
+                            width= "700px"
+                        )
                     ),
                     tabPanel(
                         "Results overview",
@@ -1057,23 +1065,27 @@ DLBCLone_shiny <- function(...){
             print(DLBCLone_KNN_out$unlabeled_neighbors)
             nearest_neighbor_heatmap(sid, DLBCLone_KNN_out, truth_column = current_truth_column())
         })
-        output$DLBCLone_KNN_plot_truth <- renderPlotly({
+        output$DLBCLone_KNN_plot_truth <- renderPlot({
             result <- dlbclone_result()
             if (is.null(result)) {
             result <- default_knn
             }
             validate(need(!is.null(result), "Waiting for model output..."))
-            ggplotly(result$plot_truth, tooltip = c("sample_id", current_truth_column(), "DLBCLone_wo")) %>%
-            plotly::layout(width = 800, height = 600)
+            make_umap_scatterplot(
+                    result$predictions, 
+                    colour_by = current_truth_column()
+                )
         })
-        output$DLBCLone_KNN_plot_prediction <- renderPlotly({
+        output$DLBCLone_KNN_plot_prediction <- renderPlot({
             result <- dlbclone_result()
             # if(is.null(result)){
             #  result = default_knn
             # }
             validate(need(!is.null(result), "Waiting for model output..."))
-            ggplotly(result$plot_predicted, tooltip = c("sample_id", current_truth_column(), "DLBCLone_wo")) %>%
-            plotly::layout(width = 800, height = 600)
+            make_umap_scatterplot(
+                    result$predictions, 
+                    colour_by = "DLBCLone_wo"
+                )
         })
 
         output$predictions <- renderDT({
