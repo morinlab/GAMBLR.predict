@@ -78,6 +78,7 @@ specifying the method of this function as \code{hmrn} will also consider
 truncating mutations in NOTCH1 for the separate N1 subgroup.
 }
 \examples{
+\dontrun{
 metadata <- get_gambl_metadata() \%>\%
     filter(pathology == "DLBCL")
 
@@ -102,5 +103,5 @@ predictions_chapuy <- classify_dlbcl(
 predictions_lacy <- classify_dlbcl(these_samples_metadata = test_meta, method = "lacy")
 predictions_hmrn <- classify_dlbcl(these_samples_metadata = test_meta, method = "hmrn", output = "predictions")
 matrix_and_predictions <- classify_dlbcl(these_samples_metadata = test_meta)
-
+}
 }

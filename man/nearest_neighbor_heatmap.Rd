@@ -20,13 +20,16 @@ nearest_neighbor_heatmap(
 )
 }
 \arguments{
-\item{this_sample_id}{Character. The sample ID for which to plot the nearest neighbor heatmap.}
+\item{this_sample_id}{Character. The sample ID for which to plot
+the nearest neighbor heatmap.}
 
 \item{DLBCLone_model}{List. A DLBCLone model object as described above.}
 
-\item{truth_column}{Character. Column name in predictions/metadata to use as truth (default "lymphgen").}
+\item{truth_column}{Character. Column name in predictions/metadata
+to use as truth (default "lymphgen").}
 
-\item{metadata_cols}{Optional character vector of additional metadata columns to annotate on rows.}
+\item{metadata_cols}{Optional character vector of additional metadata
+columns to annotate on rows.}
 
 \item{clustering_distance}{Distance for row clustering (default "binary").}
 
@@ -36,15 +39,12 @@ nearest_neighbor_heatmap(
 A ComplexHeatmap object (drawn).
 }
 \description{
-Generates a heatmap of feature values for the nearest neighbors of a specified sample,
+Generates a heatmap of feature values for the nearest neighbors
+of a specified sample,
 based on a DLBCLone model object. Supports outputs from:
 \itemize{
 \item DLBCLone_KNN (with predict_unlabeled = TRUE)
 \item DLBCLone_optimize_params
 \item predict_single_sample_DLBCLone
 }
-}
-\examples{
-# Assuming 'predicted_out' is a the output of DLBCLone_KNN_predict
-
 }

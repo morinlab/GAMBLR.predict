@@ -15,47 +15,64 @@ DLBCLone_KNN_predict(
 )
 }
 \arguments{
-\item{train_df}{Data frame or matrix of features for training samples (rows = samples, columns = features).}
+\item{train_df}{Data frame or matrix of features for training samples
+(rows = samples, columns = features).}
 
-\item{test_df}{Data frame or matrix of features for test samples to be classified.}
+\item{test_df}{Data frame or matrix of features for test samples to be
+classified.}
 
-\item{metadata}{Data frame with metadata for all samples, including at least a \code{sample_id} column.}
+\item{metadata}{Data frame with metadata for all samples, including at
+least a \code{sample_id} column.}
 
-\item{DLBCLone_KNN_out}{List. Output from a previous call to \code{DLBCLone_KNN} containing optimized parameters. (Required)}
+\item{DLBCLone_KNN_out}{List. Output from a previous call to
+\code{DLBCLone_KNN} containing optimized parameters. (Required)}
 
-\item{mode}{Character. If \code{"iterative"}, runs KNN prediction for each test sample individually (recommended for stability).}
+\item{mode}{Character. If \code{"iterative"}, runs KNN prediction
+for each test sample individually (recommended for stability).}
 
-\item{core_features}{Optional character vector of feature names to upweight in the KNN calculation.}
+\item{core_features}{Optional character vector of feature names to
+upweight in the KNN calculation.}
 
-\item{core_feature_multiplier}{Numeric. Multiplier to apply to core features (default: 1.5).}
+\item{core_feature_multiplier}{Numeric. Multiplier to apply to core
+features (default: 1.5).}
 
-\item{hidden_features}{Optional character vector of feature names to exclude from the analysis.}
+\item{hidden_features}{Optional character vector of feature names to
+exclude from the analysis.}
 }
 \value{
-A list containing the KNN prediction results for the test samples, including predicted class labels and scores.
+A list containing the KNN prediction results for the test
+samples, including predicted class labels and scores.
 }
 \description{
-Applies a previously optimized DLBCLone KNN model to predict class labels for new (test) samples.
-This function combines the training and test feature matrices, ensures feature compatibility, and uses the
-parameters from a DLBCLone KNN optimization run to classify the test samples. Optionally, runs in iterative mode
+Applies a previously optimized DLBCLone KNN model to predict class
+labels for new (test) samples.
+This function combines the training and test feature matrices,
+ensures feature compatibility, and uses the
+parameters from a DLBCLone KNN optimization run to classify
+the test samples. Optionally, runs in iterative mode
 for more stable results when predicting multiple samples.
 }
 \details{
 \itemize{
-\item Ensures that the feature columns in \code{train_df} and \code{test_df} are compatible.
-\item If \code{mode = "iterative"}, runs KNN prediction for each test sample one at a time.
-\item Uses the parameters (e.g., k, feature weights) from the provided \code{DLBCLone_KNN_out} object.
-\item Returns the same structure as \code{DLBCLone_KNN}, with predictions for the test samples.
+\item Ensures that the feature columns in \code{train_df} and
+\code{test_df} are compatible.
+\item If \code{mode = "iterative"}, runs KNN prediction for each
+test sample one at a time.
+\item Uses the parameters (e.g., k, feature weights) from the provided
+\code{DLBCLone_KNN_out} object.
+\item Returns the same structure as \code{DLBCLone_KNN}, with predictions
+for the test samples.
 }
 }
 \examples{
 # Assuming you have run DLBCLone_KNN to get optimized parameters:
 # model_out <- DLBCLone_KNN(train_features, train_metadata, ...)
 # Predict on new samples:
+\dontrun{
 predictions <- DLBCLone_KNN_predict(
   train_df = train_features,
   test_df = new_samples,
   metadata = sample_metadata,
   DLBCLone_KNN_out = model_out
-
+}
 }

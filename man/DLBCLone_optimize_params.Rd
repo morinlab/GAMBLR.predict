@@ -74,25 +74,15 @@ Optimize parameters for classifying samples using UMAP and k-nearest neighbor
 }
 \examples{
 
+\dontrun{
 
-# Aim to maximize classification of samples into non-Other class
-lymphgen_lyseq_no_other =
+lymphgen_lyseq =
 GAMBLR.predict::DLBCLone_optimize_params(
  dlbcl_status_combined_lyseq,
  dlbcl_meta_lyseq_train,
- min_k = 5,max_k=23,
- optimize_for_other = F,
- truth_classes = c("MCD","EZB","ST2","BN2"))
-
-# Aim to maximize balanced accuracy while allowing samples to be
-# unclassified (assigned to "Other")
-
-DLBCLone_lymphgen_lyseq_prime_opt =
-GAMBLR.predict::DLBCLone_optimize_params(
- dlbcl_status_combined_lyseq_prime,
- dlbcl_meta_lyseq_train,
- min_k = 5,max_k=23,
- optimize_for_other = T,
+ min_k = 5,
+ max_k=23,
  truth_classes = c("MCD","EZB","ST2","BN2","Other"))
+}
 
 }

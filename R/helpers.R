@@ -6,14 +6,14 @@
 #' optimal threshold for classifying a sample as "Other" based on the ground
 #' truth provided in the true_labels vector. It evaluates the performance
 #' of the classifier using a range of thresholds and returns the best threshold
-#' based on the specified metric (balanced accuracy or accuracy). 
-#' 
-#' NOTE: This function is not generally meant to be called directly but rather is
-#' a helper function used by DLBCLone_optimize_params.
+#' based on the specified metric (balanced accuracy or accuracy).
+#'
+#' NOTE: This function is not generally meant to be called directly but
+#' rather is a helper function used by DLBCLone_optimize_params.
 #'
 #' @param predicted_labels Vector of predicted labels for the samples
 #' @param true_labels Vector of true labels for the samples
-#' @param other_score Vector of scores for the "Other" class for each sample ()
+#' @param other_score Vector of scores for the "Other" class for each sample
 #' @param all_classes Vector of classes to use for training and testing.
 #' Default: c("MCD","EZB","BN2","N1","ST2","Other")
 #' @param maximize Metric to use for optimization.
@@ -97,27 +97,45 @@ optimize_outgroup <- function(predicted_labels,
 
 #' Process KNN Vote Strings and Scores for Classification
 #'
-#' This function processes the raw neighbor label strings and weighted vote scores from k-nearest neighbor (KNN) classification results.
-#' It computes per-class neighbor counts, weighted scores, and identifies the top group by count and score for each sample.
-#' The function also supports custom logic for handling the "Other" class, including vote multipliers and purity requirements.
-#' NOTE: This is a helper function and is not intended to be called directly by the user
+#' This function processes the raw neighbor label strings and
+#' weighted vote scores from k-nearest neighbor (KNN) classification
+#' results.
+#' It computes per-class neighbor counts, weighted scores, and
+#' identifies the top group by count and score for each sample.
+#' The function also supports custom logic for handling the
+#' "Other" class, including vote multipliers and purity requirements.
+#' NOTE: This is a helper function and is not intended to be
+#' called directly by the user
 #'
-#' @param df Data frame containing kNN results, including columns with neighbor labels and weighted votes.
-#' @param raw_col Name of the column containing the comma-separated neighbor labels (default: "label").
-#' @param group_labels Character vector of all possible class labels to consider (default: c("EZB", "MCD", "ST2", "BN2", "N1", "Other")).
-#' @param vote_labels_col Name of the column containing the comma-separated neighbor labels for weighted votes (default: "vote_labels").
+#' @param df Data frame containing kNN results, including columns
+#' with neighbor labels and weighted votes.
+#' @param raw_col Name of the column containing the comma-separated
+#' neighbor labels (default: "label").
+#' @param group_labels Character vector of all possible class labels
+#' to consider (default: c("EZB", "MCD", "ST2", "BN2", "N1", "Other")).
+#' @param vote_labels_col Name of the column containing the
+#' comma-separated neighbor labels for weighted votes (default: "vote_labels").
 #' @param k Number of neighbors used in kNN (required).
-#' @param other_vote_multiplier Multiplier for the "Other" class when determining if a sample should be reclassified as "Other" (default: 2).
-#' @param score_purity_requirement Minimum ratio of top group score to "Other" score to assign a sample to the top group (default: 1).
-#' @param weighted_votes_col Name of the column containing the comma-separated weighted votes (default: "weighted_votes").
+#' @param other_vote_multiplier Multiplier for the "Other" class
+#' when determining if a sample should be reclassified as "Other" (default: 2).
+#' @param score_purity_requirement Minimum ratio of top group score
+#' to "Other" score to assign a sample to the top group (default: 1).
+#' @param weighted_votes_col Name of the column containing the
+#' comma-separated weighted votes (default: "weighted_votes").
 #'
-#' @return Data frame with additional columns for per-class neighbor counts, scores, top group assignments, and summary statistics for each sample.
+#' @return Data frame with additional columns for per-class neighbor
+#' counts, scores, top group assignments, and summary statistics for
+#' each sample.
 #'
 #' @details
-#' - Computes the number of neighbors for each class and the sum of weighted votes per class.
-#' - Identifies the top group by count and by weighted score, and applies custom logic for the "Other" class if present.
-#' - Adds columns for counts, scores, top group, top group score, score ratios, and optimized group assignments.
-#' - Designed for downstream use in DLBCLone and similar kNN-based classification workflows.
+#' - Computes the number of neighbors for each class and the sum of
+#' weighted votes per class.
+#' - Identifies the top group by count and by weighted score, and
+#' applies custom logic for the "Other" class if present.
+#' - Adds columns for counts, scores, top group, top group score,
+#' score ratios, and optimized group assignments.
+#' - Designed for downstream use in DLBCLone and similar kNN-based
+#' classification workflows.
 #'
 #' @examples
 #' # Example usage:
@@ -143,20 +161,20 @@ process_votes <- function(df,
   score_thresh = 2 * k
 
   count_labels_in_string <- function(string, labels) {
-    tokens <- str_split(string, ",")[[1]]
+    tokens <- stringr::str_split(string, ",")[[1]]
     map_int(labels, ~ sum(tokens == .x))
   }
 
   extract_weighted_scores <- function(label_str, vote_str, labels) {
-    lbls  <- str_split(label_str, ",")[[1]]
-    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    lbls  <- stringr::str_split(label_str, ",")[[1]]
+    votes <- as.numeric(stringr::str_split(vote_str, ",")[[1]])
     map_dbl(labels, ~ sum(votes[lbls == .x])) %>%
       set_names(paste0(labels, "_score"))
   }
 
   get_top_score_group <- function(label_str, vote_str, labels) {
-    lbls  <- str_split(label_str, ",")[[1]]
-    votes <- as.numeric(str_split(vote_str, ",")[[1]])
+    lbls  <- stringr::str_split(label_str, ",")[[1]]
+    votes <- as.numeric(stringr::str_split(vote_str, ",")[[1]])
     scores_by_label <- set_names(map_dbl(labels, ~ sum(votes[lbls == .x])), labels)
     top    <- names(scores_by_label)[which.max(scores_by_label)]
     value  <- scores_by_label[[top]]
@@ -254,26 +272,48 @@ process_votes <- function(df,
 
 #' Optimize Purity Threshold for Classification Assignment
 #'
-#' This function searches for the optimal purity threshold to assign samples to their predicted class or to "Other" based on the score ratio in processed kNN vote results.
-#' It iteratively tests a range of purity thresholds, updating the predicted class if the score ratio meets or exceeds the threshold, and computes the accuracy for each threshold.
-#' The function returns the best accuracy achieved and the corresponding purity threshold.
-#' NOTE: This is a helper function and is not intended to be called directly by the user
+#' This function searches for the optimal purity threshold to assign
+#' samples to their predicted class or to "Other" based on the score
+#' ratio in processed kNN vote results.
+#' It iteratively tests a range of purity thresholds, updating the
+#' predicted class if the score ratio meets or exceeds the threshold,
+#' and computes the accuracy for each threshold.
+#' The function returns the best accuracy achieved and the corresponding
+#' purity threshold.
+#' NOTE: This is a helper function and is not intended to be called
+#' directly by the user
 #'
-#' @param processed_votes Data frame output from `process_votes`, containing at least the columns for score ratio, by_score_opt, and the relevant prediction and truth columns.
-#' @param prediction_column Name of the column in `processed_votes` to update with the optimized prediction.
-#' @param truth_column Name of the column in `processed_votes` containing the true class labels.
+#' @param processed_votes Data frame output from `process_votes`,
+#' containing at least the columns for score ratio, by_score_opt,
+#' and the relevant prediction and truth columns.
+#' @param prediction_column Name of the column in `processed_votes`
+#' to update with the optimized prediction.
+#' @param truth_column Name of the column in `processed_votes`
+#' containing the true class labels.
 #'
-#' @return A list with two elements: `best_accuracy` (numeric, the highest accuracy achieved) and `best_purity_threshold` (numeric, the threshold at which this accuracy was achieved).
+#' @return A list with two elements: `best_accuracy` (numeric, the
+#' highest accuracy achieved) and `best_purity_threshold` (numeric,
+#' the threshold at which this accuracy was achieved).
 #'
 #' @details
-#' - For each threshold in the range 0.1 to 0.95 (step 0.05), the function updates the prediction column to assign the class from `by_score_opt` if the score ratio meets the threshold, otherwise assigns "Other".
-#' - Accuracy is computed as the proportion of correct assignments (diagonal of the confusion matrix).
-#' - The function is intended for use in optimizing classification purity in kNN-based workflows, especially when distinguishing between confident class assignments and ambiguous ("Other") cases.
+#' - For each threshold in the range 0.1 to 0.95 (step 0.05),
+#' the function updates the prediction column to assign the
+#' class from `by_score_opt` if the score ratio meets the threshold,
+#' otherwise assigns "Other".
+#' - Accuracy is computed as the proportion of correct assignments
+#' (diagonal of the confusion matrix).
+#' - The function is intended for use in optimizing classification
+#' purity in kNN-based workflows, especially when distinguishing between
+#' confident class assignments and ambiguous ("Other") cases.
 #'
 #' @import caret
 #' @examples
 #' # Example usage:
-#' # result <- optimize_purity(processed_votes, prediction_column = "pred_label", truth_column = "true_label")
+#' \dontrun{
+#' result <- optimize_purity(processed_votes,
+#'   prediction_column = "pred_label",
+#'   truth_column = "true_label")
+#' }
 #'
 #' @export
 optimize_purity <- function(optimized_model_object,
@@ -435,10 +475,12 @@ optimize_purity <- function(optimized_model_object,
 #' by \code{separate_by_class_genes} and counting the number of hits
 #' in each sample per mutation category.
 #'
-#' @param maf_df A data frame containing mutation annotation format (MAF) data,
-#' with at least the following columns:
-#'   \code{Hugo_Symbol}, \code{Variant_Classification}, and \code{Tumor_Sample_Barcode}.
-#' @param silent_maf_df (Optional) A separate data frame containing silent mutation data if
+#' @param maf_df A data frame containing mutation annotation format
+#' (MAF) data, with at least the following columns:
+#'   \code{Hugo_Symbol}, \code{Variant_Classification}, and
+#' \code{Tumor_Sample_Barcode}.
+#' @param silent_maf_df (Optional) A separate data frame containing
+#' silent mutation data if
 #' the user doesn't want to pull silent mutation status from \code{maf_df}.
 #' This argument is useful when you want to combine mutations from
 #' the output of get_coding_ssm and get_ssm_by_region or get_ssm_by_gene
@@ -463,8 +505,10 @@ optimize_purity <- function(optimized_model_object,
 #' @details
 #' - Mutations are grouped and optionally separated by mutation
 #' class for genes specified in \code{separate_by_class_genes} 
-#' - Synonymous mutations can be counted as another separate feature for genes specified by \code{synon_genes} genes.
-#' - The function simplifies mutation annotations and pivots the data to a wide format suitable for downstream analysis.
+#' - Synonymous mutations can be counted as another separate feature
+#' for genes specified by \code{synon_genes} genes.
+#' - The function simplifies mutation annotations and pivots the data
+#' to a wide format suitable for downstream analysis.
 #'
 #' @examples
 #' # A basic example, using only the output of get_all_coding_ssm
@@ -1347,17 +1391,27 @@ classify_dlbcl_lacy <- function(
 
 #' Construct LymphGenerator matrix
 #'
-#' Use the LymphGenerator features to construct matrix. Optionally, flatten some features having the same
+#' Use the LymphGenerator features to construct matrix. Optionally,
+#' flatten some features having the same
 #' biological information.
 #'
-#' @param these_samples_metadata The metadata data frame that contains sample_id column with ids for the samples to be classified. Must also contain column pathology.
-#' @param maf_data The MAF data frame to be used for matrix assembling. At least must contain the first 45 columns of standard MAF format.
-#' @param sv_data The SV data frame to be used for matrix assembling. Must be of standard BEDPE formatting, for example, as returned by get_combined_sv.
-#' @param seg_data The SEG data frame to be used for matrix assembling. Must be of standard SEG formatting, for example, as returned by get_sample_cn_segments. Must be already adjusted for ploidy.
+#' @param these_samples_metadata The metadata data frame that contains
+#' sample_id column with ids for the samples to be classified. Must also
+#' contain column pathology.
+#' @param maf_data The MAF data frame to be used for matrix assembling.
+#' At least must contain the first 45 columns of standard MAF format.
+#' @param sv_data The SV data frame to be used for matrix assembling.
+#' Must be of standard BEDPE formatting, for example, as returned by
+#' get_combined_sv.
+#' @param seg_data The SEG data frame to be used for matrix assembling.
+#' Must be of standard SEG formatting, for example, as returned by
+#' get_sample_cn_segments. Must be already adjusted for ploidy.
 #' @param seq_type String of the seq type for the sample set.
-#' @param projection String of projection of the samples. Only used to retrieve data through GAMBLR.data when it is not provided. Defaults to grch37.
+#' @param projection String of projection of the samples. Only used to
+#' retrieve data through GAMBLR.data when it is not provided. Defaults to grch37.
 #' @param output The output to be returned. Currently only matrix is supported.
-#' @param drop_after_flattening Boolean on whether to remove features (rows) after flattening. Defaults to FALSE.
+#' @param drop_after_flattening Boolean on whether to remove features
+#' (rows) after flattening. Defaults to FALSE.
 #' @return binary matrix
 #' @import GAMBLR.data dplyr readr tibble GAMBLR.helpers
 #'
@@ -1747,9 +1801,11 @@ classify_dlbcl_lymphgenerator <- function(
 
 #' Harmonize different flavors of genome builds.
 #'
-#' Will process different genome build flavors and return it in consistent formatting used throughout this package.
+#' Will process different genome build flavors and return it in
+#' consistent formatting used throughout this package.
 #'
-#' @param incoming_genome_build The string specifying the genome build that is about to be harmonized.
+#' @param incoming_genome_build The string specifying the genome
+#' build that is about to be harmonized.
 #' @return string
 #'
 #'
@@ -1873,6 +1929,7 @@ flatten_feature <- function(
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' coding_tabulated_df = tabulate_ssm_status(
 #'  maf_data = get_coding_ssm(),
 #'  gene_symbols = c("EZH2","KMT2D","CREBBP","MYC")
@@ -1888,7 +1945,7 @@ flatten_feature <- function(
 #'                         get_coding_ssm(projection = "hg38"))
 #' # Error in tabulate_ssm_status(maf_data = get_coding_ssm(projection = "hg38")) :
 #' # Currently only grch37 projection (hg19 genome build) is supported.
-#'
+#' }
 tabulate_ssm_status = function(
         gene_symbols,
         these_samples_metadata,

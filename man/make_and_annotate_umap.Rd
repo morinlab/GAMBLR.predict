@@ -33,22 +33,29 @@ make_and_annotate_umap(
 \arguments{
 \item{df}{Feature matrix with one row per sample and one column per mutation}
 
-\item{metadata}{Metadata data frame with one row per sample and a column sample_id that
-matches the row names of df. This data frame will be joined to the UMAP output.}
+\item{metadata}{Metadata data frame with one row per sample and
+a column sample_id that matches the row names of df. This data
+frame will be joined to the UMAP output.}
 
-\item{umap_out}{Optional UMAP output from a previous run. If provided, the function
-will use this model to project the data instead of re-running UMAP. This is useful
-for reproducibility and for using the same UMAP model on different datasets.}
+\item{umap_out}{Optional UMAP output from a previous run. If provided,
+the function will use this model to project the data instead of re-running
+UMAP. This is useful for reproducibility and for using the same UMAP model
+on different datasets.}
 
-\item{n_neighbors}{Passed to UMAP2. The number of neighbors to consider when calculating the UMAP embedding.}
+\item{n_neighbors}{Passed to UMAP2. The number of neighbors to consider when
+calculating the UMAP embedding.}
 
-\item{min_dist}{Passed to UMAP2. The minimum distance between points in the UMAP embedding.}
+\item{min_dist}{Passed to UMAP2. The minimum distance between points in the
+UMAP embedding.}
 
-\item{metric}{Passed to UMAP2. The distance metric to use for calculating distances between points.}
+\item{metric}{Passed to UMAP2. The distance metric to use for calculating
+distances between points.}
 
-\item{n_epochs}{Passed to UMAP2. The number of epochs to run the UMAP algorithm.}
+\item{n_epochs}{Passed to UMAP2. The number of epochs to run the UMAP
+algorithm.}
 
-\item{init}{Passed to UMAP2. The initialization method for the UMAP algorithm.}
+\item{init}{Passed to UMAP2. The initialization method for the UMAP
+algorithm.}
 
 \item{ret_model}{additional argument}
 
@@ -56,7 +63,8 @@ for reproducibility and for using the same UMAP model on different datasets.}
 will remove all columns containing at least one NA or "to_zero", which sets
 all NA to zero and leaves the column intact.}
 
-\item{join_column}{The column name in the metadata data frame that contains the sample IDs (default sample_id).}
+\item{join_column}{The column name in the metadata data frame that contains
+the sample IDs (default sample_id).}
 
 \item{seed}{Passed to UMAP2. The random seed for reproducibility.}
 }
@@ -64,21 +72,24 @@ all NA to zero and leaves the column intact.}
 Run UMAP and attach result to metadata
 }
 \examples{
-
+\dontrun{
 #library(GAMBLR.predict)
 
-# Load your mutation status data frame and ensure sample_id is moved to row names
+# Load your mutation status data frame and
+# ensure sample_id is moved to row names
 all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",
                                   package = "GAMBLR.predict")) \%>\%
                                   tibble::column_to_rownames("sample_id")
 # Load sample metadata for training/labeling
-dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",
-                             package = "GAMBLR.predict"))
+dlbcl_meta = readr::read_tsv(
+  system.file("extdata/dlbcl_meta_with_dlbclass.tsv",
+              package = "GAMBLR.predict")
+)
 my_umap <- make_and_annotate_umap(
   df=all_full_status,
   metadata=dlbcl_meta
 )
 # Usually you'll immediately want to visualize it
 # make_umap_scatterplot(my_umap$df)
-
+}
 }
