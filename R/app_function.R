@@ -30,6 +30,13 @@ DLBCLone_shiny <- function(...){
     )  %>%
         pull(Gene)
 
+    lyseq_genes <- sort(
+        c(
+            lyseq_genes,
+            "BCL2_SV", "BCL6_SV", "MYD88HOTSPOT"
+        )
+    )
+
     full_status <- read_tsv(
         file = system.file(
                 package = "GAMBLR.predict",
@@ -909,7 +916,7 @@ DLBCLone_shiny <- function(...){
 
             these_are_training_columns <- colnames(updated_result$features)
             these_are_training_columns <- these_are_training_columns[!grepl("_feats", these_are_training_columns)]
-            
+
             updateCheckboxGroupInput(
                 session,
                 "features",
@@ -1065,7 +1072,7 @@ DLBCLone_shiny <- function(...){
             }
             validate(need(!is.null(result), "Waiting for model output..."))
             make_umap_scatterplot(
-                    result$predictions, 
+                    result$predictions,
                     colour_by = current_truth_column()
                 )
         })
@@ -1076,7 +1083,7 @@ DLBCLone_shiny <- function(...){
             # }
             validate(need(!is.null(result), "Waiting for model output..."))
             make_umap_scatterplot(
-                    result$predictions, 
+                    result$predictions,
                     colour_by = "DLBCLone_wo"
                 )
         })
