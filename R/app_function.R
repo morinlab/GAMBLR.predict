@@ -241,9 +241,9 @@ DLBCLone_shiny <- function(...){
                 package = "GAMBLR.predict"
             )
         ),
-        default_model
+        default_model,
+        shiny_app_mode = TRUE
     )
-    default_knn <- DLBCLone_activate(default_knn, force = TRUE)
 
     pred_dir <- file.path(tempdir(), "predictions")
     dir.create(pred_dir, showWarnings = FALSE, recursive = TRUE)
@@ -909,9 +909,9 @@ DLBCLone_shiny <- function(...){
                         package = "GAMBLR.predict"
                     )
                 ),
-                input$panel
+                input$panel,
+                shiny_app_mode = TRUE
             )
-            updated_result <- DLBCLone_activate(updated_result, force = TRUE)
             dlbclone_result(updated_result)
 
             these_are_training_columns <- colnames(updated_result$features)
