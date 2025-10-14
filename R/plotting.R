@@ -97,7 +97,8 @@ nearest_neighbor_heatmap <- function(
 
     }
 
-    feats_mat <- DLBCLone_model$features_df
+    #feats_mat <- DLBCLone_model$features_df
+    feats_mat <- DLBCLone_model$umap_input # AKA dlbclone_model$features
     if (is.null(feats_mat)) {
       stop("features_df is missing in the provided model object.")
     }
@@ -148,6 +149,7 @@ nearest_neighbor_heatmap <- function(
     stop("Some neighbor samples are missing from
       the feature matrix (features_df/features).")
   }
+
   # Keep only non-zero (informative) features
   xx <- xx[, colSums(xx) > 0, drop = FALSE]
   if (ncol(xx) == 0) {

@@ -12,7 +12,8 @@ DLBCLone_predict(
   check_frequencies = FALSE,
   dry_run = FALSE,
   seed = 12345,
-  verbose = FALSE
+  verbose = FALSE,
+  max_neighbors = 500
 )
 }
 \arguments{

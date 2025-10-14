@@ -20,7 +20,8 @@ DLBCLone_optimize_params(
   maximize = "balanced_accuracy",
   cap_classification_rate = 1,
   exclude_other_for_accuracy = FALSE,
-  weights_opt = c(TRUE)
+  weights_opt = c(TRUE),
+  max_neighbors = 500
 )
 }
 \arguments{

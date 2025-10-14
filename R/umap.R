@@ -1383,7 +1383,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            maximize = "balanced_accuracy", #or "harmonic_mean" or "accuracy"
                            cap_classification_rate = 1,
                            exclude_other_for_accuracy = FALSE,
-                           weights_opt = c(TRUE)
+                           weights_opt = c(TRUE),
+                           max_neighbors = 500 #temporary need to talk
                            ) {
   store_params = list()
   if ("core_features" %in% names(umap_out)) {
@@ -1497,7 +1498,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           other_class=other_class,
           use_weights = use_w,
           #ignore_self = ignore_self,
-          verbose = verbose)
+          verbose = verbose,
+          max_neighbors = max_neighbors)
 
         for(threshold in threshs){
           if(verbose){
@@ -1594,7 +1596,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 other_class=other_class,
                 use_weights = use_w,
                 #ignore_self = ignore_self,
-                verbose = verbose)
+                verbose = verbose,
+                max_neighbors = max_neighbors)
 
               xx_o = bind_cols(filter(outs$df,!!sym(truth_column) == "Other" | is.na(!!sym(truth_column))) ,pred_other)
 
@@ -1741,7 +1744,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             test_coords = test_coords,
             k=best_k_w,# re-run with best k for weighted voting
             use_weights = best_params$use_weights,
-            verbose = verbose)
+            verbose = verbose,
+            max_neighbors = max_neighbors)
 
   pred_with_truth_full = bind_cols(outs$df %>% select(sample_id, !!sym(truth_column)), pred)
 
@@ -2468,9 +2472,7 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #'
 #' }
 #'
-#' @importFrom dplyr select mutate filter left_join bind_rows any_of all_of ends_with rowwise ungroup
-#' @importFrom tibble rownames_to_column column_to_rownames
-#' @importFrom ggplot2 ggplot aes geom_point geom_label
+#' @import dplyr tibble ggplot2 rlang
 #' @export
 
 DLBCLone_predict <- function(
@@ -2481,7 +2483,8 @@ DLBCLone_predict <- function(
   check_frequencies = FALSE,
   dry_run = FALSE,
   seed = 12345,
-  verbose=FALSE
+  verbose=FALSE,
+  max_neighbors = 500
 ){
 
   stopifnot(!is.null(optimized_model))
@@ -2676,7 +2679,8 @@ DLBCLone_predict <- function(
       conf_threshold = best_params$threshold,
       other_class = other_class,
       use_weights = best_params$use_weights,
-      verbose = verbose
+      verbose = verbose,
+      max_neighbors = max_neighbors 
     ) %>% tibble::rownames_to_column("sample_id")
     test_pred <- bind_rows(test_pred, this_test_pred)
   }
@@ -2712,7 +2716,7 @@ DLBCLone_predict <- function(
     prediction  = predictions_test_df,
     projection  = projection_test$df,
     training_predictions = optimized_model$predictions,
-    umap_input  = optimized_model$features,      # input feature space of the model
+    umap_input  = optimized_model$features,      # input feature space of the model      
     model       = optimized_model$model,         # the model actually used
     features_df = test_df |> tibble::column_to_rownames("sample_id"),
     df          = predictions_test_df,
