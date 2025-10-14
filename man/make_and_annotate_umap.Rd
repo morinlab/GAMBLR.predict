@@ -40,6 +40,14 @@ matches the row names of df. This data frame will be joined to the UMAP output.}
 will use this model to project the data instead of re-running UMAP. This is useful
 for reproducibility and for using the same UMAP model on different datasets.}
 
+\item{truth_column}{The column in the metadata data frame that contains the true class labels (default: lymphgen).}
+
+\item{core_features}{A vector of column names in df that should be considered core features.}
+
+\item{core_feature_multiplier}{A numeric value to multiply the core features by (default: 1.5).}
+
+\item{hidden_features}{A vector of column names in df that should be excluded from the analysis.}
+
 \item{n_neighbors}{Passed to UMAP2. The number of neighbors to consider when calculating the UMAP embedding.}
 
 \item{min_dist}{Passed to UMAP2. The minimum distance between points in the UMAP embedding.}
@@ -59,6 +67,12 @@ all NA to zero and leaves the column intact.}
 \item{join_column}{The column name in the metadata data frame that contains the sample IDs (default sample_id).}
 
 \item{seed}{Passed to UMAP2. The random seed for reproducibility.}
+
+\item{target_metric}{(default: "euclidean").}
+
+\item{target_weight}{(default: 0.5).}
+
+\item{make_plot}{If TRUE, generates a UMAP scatterplot of the result using make_umap_scatterplot (default: FALSE).}
 }
 \description{
 Run UMAP and attach result to metadata

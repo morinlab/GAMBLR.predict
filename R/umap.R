@@ -250,6 +250,10 @@ assemble_genetic_features <- function(these_samples_metadata,
 #' @param umap_out Optional UMAP output from a previous run. If provided, the function
 #' will use this model to project the data instead of re-running UMAP. This is useful
 #' for reproducibility and for using the same UMAP model on different datasets.
+#' @param truth_column The column in the metadata data frame that contains the true class labels (default: lymphgen).
+#' @param core_features A vector of column names in df that should be considered core features.
+#' @param core_feature_multiplier A numeric value to multiply the core features by (default: 1.5).
+#' @param hidden_features A vector of column names in df that should be excluded from the analysis.
 #' @param join_column The column name in the metadata data frame that contains the sample IDs (default sample_id).
 #' @param n_neighbors Passed to UMAP2. The number of neighbors to consider when calculating the UMAP embedding.
 #' @param min_dist Passed to UMAP2. The minimum distance between points in the UMAP embedding.
@@ -261,7 +265,10 @@ assemble_genetic_features <- function(these_samples_metadata,
 #' all NA to zero and leaves the column intact.
 #' @param seed Passed to UMAP2. The random seed for reproducibility.
 #' @param ret_model additional argument
-#'
+#' @param target_metric (default: "euclidean").
+#' @param target_weight (default: 0.5).
+#' @param make_plot If TRUE, generates a UMAP scatterplot of the result using make_umap_scatterplot (default: FALSE).
+#' 
 #' @import uwot dplyr tidyr tibble readr
 #' @export
 #'

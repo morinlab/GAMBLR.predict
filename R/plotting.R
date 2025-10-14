@@ -1438,6 +1438,8 @@ DLBCLone_train_test_plot = function(test_df,
 #'
 #' @param sample_metadata Data frame containing sample metadata with class labels,
 #' by default in a column named "lymphgen". Use `label_column` to specify a different column.
+#' @param features Data frame or matrix of binary features (genes) with samples as rows
+#' and features as columns. Values should be 0/1 or TRUE/FALSE.
 #' @param label_column Name of the column containing the
 #' class labels. The default is to use "lymphgen", the default truth class. 
 #' @param truth_classes Vector of class labels to consider (default: c("BN2","EZB","MCD","ST2","N1")).
