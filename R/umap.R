@@ -1383,8 +1383,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            maximize = "balanced_accuracy", #or "harmonic_mean" or "accuracy"
                            cap_classification_rate = 1,
                            exclude_other_for_accuracy = FALSE,
-                           weights_opt = c(TRUE),
-                           max_neighbors = 500 #temporary need to talk
+                           weights_opt = c(TRUE)
                            ) {
   store_params = list()
   if ("core_features" %in% names(umap_out)) {
@@ -1498,8 +1497,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
           other_class=other_class,
           use_weights = use_w,
           #ignore_self = ignore_self,
-          verbose = verbose,
-          max_neighbors = max_neighbors)
+          verbose = verbose)
 
         for(threshold in threshs){
           if(verbose){
@@ -1596,8 +1594,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                 other_class=other_class,
                 use_weights = use_w,
                 #ignore_self = ignore_self,
-                verbose = verbose,
-                max_neighbors = max_neighbors)
+                verbose = verbose)
 
               xx_o = bind_cols(filter(outs$df,!!sym(truth_column) == "Other" | is.na(!!sym(truth_column))) ,pred_other)
 
@@ -1744,8 +1741,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
             test_coords = test_coords,
             k=best_k_w,# re-run with best k for weighted voting
             use_weights = best_params$use_weights,
-            verbose = verbose,
-            max_neighbors = max_neighbors)
+            verbose = verbose)
 
   pred_with_truth_full = bind_cols(outs$df %>% select(sample_id, !!sym(truth_column)), pred)
 
@@ -2483,8 +2479,7 @@ DLBCLone_predict <- function(
   check_frequencies = FALSE,
   dry_run = FALSE,
   seed = 12345,
-  verbose=FALSE,
-  max_neighbors = 500
+  verbose=FALSE
 ){
 
   stopifnot(!is.null(optimized_model))
@@ -2679,8 +2674,7 @@ DLBCLone_predict <- function(
       conf_threshold = best_params$threshold,
       other_class = other_class,
       use_weights = best_params$use_weights,
-      verbose = verbose,
-      max_neighbors = max_neighbors 
+      verbose = verbose
     ) %>% tibble::rownames_to_column("sample_id")
     test_pred <- bind_rows(test_pred, this_test_pred)
   }
