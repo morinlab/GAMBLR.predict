@@ -1,0 +1,51 @@
+---
+title: "DLBCLone Functions — Gaussian Mixture Model"
+vignette: >
+  %\VignetteIndexEntry{quarto vignettes}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+from: markdown+emoji
+fig.align: "center"
+---
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE, results='hide'}
+library(GAMBLR.predict)
+library(tidyverse)
+```
+
+DLBCLone can also work using a gaussian mixture model relying on UMAP embeddings. It’s important not to confuse this modeling with the previously introduced DLBCLone functions, which runs KNN on the embeddings. 
+
+# DLBCLone_train_mixture_model 
+
+Training a Gaussian Mixture Model for DLBCLone Classification, this function fits a supervised Gaussian mixture model (GMM) to UMAP-projected data for DLBCLone subtypes, excluding samples labeled "Other". It assigns class predictions and optionally reclassifies samples as "Other" based on probability and density thresholds.
+
+`umap_out` output from `make_and_annotate_umap`, containing a data frame with UMAP coordinates and truth labels
+
+`probability_threshold` minimum posterior probability required to assign a class (default: 0.5)
+
+`density_max_threshold` minimum maximum density required to assign a class (default: 0.05)
+
+```{r, eval=FALSE}
+library(mclust) # <- necessary for running the mixture models
+
+mixture_result <- DLBCLone_train_mixture_model(umap_out = mu_everything)
+```
+
+# DLBCLone_predict_mixture_model 
+
+Applies a previously trained supervised Gaussian mixture model (GMM) to UMAP-projected data for DLBCLone subtypes. Assigns class predictions and optionally reclassifies samples as "Other" based on probability and density thresholds.
+
+`model` fitted model object, as returned by `DLBCLone_train_mixture_model`
+
+`umap_out` output from `make_and_annotate_umap`, containing a data frame with UMAP coordinates for the samples to be classified with the model. This must be projected using the same UMAP model that was generated using the training data.
+
+`probability_threshold` minimum posterior probability required to assign a class (default: 0.5)
+
+`density_max_threshold` minimum maximum density required to assign a class (default: 0.05)
+
+```{r, eval=FALSE}
+predict_mixture_result <- DLBCLone_predict_mixture_model(
+  model = mixture_result$gaussian_mixture_model, 
+  umap_out = mu_everything
+)
+```

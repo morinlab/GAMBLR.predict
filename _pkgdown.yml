@@ -1,0 +1,87 @@
+url: https://morinlab.github.io/GAMBLR.predict/
+template:
+  bootstrap: 5
+
+  structure:
+    left:  [intro, reference, articles]
+    right: [search, github, lightswitch]
+
+reference:
+  - title: "DLBCLone Functions — UMAP"
+    desc: >
+      Functions for generating and annotating UMAP visualizations.
+    contents:
+      - make_and_annotate_umap
+      - make_umap_scatterplot
+    examples: true
+  - title: "DLBCLone Functions — Optimizing Parameters"
+    desc: >
+      Tools for model optimization and downstream analysis.
+    contents:
+      - DLBCLone_optimize_params
+      - posthoc_feature_enrichment
+      - basic_umap_scatterplot
+      - make_alluvial
+      - DLBCLone_summarize_model
+      - DLBCLone_ensemble_postprocess
+    examples: true
+  - title: "DLBCLone Functions — DLBCLone Model Management"
+    desc: >
+      Functions to store, load, and activate DLBCLone models.
+    contents:
+      - DLBCLone_save_optimized
+      - DLBCLone_load_optimized
+      - DLBCLone_activate
+    examples: true
+  - title: "DLBCLone Functions — Predicting Samples"
+    desc: >
+      Functions for applying trained DLBCLone models to new samples and generating visual summaries of prediction confidence and neighborhood relationships.
+    contents:
+      - DLBCLone_predict
+      - make_neighborhood_plot
+      - nearest_neighbor_heatmap
+    examples: true
+  - title: "DLBCLone Functions — K-Nearest Neighbors"
+    desc: >
+      Functions to train and predict using KNN. Do not confuse these with the previously introduced DLBCLone functions.
+      - DLBCLone_KNN
+      - DLBCLone_KNN_predict
+    examples: true
+  - title: "DLBCLone Functions — Gaussian Mixture Model"
+    desc: >
+      Functions to train and predict using gaussian mixture models.
+      - DLBCLone_train_mixture_model
+      - DLBCLone_predict_mixture_model
+    examples: true
+  - title: Other
+    contents:
+      - everything
+    examples: true
+
+articles:
+  - title: Guides
+    navbar: Guides
+    contents:
+      - index
+      - umap
+      - DLBCLone_optimize_params
+      - DLBCLone_stored
+      - predict_samples
+      - full_walkthrough
+      - validation
+      - DLBCLone_KNN
+      - DLBCLone_mixture_model
+
+
+#figures:
+#  dev: ragg::agg_png
+#  dpi: 96
+#  dev.args: []
+ # fig.ext: png
+  #fig.width: 9
+#  fig.height: ~
+ # fig.retina: 2
+  #fig.asp: 0.9
+#  bg: NA
+ # other.parameters: []
+

@@ -1,0 +1,64 @@
+---
+title: "DLBCLone"
+vignette: >
+  %\VignetteIndexEntry{quarto vignettes}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+from: markdown+emoji
+fig.align: "center"
+---
+
+# Preface 
+
+*The one classifier to classify all*
+
+DLBCLone is a data-driven, open-source classifier for diffuse large B-cell lymphoma (DLBCL) genetic subtypes. It combines [UMAP](https://arxiv.org/abs/1802.03426) for dimensionality reduction, with a weighted k-nearest neighbors ([KNN](https://www.datacamp.com/tutorial/k-nearest-neighbors-knn-classification-with-r-tutorial)) algorithm to label samples based on neighborhood association.
+
+The tool is designed to address key limitations of the current primary classifiers; [LymphGen](https://llmpp.nih.gov/lymphgen/index.php) and [DLBclass](https://innovations.dana-farber.org/technology/dlbclass-a-breakthrough-in-diagnosing-and-managing-diffuse-large-b-cell-lymphoma/). LymphGen often labels a large proportion of samples as “Other,” while DLBclass frequently produces low-confidence predictions.
+
+DLBCLone incorporates threshold optimization strategies to adapt to the structure of your input data. When trained on LymphGen-labeled cohorts, it can reclassify “Other” samples into genetic subtypes by leveraging their nearest neighbors in the UMAP space, providing subtype calls with associated confidence scores.
+
+# Introduction
+
+This tutorial introduces how to use all of DLBCLone's functions. 
+
+Package Requirements to run DLBCLone:
+```{r, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+library(GAMBLR.open)
+library(GAMBLR.predict)
+library(tidyverse)
+library(ComplexHeatmap)
+library(uwot)
+library(caret)
+library(FNN)
+library(ggalluvial)
+library(ggbeeswarm)
+library(ggExtra)
+library(ggrepel)
+library(dbscan)
+library(mvtnorm)
+library(ggside)
+```
+
+Load the GAMBLR.predict package associated training files from extdata: 
+```{r, message=FALSE, warning=FALSE, eval = FALSE}
+dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+dlbcl_meta_clean = filter(dlbcl_meta,
+                          lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other"))
+
+all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id")
+```
+
+![](concept_map.png)
+
+*There are dedicated DLBCLone Tutorial Pages that cover:*
+
+- UMAP Projection Functions
+- Optimizing Parameters
+- Storing & Activating DLBCLone Models
+- Predicting Samples
+- Validation
+- Mixture Model
+- KNN Model

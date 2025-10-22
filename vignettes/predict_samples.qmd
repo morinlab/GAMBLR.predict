@@ -1,0 +1,98 @@
+---
+execute:
+  cache: false
+---
+
+# Predict Samples
+
+```{r set working directory and libs, echo=FALSE, include=FALSE, cahce=FALSE}
+library(GAMBLR.predict)
+library(GAMBLR.helpers) 
+library(tidyverse)
+
+all_full_status <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id")
+
+default_model <- "best_opt_w"
+
+loaded_model <- DLBCLone_load_optimized(
+        dirname(
+            system.file(
+                "extdata/models",
+                "best_opt_model.rds",
+                package = "GAMBLR.predict"
+            )
+        ),
+        default_model
+    )
+
+all_features_optimized <- DLBCLone_activate(loaded_model, force = TRUE)
+```
+
+# DLBCLone_predict 
+
+Now for the primary objective of DLBCLone. What happens when you have new samples with no metadata? Using the trained models produced, `DLBCLone_predict` can approximate labelings to samples based on their corresponding feature matrix. This function is versatile, you can use it to cross reference your training data, predict a test sample one at a time, or all of your test samples all at once! Here we will just be using training samples.
+
+`mutation_status` data frame containing the mutation feature matrix you are testing on 
+
+`optimized_model` list of parameters from DLBCLone_optimize_params
+
+## predicting one training sample 
+```{r predict single sample, message=FALSE, warning=FALSE}
+test_sample = "00-14595_tumorC"
+
+pred_train <- DLBCLone_predict(
+  mutation_status = all_full_status,
+  optimized_model = all_features_optimized
+)
+
+knitr::kable(head(pred_train$prediction))
+```
+
+# make_neighborhood_plot 
+
+Used for visualizing how and where neighbors are selected, a umap plot is produced showcasing the test sample of interest and its trained neighbors that helped determine its labeling.
+
+`single_sample_prediction_output` output list from predict_single_sample_DLBCLone
+
+`training_predictions` training predictions from DLBCLone_optimize_params (e.g. optimized_model$df)
+
+`this_sample_id Character` the sample ID for which the neighborhood plot will be generated
+
+`prediction_in_title` if TRUE: includes the predicted label in the plot title
+
+`add_circle` Plot will include a circle surrounding the set of neighbors, helpful for identification
+
+```{r}
+make_neighborhood_plot(
+  single_sample_prediction_output = pred_train,
+  this_sample_id = "00-14595_tumorC",
+  prediction_in_title = TRUE,
+  add_circle = TRUE,
+  label_column = "DLBCLone_wo"
+)
+```
+
+# nearest_neighbor_heatmap 
+
+Generates a heatmap of feature values for the nearest neighbors of a specified sample, based on a DLBCLone model object. This visualization helps to inspect the feature profiles of samples most similar to the query sample.
+
+`this_sample_id` the sample ID for which to plot the nearest neighbor heatmap
+
+`DLBCLone_model` a DLBCLone model object, which can be the output of DLBCLone_optimize_params, DLBCLone_KNN, or DLBCLone_predict
+
+`truth_column` the column name in the predictions data frame that contains the ground truth labels (default: "lymphgen")
+
+`metadata_cols` optional character vector of additional metadata columns to include in the heatmap annotations
+
+`clustering_dis` the distance metric to use for clustering rows (default: "binary")
+
+`font_size` font size for heatmap text (default: 14)
+
+```{r, message=FALSE,warning=FALSE}
+nearest_neighbor_heatmap(
+  this_sample_id = "00-14595_tumorC",
+  DLBCLone_model = pred_train,
+  font_size = 7
+)
+```

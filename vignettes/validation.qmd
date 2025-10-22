@@ -1,0 +1,271 @@
+---
+title: "DLBCLone — Validation Data Generation and Example"
+vignette: >
+  %\VignetteIndexEntry{quarto vignettes}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+from: markdown+emoji
+fig.align: "center"
+---
+
+```{r set working directory and libs, echo=FALSE, include=FALSE}
+library(GAMBLR.open)
+library(tidyverse)
+
+all_full_status_train <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id")
+
+dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+dlbcl_meta_clean <- filter(dlbcl_meta,
+                          lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other"))
+
+#loaded_model <- DLBCLone_load_optimized( # loading DLBCLone_optimize_params
+#   path="../data/saved_tutorial_model",
+#   name_prefix="lyseq_features_optimized_T_train"
+#)
+
+#lyseq_features_optimized_T_train <- DLBCLone_activate(loaded_model, force = TRUE)
+
+#lyseq_model <- "lyseq_opt_w"
+
+#loaded_model <- DLBCLone_load_optimized(
+ #       dirname(
+  #          system.file(
+   #             "extdata/models",
+    #            "lyseq_opt_w_model.rds",
+     #           package = "GAMBLR.predict"
+      #      )
+#        ),
+ #       lyseq_model
+  #  )
+
+#lyseq_features_optimized_train <- DLBCLone_activate(loaded_model, force = TRUE)
+
+valid_metadata_vaf <- readr::read_tsv(system.file("extdata/lyseq_validation/LySeqST_only_unaugmented_vaf.lymphgen_calls.no_cnvs.with_sv.no_A53.tsv",package = "GAMBLR.predict")) %>%
+  rename(
+    sample_id = Sample.Name,
+    lymphgen = Subtype.Prediction
+  ) %>%
+  mutate(
+    BCL2.Translocation = if_else(BCL2.Translocation == "yes", "POS", BCL2.Translocation),
+    BCL2.Translocation = if_else(BCL2.Translocation == "no", "NEG", BCL2.Translocation),
+    BCL2.Translocation = if_else(BCL2.Translocation == "Not Available", "NA", BCL2.Translocation),
+    BCL6.Translocation = if_else(BCL6.Translocation == "yes", "POS", BCL6.Translocation),
+    BCL6.Translocation = if_else(BCL6.Translocation == "no", "NEG", BCL6.Translocation),
+    BCL6.Translocation = if_else(BCL6.Translocation == "Not Available", "NA", BCL6.Translocation)
+  )
+
+valid_maf_vaf_dir <- readr::read_tsv(system.file("extdata/lyseq_validation/LySeqST_merged_unaugmented_vaf.maf",package = "GAMBLR.predict")) %>%  
+  mutate(
+    sample_id = Tumor_Sample_Barcode
+  )
+
+valid_maf_vaf <- create_maf_data(
+    maf_df = valid_maf_vaf_dir,
+    genome_build = "grch37"
+  ) %>%
+    mutate(Chromosome = as.character(Chromosome))
+```
+
+## Load the GAMBLR.predict package associated training files from extdata: 
+```{r, eval = FALSE}
+all_full_status_train <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id")
+
+dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+dlbcl_meta_clean <- filter(dlbcl_meta,
+                          lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other"))
+```
+
+# Generating Validation Data 
+When using DLBCLone, you need to provide the following files to initialize training: metadata, and MAF data. In this example, I will go step by step producing a mutation matrix for a validation test. When producing training data your metadata *must* possess a truth column containing genetic subtype results for each sample as a result of running a previous model (ie. LymphGen, DLBclass, etc.). When producing a test or validation set for your training, the truth column is not required in the metadata. MAF and metadata files are required to assemble the feature matrix that will be used for UMAP and KNN approximation on your samples. 
+
+## metadata data 
+```{r, eval=FALSE}
+valid_meta_dir <- "../data/metadata/metadata_sequencing_vaf.tsv"
+
+valid_metadata_vaf <- read_tsv(valid_meta_dir) %>%
+ mutate(sample_id = DNAseq_sample_id)
+```
+
+## MAF data 
+
+When using MAF files in GAMBLR functions, the MAF must be a S3 object. Simply feed the MAF dataframe through GAMBLR.util's `create_maf_data` function.
+```{r, eval = FALSE}
+valid_maf_dir <- "../data/maf/LySeqST_only_read_threshold_vaf.maf"
+
+valid_maf_df <- read_tsv(valid_maf_dir) %>%  
+  mutate(
+    sample_id = Tumor_Sample_Barcode
+  )
+
+library(GAMBLR.utils) # S3 compatible maf generation for GAMBLR functions
+
+valid_maf_vaf <- create_maf_data(
+  maf_df = valid_maf_df,
+  genome_build = "grch37"
+)
+```
+
+## lyseq features 
+```{r, message=FALSE, warning=FALSE,results='hide'}
+lyseq_genes <- sort(c(
+  "TNFRSF14", "SPEN", "ID3", "ARID1A", "RRAGC",
+  "BCL10", "CD58", "NOTCH2", "FCGR2B", "FCRLA",
+  "FAS", "CCND1", "BIRC3", "ATM", "KMT2D",
+  "STAT6", "BTG1", "FOXO1", "B2M", "MAP2K1",
+  "IDH2", "CHD2", "CREBBP", "SOCS1", "IL4R",
+  "PLCG2", "TP53", "STAT5B", "STAT3", "CD79B",
+  "GNA13", "BCL2", "TCF3", "S1PR2", "JAK3",
+  "MEF2B", "DNMT3A", "XPO1", "CXCR4", "SF3B1",
+  "PTPN1", "XBP1", "EP300", "MYD88", "SETD2",
+  "RHOA", "NFKBIZ", "TBL1XR1", "KLHL6", "TET2",
+  "PIM1", "CCND3", "TMEM30A", "PRDM1", "SGK1",
+  "TNFAIP3", "CARD11", "POT1", "BRAF", "EZH2",
+  "UBR5", "MYC", "NOTCH1", "TRAF2", "P2RY8",
+  "BTK", "TP73", "NOL9", "SEMA4A", "PRRC2C",
+  "BTG2", "ITPKB", "SEC24C", "EDRF1", "WEE1",
+  "MPEG1", "ETS1", "DTX1", "SETD1B", "NFKBIA",
+  "ZFP36L1", "CIITA", "MBTPS1", "IRF8", "ACTG1",
+  "KLHL14", "MED16", "CD70", "JUNB", "KLF2",
+  "CD79A", "DYSF", "DUSP2", "BCL2L1", "PRDM15",
+  "RFTN1", "OSBPL10", "EIF4A2", "BCL6", "IRF4",
+  "FOXC1", "CD83", "H2BC4", "H1-3", "H1-5",
+  "HLA-A", "HLA-B", "PRRC2A", "TBCC", "INTS1",
+  "ACTB", "PIK3CG", "PRKDC", "TOX", "CDKN2A",
+  "GRHPR", "DDX3X", "PIM2", "UBE2A", "ETV6",
+  "MS4A1", "CD19", "HNRNPD", "NFKBIE", "TMSB4X"
+))
+
+
+
+```
+
+# assemble_genetic_features 
+
+This function allows you to assemble all samples producing a matrix of genetic features. This includes mutation status, and structural variant status for BCL2, BCL6, and MYC. This customizable function allows you to pick apart what features you are most interested in, as well as the option to assign different values for the class of genetic features. 
+
+`these_samples_metadata` data frame with sample metadata, must include seq_type and sample_id
+
+`sv_from_metadata` columns in metadata to use for SV status (default: c("BCL2","BCL6","MYC"))
+
+`genes` vector of gene symbols to include
+
+`synon_genes` vector of gene symbols for synonymous mutations
+
+`maf_with_synon` MAF data frame including synonymous mutations
+
+`hotspot_genes` vector of hotspot genes
+
+`sv_value` value to assign for SV presence (default: 3)
+
+`synon_value` value to assign for synonymous mutations (default: 1)
+
+`coding_value` value to assign for coding mutations (default: 2)
+
+```{r, message=FALSE, warning=FALSE}
+lyseq_valid = assemble_genetic_features(
+  these_samples_metadata = valid_metadata_vaf,
+  sv_from_metadata = c(BCL2 = 'BCL2.Translocation', BCL6 = 'BCL6.Translocation'),
+  genes=lyseq_genes,
+  maf_with_synon = valid_maf_vaf,
+  hotspot_genes = "MYD88",
+  synon_genes=c("PIM1","SOCS1")
+)
+```
+
+# Full Walkthrough with Validation Data 
+
+Now that we have a feature set different from the training provided earlier `<all_full_status_train>` we can now validate DLBCLone. It is important to ensure the training matches the features of the validation or test set to ensure the featrues in your training provide appropriate, accurate, predictions.
+
+```{r, warning=FALSE}
+ncol(all_full_status_train)
+ncol(lyseq_valid)
+
+lyseq_train <- all_full_status_train %>%
+  select(all_of(names(lyseq_valid)))
+
+identical(colnames(lyseq_train),colnames(lyseq_valid))
+```
+
+## make_and_annotate_umap 
+```{r umap1, message=FALSE, warning=FALSE}
+mu_lyseq_train = make_and_annotate_umap(
+  lyseq_train,
+  dlbcl_meta_clean,
+  core_features = list(
+    ST2=c("SGK1","DUSP2","TET2","SOCS1"),
+    N1="NOTCH1",
+    EZB=c("EZH2","BCL2_SV"),
+    MCD=c("MYD88HOTSPOT","CD79B","PIM1"),
+    BN2=c("BCL6_SV","NOTCH2","SPEN","CD70")
+  )
+)
+```
+
+## DLBCLone_optimize_params 
+
+```{r optimize1, message=FALSE, warning=FALSE}
+lyseq_features_optimized_train = DLBCLone_optimize_params(  
+  mu_lyseq_train$features, 
+  dlbcl_meta_clean,
+  umap_out = mu_lyseq_train,
+  truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+  optimize_for_other = T,
+  min_k=5,
+  max_k=13
+)
+```
+
+## DLBCLone_predict 
+
+### predicting all validation samples 
+```{r, message=FALSE, warning=FALSE}
+pred_valid_lyseq <- DLBCLone_predict(
+  mutation_status = lyseq_valid,
+  optimized_model = lyseq_features_optimized_train
+)
+
+knitr::kable(head(pred_valid_lyseq$prediction))
+```
+
+## make_neighborhood_plot 
+```{r}
+make_neighborhood_plot(
+  single_sample_prediction_output = pred_valid_lyseq,
+  this_sample_id = "00-14595_tumorC",
+  prediction_in_title = TRUE,
+  add_circle = TRUE,
+  label_column = "DLBCLone_wo"
+)
+```
+
+## nearest_neighbor_heatmap 
+
+```{r, message=FALSE,warning=FALSE}
+nearest_neighbor_heatmap(
+  this_sample_id = "00-14595_tumorC",
+  DLBCLone_model = pred_valid_lyseq,
+  font_size = 8
+)
+```
+
+## Accuracy Assessment 
+
+Now that we have a fully processed dlbclone validation set (148 samples) of a lyseq panel; let us assess the accuracy by comparing its `dlbclone_predict` predictions with its ground truth lymphgen labeling found in its metadata:
+
+```{r compare_to_lymphgen, message=FALSE, warning=FALSE}
+pred_vs_original = left_join(pred_valid_lyseq$prediction,valid_metadata_vaf)
+
+#collapse composites into group-COMP
+pred_vs_original = tidy_lymphgen(pred_vs_original,lymphgen_column_in = "lymphgen",lymphgen_column_out = "lymphgen_tidy")
+
+#convert composites into their primary class
+pred_vs_original = mutate(pred_vs_original,lymphgen_basic = gsub("-COMP","",lymphgen_tidy))
+
+make_alluvial(list(predictions=pred_vs_original),pred_column = "DLBCLone_wo",group_order = c("MCD","BN2","ST2","EZB","N1","Other"),truth_column = "lymphgen_basic")
+
+table(pred_vs_original$lymphgen_basic,pred_vs_original$DLBCLone_wo)
+```

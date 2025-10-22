@@ -1,0 +1,44 @@
+---
+title: "DLBCLone Functions — DLBCLone Model Management"
+vignette: >
+  %\VignetteIndexEntry{quarto vignettes}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+from: markdown+emoji
+fig.align: "center"
+---
+
+# Save and Load Optimize Params 
+
+For future use cases and reproducibility purposes you may store the outputs of `DLBCLone_optimize_params`.
+
+## DLBCLone_save_optimized
+
+Allows you to store your model in a given directory with a name prefix.
+
+```{r, eval=FALSE}
+DLBCLone_save_optimized( # saving DLBCLone_optimize_params
+  DLBCLone_model = all_features_optimized,
+  base_path="../data/saved_tutorial_model",
+  name_prefix="all_features_optimized"
+)
+```
+
+## DLBCLone_load_optimized
+
+Allows you to load in your stored model.
+
+```{r, eval=FALSE}
+loaded_model <- DLBCLone_load_optimized( # loading DLBCLone_optimize_params
+   path="../data/saved_tutorial_model",
+   name_prefix="all_features_optimized"
+)
+```
+
+## DLBCLone_activate
+
+Reactivates a model after optimization, setting the UMAP projections.
+
+```{r, eval=FALSE}
+all_features_optimized <- DLBCLone_activate(loaded_model, force = TRUE)
+```

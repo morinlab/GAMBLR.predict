@@ -1,0 +1,160 @@
+---
+title: "DLBCLone Full Walkthrough of Associated Functions"
+vignette: >
+  %\VignetteIndexEntry{quarto vignettes}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+from: markdown+emoji
+fig.align: "center"
+---
+
+```{r set working directory and libs, echo=FALSE, include=FALSE, cahce=FALSE}
+library(GAMBLR.predict)
+library(GAMBLR.helpers) 
+library(tidyverse)
+
+all_full_status <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id")
+
+dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+dlbcl_meta_clean <- filter(
+  dlbcl_meta,
+  lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other")
+)
+
+default_model <- "best_opt_w"
+
+loaded_model <- DLBCLone_load_optimized(
+        dirname(
+            system.file(
+                "extdata/models",
+                "best_opt_model.rds",
+                package = "GAMBLR.predict"
+            )
+        ),
+        default_model
+    )
+
+all_features_optimized <- DLBCLone_activate(loaded_model, force = TRUE)
+```
+
+*A step by step example workflow from start to finish*
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+library(GAMBLR.open)
+library(tidyverse)
+```
+
+## Load the GAMBLR.predict package associated training files from extdata: 
+```{r, eval=FALSE}
+all_full_status <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id")
+
+dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+dlbcl_meta_clean <- filter(
+  dlbcl_meta,
+  lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other")
+)
+```
+
+## stacked_bar_plot
+
+```{r, message=FALSE, warning=FALSE}
+plots <- posthoc_feature_enrichment(
+  sample_metadata = dlbcl_meta_clean,
+  features = all_full_status,
+  method = "fisher",
+  num_feats = 15,
+  title = "LymphGen"
+)
+
+plots$bar_plot
+```
+
+## forest_plot
+
+```{r}
+#| fig-height: 12
+#| fig-width: 4
+plots$forest_plot
+```
+
+## make_and_annotate_umap
+```{r umap1}
+mu_everything = make_and_annotate_umap(
+  all_full_status,
+  dlbcl_meta_clean,
+  core_features = list(
+    ST2=c("SGK1","DUSP2","TET2","SOCS1"),
+    N1="NOTCH1",
+    EZB=c("EZH2","BCL2_SV"),
+    MCD=c("MYD88HOTSPOT","CD79B","PIM1"),
+    BN2=c("BCL6_SV","NOTCH2","SPEN","CD70")
+  )
+)
+```
+
+## make_umap_scatterplot 
+
+```{r}
+make_umap_scatterplot(
+  mu_everything$df,
+  drop_other = F
+)
+```
+
+## DLBCLone_optimize_params 
+
+```{r optimize1, eval = FALSE}
+all_features_optimized = DLBCLone_optimize_params(  
+  mu_everything$features, 
+  dlbcl_meta_clean,
+  umap_out = mu_everything,
+  truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
+  optimize_for_other = T,
+  min_k=5,
+  max_k=13
+)
+```
+
+## make_alluvial
+
+DLBCLone with outgroup optimization ("wo") w for weighted, o for optimized for other.
+```{r plot_alluvial2, message=FALSE, warning=FALSE,results='hide'}
+make_alluvial(all_features_optimized,pred_column = "DLBCLone_wo",pred_name = "DLBCLone_wo")
+```
+
+## DLBCLone_predict
+
+### predicting one training sample
+```{r, message=FALSE, warning=FALSE}
+test_sample <- "00-14595_tumorC"
+
+pred_train <- DLBCLone_predict(
+  mutation_status = all_full_status,
+  optimized_model = all_features_optimized
+)
+```
+
+## make_neighborhood_plot 
+```{r}
+make_neighborhood_plot(
+  single_sample_prediction_output = pred_train,
+  this_sample_id = "00-14595_tumorC",
+  prediction_in_title = TRUE,
+  add_circle = TRUE,
+  label_column = "DLBCLone_wo"
+)
+```
+
+## nearest_neighbor_heatmap 
+
+```{r, message=FALSE,warning=FALSE}
+nearest_neighbor_heatmap(
+  this_sample_id = test_sample,
+  DLBCLone_model = pred_train,
+  font_size = 10
+)
+```
