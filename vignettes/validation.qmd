@@ -20,28 +20,6 @@ dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv"
 dlbcl_meta_clean <- filter(dlbcl_meta,
                           lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other"))
 
-#loaded_model <- DLBCLone_load_optimized( # loading DLBCLone_optimize_params
-#   path="../data/saved_tutorial_model",
-#   name_prefix="lyseq_features_optimized_T_train"
-#)
-
-#lyseq_features_optimized_T_train <- DLBCLone_activate(loaded_model, force = TRUE)
-
-#lyseq_model <- "lyseq_opt_w"
-
-#loaded_model <- DLBCLone_load_optimized(
- #       dirname(
-  #          system.file(
-   #             "extdata/models",
-    #            "lyseq_opt_w_model.rds",
-     #           package = "GAMBLR.predict"
-      #      )
-#        ),
- #       lyseq_model
-  #  )
-
-#lyseq_features_optimized_train <- DLBCLone_activate(loaded_model, force = TRUE)
-
 valid_metadata_vaf <- readr::read_tsv(system.file("extdata/lyseq_validation/LySeqST_only_unaugmented_vaf.lymphgen_calls.no_cnvs.with_sv.no_A53.tsv",package = "GAMBLR.predict")) %>%
   rename(
     sample_id = Sample.Name,
@@ -80,7 +58,7 @@ dlbcl_meta_clean <- filter(dlbcl_meta,
 ```
 
 # Generating Validation Data 
-When using DLBCLone, you need to provide the following files to initialize training: metadata, and MAF data. In this example, I will go step by step producing a mutation matrix for a validation test. When producing training data your metadata *must* possess a truth column containing genetic subtype results for each sample as a result of running a previous model (ie. LymphGen, DLBclass, etc.). When producing a test or validation set for your training, the truth column is not required in the metadata. MAF and metadata files are required to assemble the feature matrix that will be used for UMAP and KNN approximation on your samples. 
+When using DLBCLone, you need to provide the following files to initialize training: metadata, and MAF data. In this example, I will go step by step producing a mutation matrix for a validation test. When producing training data your metadata *must* possess a truth column containing genetic subtype results for each sample as a result of running a previous model (ie. LymphGen, DLBclass, etc.). When producing a test or validation set for your training, the truth column is not required in the metadata. MAF and metadata files are required to assemble the feature matrix that will be used for UMAP and KNN approximation on your samples. The validation will focus on a lyseq feature matrix.
 
 ## metadata data 
 ```{r, eval=FALSE}
@@ -138,9 +116,6 @@ lyseq_genes <- sort(c(
   "GRHPR", "DDX3X", "PIM2", "UBE2A", "ETV6",
   "MS4A1", "CD19", "HNRNPD", "NFKBIE", "TMSB4X"
 ))
-
-
-
 ```
 
 # assemble_genetic_features 

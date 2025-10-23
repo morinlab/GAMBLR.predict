@@ -13,8 +13,29 @@ library(GAMBLR.predict)
 library(GAMBLR.helpers) 
 library(tidyverse)
 
-all_full_status <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
-  tibble::column_to_rownames("sample_id")
+best_opt_model_genes <- sort(c(
+  "ACTB", "ACTG1", "BCL10", "BCL2", "BCL2L1", 
+  "BCL6", "BIRC3", "BRAF", "BTG1", "BTG2", 
+  "BTK", "CD19", "CD70", "CD79B", "CD83", 
+  "CDKN2A", "CREBBP", "DDX3X", "DTX1", "DUSP2", 
+  "EDRF1", "EIF4A2", "EP300", "ETS1", "ETV6", 
+  "EZH2", "FAS", "FCGR2B", "FOXC1", "FOXO1", 
+  "GNA13", "GRHPR", "HLA-A", "HLA-B", "HNRNPD", 
+  "IRF4", "IRF8", "ITPKB", "JUNB", "KLF2", 
+  "KLHL14", "KLHL6", "KMT2D", "MEF2B", "MPEG1", 
+  "MYD88", "NFKBIA", "NFKBIE", "NFKBIZ", "NOL9", 
+  "NOTCH1", "NOTCH2", "OSBPL10", "PIM1", "PIM2", 
+  "PRDM1", "PRDM15", "PRKDC", "PRRC2C", "PTPN1", 
+  "RFTN1", "S1PR2", "SETD1B", "SGK1", "SOCS1", 
+  "SPEN", "STAT3", "STAT6", "TBCC", "TBL1XR1", 
+  "TET2", "TMEM30A", "TMSB4X", "TNFAIP3", "TNFRSF14", 
+  "TOX", "TP53", "TP73", "UBE2A", "WEE1", 
+  "XBP1", "ZFP36L1", "MYD88HOTSPOT", "BCL2_SV", "BCL6_SV"
+))
+
+best_opt_model_matrix <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id") %>%
+  select(best_opt_model_genes)
 
 dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 
@@ -48,8 +69,29 @@ library(tidyverse)
 
 ## Load the GAMBLR.predict package associated training files from extdata: 
 ```{r, eval=FALSE}
-all_full_status <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
-  tibble::column_to_rownames("sample_id")
+best_opt_model_genes <- sort(c(
+  "ACTB", "ACTG1", "BCL10", "BCL2", "BCL2L1", 
+  "BCL6", "BIRC3", "BRAF", "BTG1", "BTG2", 
+  "BTK", "CD19", "CD70", "CD79B", "CD83", 
+  "CDKN2A", "CREBBP", "DDX3X", "DTX1", "DUSP2", 
+  "EDRF1", "EIF4A2", "EP300", "ETS1", "ETV6", 
+  "EZH2", "FAS", "FCGR2B", "FOXC1", "FOXO1", 
+  "GNA13", "GRHPR", "HLA-A", "HLA-B", "HNRNPD", 
+  "IRF4", "IRF8", "ITPKB", "JUNB", "KLF2", 
+  "KLHL14", "KLHL6", "KMT2D", "MEF2B", "MPEG1", 
+  "MYD88", "NFKBIA", "NFKBIE", "NFKBIZ", "NOL9", 
+  "NOTCH1", "NOTCH2", "OSBPL10", "PIM1", "PIM2", 
+  "PRDM1", "PRDM15", "PRKDC", "PRRC2C", "PTPN1", 
+  "RFTN1", "S1PR2", "SETD1B", "SGK1", "SOCS1", 
+  "SPEN", "STAT3", "STAT6", "TBCC", "TBL1XR1", 
+  "TET2", "TMEM30A", "TMSB4X", "TNFAIP3", "TNFRSF14", 
+  "TOX", "TP53", "TP73", "UBE2A", "WEE1", 
+  "XBP1", "ZFP36L1", "MYD88HOTSPOT", "BCL2_SV", "BCL6_SV"
+))
+
+best_opt_model_matrix <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id") %>%
+  select(best_opt_model_genes)
 
 dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 
@@ -64,7 +106,7 @@ dlbcl_meta_clean <- filter(
 ```{r, message=FALSE, warning=FALSE}
 plots <- posthoc_feature_enrichment(
   sample_metadata = dlbcl_meta_clean,
-  features = all_full_status,
+  features = best_opt_model_matrix,
   method = "fisher",
   num_feats = 15,
   title = "LymphGen"
@@ -82,9 +124,9 @@ plots$forest_plot
 ```
 
 ## make_and_annotate_umap
-```{r umap1}
+```{r umap1, message=FALSE, warning=FALSE,results='hide'}
 mu_everything = make_and_annotate_umap(
-  all_full_status,
+  best_opt_model_matrix,
   dlbcl_meta_clean,
   core_features = list(
     ST2=c("SGK1","DUSP2","TET2","SOCS1"),
@@ -130,12 +172,13 @@ make_alluvial(all_features_optimized,pred_column = "DLBCLone_wo",pred_name = "DL
 
 ### predicting one training sample
 ```{r, message=FALSE, warning=FALSE}
-test_sample <- "00-14595_tumorC"
-
 pred_train <- DLBCLone_predict(
-  mutation_status = all_full_status,
-  optimized_model = all_features_optimized
+  mutation_status = best_opt_model_matrix,
+  optimized_model = all_features_optimized,
+  drop_extra = TRUE
 )
+
+all_features_optimized$features
 ```
 
 ## make_neighborhood_plot 
@@ -153,7 +196,7 @@ make_neighborhood_plot(
 
 ```{r, message=FALSE,warning=FALSE}
 nearest_neighbor_heatmap(
-  this_sample_id = test_sample,
+  this_sample_id = "00-14595_tumorC",
   DLBCLone_model = pred_train,
   font_size = 10
 )

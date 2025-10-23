@@ -12,9 +12,6 @@ fig.align: "center"
 library(GAMBLR.predict)
 library(tidyverse)
 
-all_full_status <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
-  tibble::column_to_rownames("sample_id")
-
 default_model <- "best_opt_w"
 
 loaded_model <- DLBCLone_load_optimized(
@@ -156,7 +153,7 @@ make_alluvial(all_features_optimized,pred_column = "DLBCLone_wo",pred_name = "DL
 
 ```{r, message=FALSE, warning=FALSE,results='hide'}
 basic_umap_scatterplot(
-  all_features_optimized_T$prediction, 
+  all_features_optimized$prediction, 
   colour_by = "DLBCLone_wo",
   pred_column = "DLBCLone_wo",
   title = "DLBCLone_wo"
@@ -169,7 +166,7 @@ Generates and saves a set of summary plots as PDF, and tables for a DLBCLone mod
 
 ```{r, message=FALSE, warning=FALSE, eval = FALSE}
 DLBCLone_summarize_model(
-  optimized_model = all_features_optimized_T,
+  optimized_model = all_features_optimized,
   base_name="model_summaries/all_full_status"
 )
 ```

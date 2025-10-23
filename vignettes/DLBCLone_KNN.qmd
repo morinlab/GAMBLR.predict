@@ -19,8 +19,29 @@ dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",
 dlbcl_meta_clean = filter(dlbcl_meta,
                           lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other"))
 
-all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
-  tibble::column_to_rownames("sample_id")
+best_opt_model_genes <- sort(c(
+  "ACTB", "ACTG1", "BCL10", "BCL2", "BCL2L1", 
+  "BCL6", "BIRC3", "BRAF", "BTG1", "BTG2", 
+  "BTK", "CD19", "CD70", "CD79B", "CD83", 
+  "CDKN2A", "CREBBP", "DDX3X", "DTX1", "DUSP2", 
+  "EDRF1", "EIF4A2", "EP300", "ETS1", "ETV6", 
+  "EZH2", "FAS", "FCGR2B", "FOXC1", "FOXO1", 
+  "GNA13", "GRHPR", "HLA-A", "HLA-B", "HNRNPD", 
+  "IRF4", "IRF8", "ITPKB", "JUNB", "KLF2", 
+  "KLHL14", "KLHL6", "KMT2D", "MEF2B", "MPEG1", 
+  "MYD88", "NFKBIA", "NFKBIE", "NFKBIZ", "NOL9", 
+  "NOTCH1", "NOTCH2", "OSBPL10", "PIM1", "PIM2", 
+  "PRDM1", "PRDM15", "PRKDC", "PRRC2C", "PTPN1", 
+  "RFTN1", "S1PR2", "SETD1B", "SGK1", "SOCS1", 
+  "SPEN", "STAT3", "STAT6", "TBCC", "TBL1XR1", 
+  "TET2", "TMEM30A", "TMSB4X", "TNFAIP3", "TNFRSF14", 
+  "TOX", "TP53", "TP73", "UBE2A", "WEE1", 
+  "XBP1", "ZFP36L1", "MYD88HOTSPOT", "BCL2_SV", "BCL6_SV"
+))
+
+best_opt_model_matrix <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id") %>%
+  select(best_opt_model_genes)
 ```
 
 # DLBCLone_KNN 
@@ -63,7 +84,7 @@ Weighted KNN on a feature (mutation) matrix with optional upweighting of user-sp
 
 ```{r, message=FALSE, warning=FALSE}
 dlbcl_knn <- DLBCLone_KNN(
-  features_df = all_full_status,
+  features_df = best_opt_model_matrix,
   metadata = dlbcl_meta_clean,
   min_k = 5,
   max_k = 21,
@@ -102,7 +123,7 @@ Applies a previously optimized `DLBCLone_KNN` model to predict class labels for 
 ## Batch Mode 
 ```{r, message=FALSE, warning=FALSE, eval=FALSE}
 predictions_b <- DLBCLone_KNN_predict(
-  train_df = all_full_status,
+  train_df = best_opt_model_matrix,
   test_df = valid_df,
   metadata = dlbcl_meta_clean,
   DLBCLone_KNN_out = dlbcl_knn,
