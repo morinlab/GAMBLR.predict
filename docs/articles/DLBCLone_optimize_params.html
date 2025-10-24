@@ -78,10 +78,10 @@
 
     <section class="section level2"><h2 id="dlbclone_optimize_params">DLBCLone_optimize_params<a class="anchor" aria-label="anchor" href="#dlbclone_optimize_params"></a>
 </h2>
-<p>This function sets multiple tuning thresholds based on the structure of the training data provided. On the training, it handles predictions, applies thresholding, and makes data-driven approximations for classifying samples using UMAP embeddings and k-nearest neighbor logic.</p>
+<p>This function tunes the K value and a few thresholds based on the training data, working to maximize balanced accuracy or (optionally) another metric.</p>
 <p><code>combined_mutation_status_df</code> feature matrix data frame with one row per sample and one column per mutation</p>
-<p><code>metadata_df</code> data frame of metadata with one row per sample and three required columns: sample_id, dataset and lymphgen</p>
-<p><code>umap_out</code> the output of a previous run of <code>make_and_annotate_umap</code></p>
+<p><code>metadata_df</code> data frame of metadata with one row per sample and three required columns: sample_id, dataset and the column containing the “truth” lable, which defaults to lymphgen</p>
+<p><code>umap_out</code> the output of <code>make_and_annotate_umap</code></p>
 <p><code>truth_classes</code> vector of classes to use for training and testing (LymphGen default: c(“EZB”, “MCD”, “ST2”, “N1”, “BN2”, “Other”))</p>
 <p><code>optimize_for_other</code> set to TRUE to optimize the threshold for classifying samples as “Other” based on the relative proportion of samples nearest to the sample in the UMAP space with an “Other” label. Rather than treating Other as just another class, this will optimize the threshold for a separate score that considers how many Other and non-Other samples are in the neighborhood of the sample in question. This parameter will NOT change the value in predicted_label. Instead, the predicted_label_optimized column will contain the optimized label (default: FALSE)</p>
 <p><code>min_k</code> starting k for knn (default: 3)</p>
@@ -92,8 +92,8 @@
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">all_features_optimized</span> <span class="op">=</span> <span class="fu"><a href="../reference/DLBCLone_optimize_params.html">DLBCLone_optimize_params</a></span><span class="op">(</span>  </span>
-<span>  <span class="va">mu_everything</span><span class="op">$</span><span class="va">features</span>, </span>
-<span>  <span class="va">dlbcl_meta_clean</span>,</span>
+<span>  <span class="co">#mu_everything$features, </span></span>
+<span>  metadata_df <span class="op">=</span> <span class="va">dlbcl_meta_clean</span>,</span>
 <span>  umap_out <span class="op">=</span> <span class="va">mu_everything</span>,</span>
 <span>  truth_classes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"EZB"</span>,<span class="st">"BN2"</span>,<span class="st">"N1"</span>,<span class="st">"ST2"</span>,<span class="st">"Other"</span><span class="op">)</span>,</span>
 <span>  min_k<span class="op">=</span><span class="fl">5</span>,</span>
