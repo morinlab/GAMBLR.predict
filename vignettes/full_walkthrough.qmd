@@ -177,8 +177,8 @@ pred_train <- DLBCLone_predict(
   optimized_model = all_features_optimized,
   drop_extra = TRUE
 )
+print(head(all_features_optimized$features))
 
-all_features_optimized$features
 ```
 
 ## make_neighborhood_plot 

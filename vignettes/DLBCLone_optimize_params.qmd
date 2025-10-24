@@ -28,35 +28,34 @@ loaded_model <- DLBCLone_load_optimized(
 all_features_optimized <- DLBCLone_activate(loaded_model, force = TRUE)
 ```
 
-# DLBCLone_optimize_params 
+## Overview of function 
 
-This function sets multiple tuning thresholds based on the structure of the training data provided. On the training, it handles predictions, applies thresholding, and makes data-driven approximations for classifying samples using UMAP embeddings and k-nearest neighbor logic.
+The `DLBCLone_optimize_params` function tunes the K value and a few thresholds based on the training data, working to maximize balanced accuracy or (optionally) another metric. 
 
 `combined_mutation_status_df` feature matrix data frame with one row per sample and one column per mutation
 
-`metadata_df` data frame of metadata with one row per sample and three required columns: sample_id, dataset and lymphgen
+`metadata_df` data frame of metadata with one row per sample and three required columns: sample_id, dataset and the column containing the "truth" lable, which defaults to lymphgen
 
-`umap_out` the output of a previous run of `make_and_annotate_umap`
+`umap_out` the output of `make_and_annotate_umap`
 
 `truth_classes` vector of classes to use for training and testing (LymphGen default: c("EZB", "MCD", "ST2", "N1", "BN2", "Other"))
 
-`optimize_for_other` set to TRUE to optimize the threshold for classifying samples as "Other" based on the relative proportion of samples nearest to the sample in the UMAP space with an "Other" label. Rather than treating Other as just another class, this will optimize the threshold for a separate score that considers how many Other and non-Other samples are in the neighborhood of the sample in question. This parameter will NOT change the value in predicted_label. Instead, the predicted_label_optimized column will contain the optimized label (default: FALSE)
+`min_k` lowest k in the range of values to try for KNN (default: 3)
 
-`min_k` starting k for knn (default: 3)
+`max_k` highest k in the range of values to try for KNN (default: 33)
 
-`max_k` ending k for knn (default: 33)
 
-# Example 1 Optimize for other TRUE 
+## Example
 
 Let's assume we are generally happy with the separation of samples in this latent representation. We can use `DLBCLone_optimize_params` to pick a combination of k (number of neighbors) and a few thresholds to categorize each sample based on its location and proximity to other points in the UMAP. Here, we give the original UMAP produced by `make_and_annotate_umap` and not the repojected UMAP, because this function will perform the sample-by-sample projection for us. Optimize for other will be set to TRUE as we are interested in high confidence predictions that are less likely to actually be "Other".
 
 ```{r optimize1, eval=FALSE}
+
 all_features_optimized = DLBCLone_optimize_params(  
-  mu_everything$features, 
-  dlbcl_meta_clean,
+  #mu_everything$features, 
+  metadata_df = dlbcl_meta_clean,
   umap_out = mu_everything,
   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
-  optimize_for_other = T,
   min_k=5,
   max_k=13
 )
@@ -65,11 +64,11 @@ all_features_optimized = DLBCLone_optimize_params(
 knitr::kable(all_features_optimized$best_params)
 ```
 
-## Overview of classifications, Example 1 
+## Overview of classifications
 
 ### posthoc_feature_enrichment 
 
-Interested in the most contributing mutations per subtype? Whether it be the most frequently mutated, or the most significantly mutated via chi square subtype vs. rest? `posthoc_feature_enrichment` can help evaluate structure and potential biases in your training data. Bar and/or forest plots can be produced.
+Interested in the most contributing mutations per subtype? Whether it be the most frequently mutated, or the most significantly mutated via chi square subtype vs. rest? `posthoc_feature_enrichment` can help evaluate structure and potential biases in your training data. If Fisher or Chi-square test is used, bar plots and forest plots will be produced.
 
 `sample_metadata` Data frame containing sample metadata with class labels, by default in a column named "lymphgen". Use `label_column` to specify a different column
 
@@ -79,7 +78,7 @@ Interested in the most contributing mutations per subtype? Whether it be the mos
 
 `truth_classes` Vector of class labels to consider (default: c("BN2","EZB","MCD","ST2","N1"))
 
-`method` Method to determine top features: "frequency" for most abundant features, "chi_square" for top differentially mutated features in the classes vs all other classes (default : "frequency")
+`method` Method to determine top features: "frequency" for most abundant features, "chi_square" for top differentially mutated features in the classes vs all other classes or "fisher" to compare in-class vs out-class feature frequency across all classes (default : "frequency")
 
 `num_feats` Number of top features to display per subtype (default: 10)
 
@@ -95,7 +94,7 @@ Interested in the most contributing mutations per subtype? Whether it be the mos
 plots<- posthoc_feature_enrichment(
   sample_metadata = all_features_optimized$predictions,
   features = all_features_optimized$features,
-  method = "frequency"
+  method = "fisher"
 )
 ```
 ```{r, message=FALSE, warning=FALSE}

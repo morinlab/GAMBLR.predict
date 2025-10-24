@@ -1,6 +1,11 @@
 ---
-execute:
-  cache: false
+title: "Predicting classes with DLBCLone_predict"
+vignette: >
+  %\VignetteIndexEntry{quarto vignettes}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+from: markdown+emoji
+fig.align: "center"
 ---
 
 # Predict Samples
