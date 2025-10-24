@@ -76,18 +76,17 @@
 
 
 
-    <section class="section level2"><h2 id="dlbclone_optimize_params">DLBCLone_optimize_params<a class="anchor" aria-label="anchor" href="#dlbclone_optimize_params"></a>
-</h2>
-<p>This function tunes the K value and a few thresholds based on the training data, working to maximize balanced accuracy or (optionally) another metric.</p>
+    <section class="section level3"><h3 id="overview-of-function">Overview of function<a class="anchor" aria-label="anchor" href="#overview-of-function"></a>
+</h3>
+<p>The <code>DLBCLone_optimize_params</code> function tunes the K value and a few thresholds based on the training data, working to maximize balanced accuracy or (optionally) another metric.</p>
 <p><code>combined_mutation_status_df</code> feature matrix data frame with one row per sample and one column per mutation</p>
 <p><code>metadata_df</code> data frame of metadata with one row per sample and three required columns: sample_id, dataset and the column containing the “truth” lable, which defaults to lymphgen</p>
 <p><code>umap_out</code> the output of <code>make_and_annotate_umap</code></p>
 <p><code>truth_classes</code> vector of classes to use for training and testing (LymphGen default: c(“EZB”, “MCD”, “ST2”, “N1”, “BN2”, “Other”))</p>
-<p><code>optimize_for_other</code> set to TRUE to optimize the threshold for classifying samples as “Other” based on the relative proportion of samples nearest to the sample in the UMAP space with an “Other” label. Rather than treating Other as just another class, this will optimize the threshold for a separate score that considers how many Other and non-Other samples are in the neighborhood of the sample in question. This parameter will NOT change the value in predicted_label. Instead, the predicted_label_optimized column will contain the optimized label (default: FALSE)</p>
-<p><code>min_k</code> starting k for knn (default: 3)</p>
-<p><code>max_k</code> ending k for knn (default: 33)</p>
-</section><section class="section level2"><h2 id="example-1-optimize-for-other-true">Example 1 Optimize for other TRUE<a class="anchor" aria-label="anchor" href="#example-1-optimize-for-other-true"></a>
-</h2>
+<p><code>min_k</code> lowest k in the range of values to try for KNN (default: 3)</p>
+<p><code>max_k</code> highest k in the range of values to try for KNN (default: 33)</p>
+</section><section class="section level3"><h3 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
+</h3>
 <p>Let’s assume we are generally happy with the separation of samples in this latent representation. We can use <code>DLBCLone_optimize_params</code> to pick a combination of k (number of neighbors) and a few thresholds to categorize each sample based on its location and proximity to other points in the UMAP. Here, we give the original UMAP produced by <code>make_and_annotate_umap</code> and not the repojected UMAP, because this function will perform the sample-by-sample projection for us. Optimize for other will be set to TRUE as we are interested in high confidence predictions that are less likely to actually be “Other”.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
@@ -195,7 +194,7 @@
 </table>
 </div>
 </div>
-<section class="level2"><h3 id="overview-of-classifications-example-1">Overview of classifications, Example 1<a class="anchor" aria-label="anchor" href="#overview-of-classifications-example-1"></a>
+</section><section class="section level3"><h3 id="overview-of-classifications-example-1">Overview of classifications, Example 1<a class="anchor" aria-label="anchor" href="#overview-of-classifications-example-1"></a>
 </h3>
 <section class="level3"><h4 id="posthoc_feature_enrichment">posthoc_feature_enrichment<a class="anchor" aria-label="anchor" href="#posthoc_feature_enrichment"></a>
 </h4>
@@ -304,7 +303,7 @@
 <span>  base_name<span class="op">=</span><span class="st">"model_summaries/all_full_status"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</section></section></section><section class="section level2"><h2 id="example-2-optimize-for-other-false">Example 2 Optimize for other FALSE<a class="anchor" aria-label="anchor" href="#example-2-optimize-for-other-false"></a>
+</section></section><section class="section level2"><h2 id="example-2-optimize-for-other-false">Example 2 Optimize for other FALSE<a class="anchor" aria-label="anchor" href="#example-2-optimize-for-other-false"></a>
 </h2>
 <p>When looking at w for weighted, not wo for weighted and optimized for other, DLBCLone outputs its greedy search strategy, aiming to classify as many samples as possible, even at low confidence levels. This approach can reveal trends in the underlying data structure, but it also increases the risk of assigning low-confidence predicted labels.</p>
 <p>DLBCLone without outgroup optimization (“w”) w for weighted.</p>
