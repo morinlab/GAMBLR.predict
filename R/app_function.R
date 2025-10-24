@@ -1074,6 +1074,8 @@ DLBCLone_shiny <- function(...){
             make_umap_scatterplot(
                     result$predictions,
                     colour_by = current_truth_column()
+                ) + theme(
+                    panel.background = element_rect(fill='white', colour='white')
                 )
         })
         output$DLBCLone_KNN_plot_prediction <- renderPlot({
@@ -1085,6 +1087,8 @@ DLBCLone_shiny <- function(...){
             make_umap_scatterplot(
                     result$predictions,
                     colour_by = "DLBCLone_wo"
+                )  + theme(
+                    panel.background = element_rect(fill='white', colour='white')
                 )
         })
 
@@ -1113,7 +1117,9 @@ DLBCLone_shiny <- function(...){
             # }
             validate(need(!is.null(umap_out), "Waiting for model output..."))
             tc = current_truth_column()
-            make_umap_scatterplot(umap_out$df,  colour_by = tc)
+            make_umap_scatterplot(umap_out$df,  colour_by = tc) + theme(
+                    panel.background = element_rect(fill='white', colour='white')
+                )
         })
 
         output$alluvial <- renderPlot({
