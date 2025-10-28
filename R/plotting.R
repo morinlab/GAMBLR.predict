@@ -100,15 +100,14 @@ nearest_neighbor_heatmap <- function(
       greedy_col <- "DLBCLone_w"
       pred_row <- DLBCLone_model$prediction %>%
         dplyr::filter(.data$sample_id == .env$this_sample_id)
-      print(pred_row)
+      #(pred_row)
     }
 
-    #feats_mat <- DLBCLone_model$features_df
-    #if (is.null(feats_mat)) {
-    #  stop("features_df is missing in the provided model object.")
-    #}
+
     index_feats_mat <- DLBCLone_model$features #features for index sample
     other_feats_mat <- DLBCLone_model$umap_input #features for all training samples
+    other_feats_mat = other_feats_mat %>% 
+      select(-ends_with("_feats"))
     #check that index_feats_mat and other_feats_mat have the same columns
     if(!all(colnames(index_feats_mat) == colnames(other_feats_mat))){
       stop("features and umap_input must have the same columns")
@@ -182,10 +181,10 @@ nearest_neighbor_heatmap <- function(
   # ----- Build row annotation data -----
   # Start from predictions; join metadata if present
   if(DLBCLone_model$type=="DLBCLone_predict"){
-    preds <- DLBCLone_model$prediction
+    preds <- DLBCLone_model$prediction %>% filter(sample_id== this_sample_id)
     
   }else{
-    preds <- DLBCLone_model$predictions
+    preds <- DLBCLone_model$predictions 
   }
 
   if (is.null(preds) || !"sample_id" %in% names(preds)) {
@@ -210,8 +209,6 @@ nearest_neighbor_heatmap <- function(
     }else{
       preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
     }
-    #preds <- dplyr::left_join(preds, DLBCLone_model$metadata, by = "sample_id")
-    #print(colnames(preds))
   }else{
     warning("No metadata found in model; truth_column and metadata_cols may be missing.")
   }
