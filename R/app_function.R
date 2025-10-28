@@ -1046,21 +1046,26 @@ DLBCLone_shiny <- function(...){
 
         output$heatmap <- renderPlot({
             DLBCLone_KNN_out <- dlbclone_pred_result()
+            if(!is.null(DLBCLone_KNN_out)){
+                these_are_training_columns <- colnames(DLBCLone_KNN_out$umap_input)
+                these_are_training_columns <- these_are_training_columns[!grepl("_feats", these_are_training_columns)]
+                DLBCLone_KNN_out$umap_input <- DLBCLone_KNN_out$umap_input %>%
+                    select(all_of(these_are_training_columns))
+            }
             sid <- current_predict_id()
-
             if (is.null(DLBCLone_KNN_out) ||
-                is.null(DLBCLone_KNN_out$predictions) ||
+                is.null(DLBCLone_KNN_out$prediction) ||
                 is.null(sid) ||
-                !(sid %in% DLBCLone_KNN_out$unlabeled_predictions$sample_id)) {
+                !(sid %in% DLBCLone_KNN_out$unprocessed_votes$sample_id)) {
             plot.new()
             text(0.5, 0.5, "Run the classifier (Demo or Custom) to view neighbors.", cex = 1.5)
             return()
             }
-            if(is.null(DLBCLone_KNN_out$unlabeled_neighbors)) {
-            plot.new()
-            text(0.5, 0.5, "No neighbors found.", cex = 1.5)
-            return()
-            }
+            # if(is.null(DLBCLone_KNN_out$unlabeled_neighbors)) {
+            # plot.new()
+            # text(0.5, 0.5, "No neighbors found.", cex = 1.5)
+            # return()
+            # }
             print(DLBCLone_KNN_out$unlabeled_predictions)
             print(DLBCLone_KNN_out$unlabeled_neighbors)
             nearest_neighbor_heatmap(sid, DLBCLone_KNN_out, truth_column = current_truth_column())
