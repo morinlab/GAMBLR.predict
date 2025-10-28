@@ -831,6 +831,9 @@ DLBCLone_shiny <- function(...){
                 present_value = input$custom_present_value,
                 train_cols = these_are_training_columns
             )
+            test_df <- as.data.frame(test_df)
+            rownames(test_df) <- input$custom_sample_id
+
             # Predict
             predicted <- DLBCLone_predict(
                 mutation_status = test_df,
@@ -1066,8 +1069,6 @@ DLBCLone_shiny <- function(...){
             # text(0.5, 0.5, "No neighbors found.", cex = 1.5)
             # return()
             # }
-            print(DLBCLone_KNN_out$unlabeled_predictions)
-            print(DLBCLone_KNN_out$unlabeled_neighbors)
             nearest_neighbor_heatmap(sid, DLBCLone_KNN_out, truth_column = current_truth_column())
         })
         output$DLBCLone_KNN_plot_truth <- renderPlot({
