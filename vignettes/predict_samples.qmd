@@ -1,5 +1,5 @@
 ---
-title: "Predicting classes with DLBCLone_predict"
+title: "DLBCLone Functions - Predicting classes with DLBCLone_predict"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}
@@ -38,10 +38,18 @@ best_opt_model_genes <- sort(c(
 best_opt_model_matrix <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
   tibble::column_to_rownames("sample_id") %>%
   select(best_opt_model_genes)
+```
 
+# DLBCLone_predict 
+
+Now for the primary objective of DLBCLone. What happens when you have new samples with no metadata? Using the trained models produced, `DLBCLone_predict` can approximate labelings to samples based on their corresponding feature matrix. 
+
+Before running `DLBCLone_predict` in the events that you the user stored your optimized parameters, I will once again walk you through the reactivation of a stored DLBCLone model. This is necessary to keep your workflow consistent for subsequent calls on the same trained model:
+
+```{r, message=FALSE, warning=FALSE}
 default_model <- "best_opt_w"
 
-loaded_model <- DLBCLone_load_optimized(
+loaded_model <- DLBCLone_load_optimized( # Load your stored optimized model from DLBCLone_save_optimized()
         dirname(
             system.file(
                 "extdata/models",
@@ -52,12 +60,13 @@ loaded_model <- DLBCLone_load_optimized(
         default_model
     )
 
-all_features_optimized <- DLBCLone_activate(loaded_model, force = TRUE)
+all_features_optimized <- DLBCLone_activate( # Reactivates stored model setting the UMAP projection
+  loaded_model, 
+  force = TRUE
+)
 ```
 
-# DLBCLone_predict 
-
-Now for the primary objective of DLBCLone. What happens when you have new samples with no metadata? Using the trained models produced, `DLBCLone_predict` can approximate labelings to samples based on their corresponding feature matrix. This function is versatile, you can use it to cross reference your training data, predict a test sample one at a time, or all of your test samples all at once! Here we will just be using training samples.
+`DLBCLone_predict` is versatile, you can use it to cross reference your training data, predict a test sample one at a time, or all of your test samples all at once! Here we will just be using training samples.
 
 `mutation_status` data frame containing the mutation feature matrix you are testing on 
 
@@ -68,7 +77,7 @@ Now for the primary objective of DLBCLone. What happens when you have new sample
 test_sample = "00-14595_tumorC"
 
 pred_train <- DLBCLone_predict(
-  mutation_status = best_opt_model_matrix,
+  mutation_status = best_opt_model_matrix[test_sample,],
   optimized_model = all_features_optimized
 )
 

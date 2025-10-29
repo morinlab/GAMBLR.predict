@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone Functions — K-Nearest Neighbors"
+title: "DLBCLone Functions - K-Nearest Neighbors"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}

@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone Functions — DLBCLone Model Management"
+title: "DLBCLone Functions - DLBCLone Model Management"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}

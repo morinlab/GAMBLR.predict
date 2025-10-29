@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone — Validation Data Generation and Example"
+title: "DLBCLone - Validation Data Generation and Example"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}
@@ -11,14 +11,6 @@ fig.align: "center"
 ```{r set working directory and libs, echo=FALSE, include=FALSE}
 library(GAMBLR.open)
 library(tidyverse)
-
-all_full_status_train <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
-  tibble::column_to_rownames("sample_id")
-
-dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
-
-dlbcl_meta_clean <- filter(dlbcl_meta,
-                          lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other"))
 
 valid_metadata_vaf <- readr::read_tsv(system.file("extdata/lyseq_validation/LySeqST_only_unaugmented_vaf.lymphgen_calls.no_cnvs.with_sv.no_A53.tsv",package = "GAMBLR.predict")) %>%
   rename(
@@ -47,7 +39,7 @@ valid_maf_vaf <- create_maf_data(
 ```
 
 ## Load the GAMBLR.predict package associated training files from extdata: 
-```{r, eval = FALSE}
+```{r, message=FALSE, warning=FALSE,results='hide'}
 all_full_status_train <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
   tibble::column_to_rownames("sample_id")
 
@@ -198,8 +190,10 @@ lyseq_features_optimized_train = DLBCLone_optimize_params(
 
 ### predicting all validation samples 
 ```{r, message=FALSE, warning=FALSE}
+test_sample = "00-14595_tumorC"
+
 pred_valid_lyseq <- DLBCLone_predict(
-  mutation_status = lyseq_valid,
+  mutation_status = lyseq_valid[test_sample,],
   optimized_model = lyseq_features_optimized_train
 )
 

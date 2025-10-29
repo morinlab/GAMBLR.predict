@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone Functions — Gaussian Mixture Model"
+title: "DLBCLone Functions - Gaussian Mixture Model"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}

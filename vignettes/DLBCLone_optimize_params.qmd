@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone Functions — Optimizing Parameters"
+title: "DLBCLone Functions - Optimizing Parameters"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}

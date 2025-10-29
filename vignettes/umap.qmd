@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone Functions — UMAP"
+title: "DLBCLone Functions - UMAP"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}
