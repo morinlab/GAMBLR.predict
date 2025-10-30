@@ -7,7 +7,7 @@ template:
     right: [search, github, lightswitch]
 
 reference:
-  - title: "Feature Matrix Assembly"
+  - title: "DLBCLone Functions - Feature Matrix Assembly"
     contents:
       - assemble_genetic_features
     examples: false
