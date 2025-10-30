@@ -38,14 +38,14 @@
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guides</h6></li>
     <li><a class="dropdown-item" href="../articles/index.html">DLBCLone</a></li>
-    <li><a class="dropdown-item" href="../articles/umap.html">DLBCLone Functions — UMAP</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">DLBCLone Functions — Optimizing Parameters</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Functions — DLBCLone Model Management</a></li>
-    <li><a class="dropdown-item" href="../articles/predict_samples.html">Predicting classes with DLBCLone_predict</a></li>
+    <li><a class="dropdown-item" href="../articles/umap.html">DLBCLone Functions - UMAP</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">DLBCLone Functions - Optimizing Parameters</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Functions - DLBCLone Model Management</a></li>
+    <li><a class="dropdown-item" href="../articles/predict_samples.html">DLBCLone Functions - Predicting classes with DLBCLone_predict</a></li>
     <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone Full Walkthrough of Associated Functions</a></li>
-    <li><a class="dropdown-item" href="../articles/validation.html">DLBCLone — Validation Data Generation and Example</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">DLBCLone Functions — K-Nearest Neighbors</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">DLBCLone Functions — Gaussian Mixture Model</a></li>
+    <li><a class="dropdown-item" href="../articles/validation.html">DLBCLone Validation Data Generation and Example</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">DLBCLone Functions - K-Nearest Neighbors</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">DLBCLone Functions - Gaussian Mixture Model</a></li>
   </ul>
 </li>
       </ul>
@@ -213,89 +213,157 @@
 </h3>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">pred_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
-<span>  mutation_status <span class="op">=</span> <span class="va">best_opt_model_matrix</span>,</span>
-<span>  optimized_model <span class="op">=</span> <span class="va">all_features_optimized</span>,</span>
-<span>  drop_extra <span class="op">=</span> <span class="cn">TRUE</span></span>
+<code class="sourceCode R"><span><span class="va">test_sample</span> <span class="op">=</span> <span class="st">"00-14595_tumorC"</span></span>
+<span></span>
+<span><span class="va">pred_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
+<span>  mutation_status <span class="op">=</span> <span class="va">best_opt_model_matrix</span><span class="op">[</span><span class="va">test_sample</span>,<span class="op">]</span>,</span>
+<span>  optimized_model <span class="op">=</span> <span class="va">all_features_optimized</span></span>
 <span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">all_features_optimized</span><span class="op">$</span><span class="va">features</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>                  ACTB ACTG1 BCL10 BCL2 BCL2L1 BCL2_SV BCL6 BCL6_SV BIRC3 BRAF
-00-14595_tumorC      0     0     0    2      0       2    2       2     0    0
-00-15201_tumorA      0     0     0    0      0       0    2       0     0    0
-00-15201_tumorB      0     0     0    0      0       0    0       0     0    0
-00-17960_CLC01670    2     0     0    1      0       2    0       2     0    0
-FL1015T2             0     0     0    0      0       2    0       2     0    0
-00-22011_tumorB      0     0     0    0      0       0    0       0     0    0
-                  BTG1 BTG2 BTK CD19 CD70 CD79B CD83 CDKN2A CREBBP DDX3X DTX1
-00-14595_tumorC      0    0   0    0    0     0    0      0      2     0    2
-00-15201_tumorA      0    0   0    0    0     0    0      0      0     0    0
-00-15201_tumorB      0    0   0    0    0     2    0      0      0     0    1
-00-17960_CLC01670    0    0   0    0    0     0    0      0      2     0    0
-FL1015T2             0    0   0    0    0     0    0      0      2     2    0
-00-22011_tumorB      0    0   0    0    0     2    0      0      0     0    0
-                  DUSP2 EDRF1 EIF4A2 EP300 ETS1 ETV6 EZH2 FAS FCGR2B FOXC1
-00-14595_tumorC       0     0      0     0    0    0    2   0      0     0
-00-15201_tumorA       2     0      0     0    0    0    0   0      0     0
-00-15201_tumorB       0     0      0     2    0    0    0   0      0     0
-00-17960_CLC01670     0     0      0     0    2    0    0   0      0     0
-FL1015T2              0     0      0     0    0    0    0   2      0     0
-00-22011_tumorB       0     0      0     2    0    0    0   0      0     0
-                  FOXO1 GNA13 GRHPR HLA-A HLA-B HNRNPD IRF4 IRF8 ITPKB JUNB
-00-14595_tumorC       2     2     0     0     0      0    0    0     2    0
-00-15201_tumorA       0     0     0     2     0      0    0    0     0    0
-00-15201_tumorB       0     0     0     2     2      0    0    0     0    0
-00-17960_CLC01670     0     0     0     0     0      0    0    0     0    0
-FL1015T2              0     0     0     0     0      0    0    0     0    0
-00-22011_tumorB       0     0     0     0     0      2    0    0     0    0
-                  KLF2 KLHL14 KLHL6 KMT2D MEF2B MPEG1 MYD88 MYD88HOTSPOT NFKBIA
-00-14595_tumorC      0      0     0     0     0     0     0            0      0
-00-15201_tumorA      0      0     0     2     0     0     0            0      0
-00-15201_tumorB      2      0     0     0     0     0     0            0      0
-00-17960_CLC01670    0      0     0     2     0     0     0            0      0
-FL1015T2             0      0     0     0     0     0     0            0      0
-00-22011_tumorB      0      0     0     2     0     0     0            0      0
-                  NFKBIE NFKBIZ NOL9 NOTCH1 NOTCH2 OSBPL10 PIM1 PIM2 PRDM1
-00-14595_tumorC        0      0    0      0      0       0    0    0     0
-00-15201_tumorA        2      0    0      0      0       0    2    0     0
-00-15201_tumorB        0      0    0      2      0       0    0    0     0
-00-17960_CLC01670      0      0    0      0      0       0    0    0     0
-FL1015T2               0      0    0      0      2       0    0    0     0
-00-22011_tumorB        0      0    0      0      0       0    0    0     0
-                  PRDM15 PRKDC PRRC2C PTPN1 RFTN1 S1PR2 SETD1B SGK1 SOCS1 SPEN
-00-14595_tumorC        0     0      0     0     0     2      0    1     2    0
-00-15201_tumorA        0     0      0     0     0     0      0    0     0    0
-00-15201_tumorB        0     0      0     0     0     0      0    0     0    0
-00-17960_CLC01670      0     0      0     0     0     0      0    0     0    0
-FL1015T2               0     0      0     0     0     0      0    0     0    0
-00-22011_tumorB        0     2      0     0     0     0      0    0     0    0
-                  STAT3 STAT6 TBCC TBL1XR1 TET2 TMEM30A TMSB4X TNFAIP3 TNFRSF14
-00-14595_tumorC       0     0    0       2    0       0      2       0        0
-00-15201_tumorA       0     0    0       0    0       0      0       0        0
-00-15201_tumorB       0     0    0       0    0       0      0       2        0
-00-17960_CLC01670     0     0    0       0    0       0      0       0        0
-FL1015T2              0     2    0       0    0       0      0       0        0
-00-22011_tumorB       0     0    0       0    0       0      0       0        0
-                  TOX TP53 TP73 UBE2A WEE1 XBP1 ZFP36L1 st2_feats n1_feats
-00-14595_tumorC     0    0    0     0    0    0       0     1.125        0
-00-15201_tumorA     0    0    0     0    2    0       0     0.750        0
-00-15201_tumorB     0    0    0     0    0    0       0     0.000        3
-00-17960_CLC01670   0    0    0     0    0    0       0     0.000        0
-FL1015T2            0    0    0     0    0    0       0     0.000        0
-00-22011_tumorB     0    0    0     0    0    0       0     0.000        0
-                  ezb_feats mcd_feats bn2_feats
-00-14595_tumorC         3.0         0      0.75
-00-15201_tumorA         0.0         1      0.00
-00-15201_tumorB         0.0         1      0.00
-00-17960_CLC01670       1.5         0      0.75
-FL1015T2                1.5         0      1.50
-00-22011_tumorB         0.0         1      0.00</code></pre>
+<span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">pred_train</span><span class="op">$</span><span class="va">prediction</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output-display">
+<table class="table caption-top" style="width:100%;">
+<colgroup>
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 17%">
+<col style="width: 6%">
+<col style="width: 9%">
+<col style="width: 6%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 2%">
+<col style="width: 1%">
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 0%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 0%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+</colgroup>
+<thead><tr class="header">
+<th style="text-align: left;">sample_id</th>
+<th style="text-align: left;">predicted_label</th>
+<th style="text-align: right;">confidence</th>
+<th style="text-align: right;">other_score</th>
+<th style="text-align: left;">neighbor_id</th>
+<th style="text-align: left;">neighbor</th>
+<th style="text-align: left;">distance</th>
+<th style="text-align: left;">label</th>
+<th style="text-align: left;">other_neighbor</th>
+<th style="text-align: left;">vote_labels</th>
+<th style="text-align: left;">weighted_votes</th>
+<th style="text-align: right;">neighbors_other</th>
+<th style="text-align: right;">neighborhood_otherness</th>
+<th style="text-align: right;">other_weighted_votes</th>
+<th style="text-align: right;">total_w</th>
+<th style="text-align: right;">pred_w</th>
+<th style="text-align: right;">V1</th>
+<th style="text-align: right;">V2</th>
+<th style="text-align: right;">.id</th>
+<th style="text-align: right;">EZB_NN_count</th>
+<th style="text-align: right;">MCD_NN_count</th>
+<th style="text-align: right;">ST2_NN_count</th>
+<th style="text-align: right;">N1_NN_count</th>
+<th style="text-align: right;">BN2_NN_count</th>
+<th style="text-align: right;">Other_NN_count</th>
+<th style="text-align: left;">top_group</th>
+<th style="text-align: right;">EZB_score</th>
+<th style="text-align: right;">MCD_score</th>
+<th style="text-align: right;">ST2_score</th>
+<th style="text-align: right;">N1_score</th>
+<th style="text-align: right;">BN2_score</th>
+<th style="text-align: right;">Other_score</th>
+<th style="text-align: left;">top_score_group</th>
+<th style="text-align: right;">top_group_score</th>
+<th style="text-align: right;">top_group_count</th>
+<th style="text-align: right;">Other_count</th>
+<th style="text-align: right;">by_vote</th>
+<th style="text-align: left;">by_vote_opt</th>
+<th style="text-align: left;">by_score</th>
+<th style="text-align: right;">score_ratio</th>
+<th style="text-align: left;">by_score_opt</th>
+<th style="text-align: left;">DLBCLone_w</th>
+<th style="text-align: left;">DLBCLone_wo</th>
+</tr></thead>
+<tbody><tr class="odd">
+<td style="text-align: left;">00-14595_tumorC</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">DLBCL11584T,CLC03456,DLBCL11428T,05-32762T,LY_RELY_116_tumorA,99-13280T,05-25439T,QC2-32T,SP193546,SP193976,FL1018T2,Reddy_2488T,10-36955_tumorB</td>
+<td style="text-align: left;">1112,351,995,85,1265,416,80,1322,1182,1164,89,1479,172</td>
+<td style="text-align: left;">0.203,0.223,0.231,0.259,0.265,0.293,0.298,0.306,0.321,0.34,0.349,0.356,0.365</td>
+<td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">45.8609381214032</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">-3.826784</td>
+<td style="text-align: right;">2.487499</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">Inf</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+</tr></tbody>
+</table>
 </div>
 </div>
 </section></section><section class="level2"><h2 id="make_neighborhood_plot">make_neighborhood_plot<a class="anchor" aria-label="anchor" href="#make_neighborhood_plot"></a>
 </h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_neighborhood_plot.html">make_neighborhood_plot</a></span><span class="op">(</span></span>
 <span>  single_sample_prediction_output <span class="op">=</span> <span class="va">pred_train</span>,</span>
 <span>  this_sample_id <span class="op">=</span> <span class="st">"00-14595_tumorC"</span>,</span>
@@ -313,7 +381,7 @@ FL1015T2                1.5         0      1.50
 </section><section class="level2"><h2 id="nearest_neighbor_heatmap">nearest_neighbor_heatmap<a class="anchor" aria-label="anchor" href="#nearest_neighbor_heatmap"></a>
 </h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/nearest_neighbor_heatmap.html">nearest_neighbor_heatmap</a></span><span class="op">(</span></span>
 <span>  this_sample_id <span class="op">=</span> <span class="st">"00-14595_tumorC"</span>,</span>
 <span>  DLBCLone_model <span class="op">=</span> <span class="va">pred_train</span>,</span>
@@ -327,107 +395,89 @@ FL1015T2                1.5         0      1.50
 </div>
 </div>
 </section><script id="quarto-html-after-body" type="application/javascript">
-window.document.addEventListener("DOMContentLoaded", function (event) {
-  const toggleBodyColorMode = (bsSheetEl) => {
-    const mode = bsSheetEl.getAttribute("data-mode");
-    const bodyEl = window.document.querySelector("body");
-    if (mode === "dark") {
-      bodyEl.classList.add("quarto-dark");
-      bodyEl.classList.remove("quarto-light");
-    } else {
-      bodyEl.classList.add("quarto-light");
-      bodyEl.classList.remove("quarto-dark");
-    }
-  }
-  const toggleBodyColorPrimary = () => {
-    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
-    if (bsSheetEl) {
-      toggleBodyColorMode(bsSheetEl);
-    }
-  }
-  toggleBodyColorPrimary();
-    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-    var mailtoRegex = new RegExp(/^mailto:/);
-      var filterRegex = new RegExp('/' + window.location.host + '/');
-    var isInternal = (href) => {
-        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-    }
-    // Inspect non-navigation links and adorn them if external
- 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-    for (var i=0; i<links.length; i++) {
-      const link = links[i];
-      if (!isInternal(link.href)) {
-        // undo the damage that might have been done by quarto-nav.js in the case of
-        // links that we want to consider external
-        if (link.dataset.originalHref !== undefined) {
-          link.href = link.dataset.originalHref;
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
         }
       }
-    }
-  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-    const config = {
-      allowHTML: true,
-      maxWidth: 500,
-      delay: 100,
-      arrow: false,
-      appendTo: function(el) {
-          return el.parentElement;
-      },
-      interactive: true,
-      interactiveBorder: 10,
-      theme: 'light-border',
-      placement: 'bottom-start',
-    };
-    if (contentFn) {
-      config.content = contentFn;
-    }
-    if (onTriggerFn) {
-      config.onTrigger = onTriggerFn;
-    }
-    if (onUntriggerFn) {
-      config.onUntrigger = onUntriggerFn;
-    }
-    window.tippy(el, config);
-  }
-  const findCites = (el) => {
-    const parentEl = el.parentElement;
-    if (parentEl) {
-      const cites = parentEl.dataset.cites;
-      if (cites) {
-        return {
-          el,
-          cites: cites.split(' ')
-        };
-      } else {
-        return findCites(el.parentElement)
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'light-border',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
       }
-    } else {
-      return undefined;
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config);
     }
-  };
-  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-  for (var i=0; i<bibliorefs.length; i++) {
-    const ref = bibliorefs[i];
-    const citeInfo = findCites(ref);
-    if (citeInfo) {
-      tippyHover(citeInfo.el, function() {
-        var popup = window.document.createElement('div');
-        citeInfo.cites.forEach(function(cite) {
-          var citeDiv = window.document.createElement('div');
-          citeDiv.classList.add('hanging-indent');
-          citeDiv.classList.add('csl-entry');
-          var biblioDiv = window.document.getElementById('ref-' + cite);
-          if (biblioDiv) {
-            citeDiv.innerHTML = biblioDiv.innerHTML;
-          }
-          popup.appendChild(citeDiv);
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
         });
-        return popup.innerHTML;
-      });
+      }
     }
-  }
-});
-</script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+  });
+  </script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
 
@@ -437,7 +487,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
     </footer>

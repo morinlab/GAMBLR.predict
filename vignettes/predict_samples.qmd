@@ -66,7 +66,7 @@ all_features_optimized <- DLBCLone_activate( # Reactivates stored model setting 
 )
 ```
 
-`DLBCLone_predict` is versatile, you can use it to cross reference your training data, predict a test sample one at a time, or all of your test samples all at once! Here we will just be using training samples.
+`DLBCLone_predict` is a versatile function, you can use it to cross reference your training data, predict a test sample one at a time, or all of your test samples all at once! Here we will just be using training samples.
 
 `mutation_status` data frame containing the mutation feature matrix you are testing on 
 

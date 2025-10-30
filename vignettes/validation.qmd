@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone - Validation Data Generation and Example"
+title: "DLBCLone Validation Data Generation and Example"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}
@@ -184,6 +184,11 @@ lyseq_features_optimized_train = DLBCLone_optimize_params(
   min_k=5,
   max_k=13
 )
+
+lyseq_features_optimized_train <- DLBCLone_activate( # Activates optimized model setting the UMAP projection
+  lyseq_features_optimized_train, 
+  force = TRUE
+)
 ```
 
 ## DLBCLone_predict 
@@ -223,10 +228,15 @@ nearest_neighbor_heatmap(
 
 ## Accuracy Assessment 
 
-Now that we have a fully processed dlbclone validation set (148 samples) of a lyseq panel; let us assess the accuracy by comparing its `dlbclone_predict` predictions with its ground truth lymphgen labeling found in its metadata:
+Finally, lets assess the accuracy of the validation set by comparing `dlbclone_predict` predictions with its ground truth lymphgen labeling found in its metadata. To do this we should first get predictions from `dlbclone_predict` on all of the 148 lyseq panel validation samples.
 
 ```{r compare_to_lymphgen, message=FALSE, warning=FALSE}
-pred_vs_original = left_join(pred_valid_lyseq$prediction,valid_metadata_vaf)
+pred_valid_lyseq_all <- DLBCLone_predict(
+  mutation_status = lyseq_valid,
+  optimized_model = lyseq_features_optimized_train
+)
+
+pred_vs_original = left_join(pred_valid_lyseq_all$prediction,valid_metadata_vaf)
 
 #collapse composites into group-COMP
 pred_vs_original = tidy_lymphgen(pred_vs_original,lymphgen_column_in = "lymphgen",lymphgen_column_out = "lymphgen_tidy")
@@ -235,6 +245,4 @@ pred_vs_original = tidy_lymphgen(pred_vs_original,lymphgen_column_in = "lymphgen
 pred_vs_original = mutate(pred_vs_original,lymphgen_basic = gsub("-COMP","",lymphgen_tidy))
 
 make_alluvial(list(predictions=pred_vs_original),pred_column = "DLBCLone_wo",group_order = c("MCD","BN2","ST2","EZB","N1","Other"),truth_column = "lymphgen_basic")
-
-table(pred_vs_original$lymphgen_basic,pred_vs_original$DLBCLone_wo)
 ```
