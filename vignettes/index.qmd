@@ -51,7 +51,7 @@ all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",pack
   tibble::column_to_rownames("sample_id")
 ```
 
-The examples covering how to run DLBCLone, will use the following all_full_status features:
+The examples covering how to run DLBCLone will use the following all_full_status features:
 ```{r, message=FALSE, warning=FALSE, eval = FALSE}
 best_opt_model_genes <- sort(c(
   "ACTB", "ACTG1", "BCL10", "BCL2", "BCL2L1", 
