@@ -26,7 +26,7 @@ loaded_model <- DLBCLone_load_optimized(
         default_model
     )
 
-all_features_optimized <- DLBCLone_activate(loaded_model, force = TRUE)
+best_opt_model <- DLBCLone_activate(loaded_model, force = TRUE)
 ```
 
 *A step by step example workflow from start to finish*
@@ -119,7 +119,7 @@ make_umap_scatterplot(
 ## DLBCLone_optimize_params 
 
 ```{r optimize1, eval = FALSE}
-all_features_optimized = DLBCLone_optimize_params(  
+best_opt_model = DLBCLone_optimize_params(  
   mu_everything$features, 
   dlbcl_meta_clean,
   umap_out = mu_everything,
@@ -134,7 +134,7 @@ all_features_optimized = DLBCLone_optimize_params(
 
 DLBCLone with outgroup optimization ("wo") w for weighted, o for optimized for other.
 ```{r plot_alluvial2, message=FALSE, warning=FALSE,results='hide'}
-make_alluvial(all_features_optimized,pred_column = "DLBCLone_wo",pred_name = "DLBCLone_wo")
+make_alluvial(best_opt_model,pred_column = "DLBCLone_wo",pred_name = "DLBCLone_wo")
 ```
 
 ## DLBCLone_predict
@@ -145,7 +145,7 @@ test_sample = "00-14595_tumorC"
 
 pred_train <- DLBCLone_predict(
   mutation_status = best_opt_model_matrix[test_sample,],
-  optimized_model = all_features_optimized
+  optimized_model = best_opt_model
 )
 knitr::kable(head(pred_train$prediction))
 ```

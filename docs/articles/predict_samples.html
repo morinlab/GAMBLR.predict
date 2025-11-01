@@ -97,7 +97,7 @@
 <span>        <span class="va">default_model</span></span>
 <span>    <span class="op">)</span></span>
 <span></span>
-<span><span class="va">all_features_optimized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_activate.html">DLBCLone_activate</a></span><span class="op">(</span> <span class="co"># Reactivates stored model setting the UMAP projection</span></span>
+<span><span class="va">best_opt_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_activate.html">DLBCLone_activate</a></span><span class="op">(</span> <span class="co"># Reactivates stored model setting the UMAP projection</span></span>
 <span>  <span class="va">loaded_model</span>, </span>
 <span>  force <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -113,7 +113,7 @@
 <span></span>
 <span><span class="va">pred_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
 <span>  mutation_status <span class="op">=</span> <span class="va">best_opt_model_matrix</span><span class="op">[</span><span class="va">test_sample</span>,<span class="op">]</span>,</span>
-<span>  optimized_model <span class="op">=</span> <span class="va">all_features_optimized</span></span>
+<span>  optimized_model <span class="op">=</span> <span class="va">best_opt_model</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">pred_train</span><span class="op">$</span><span class="va">prediction</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>

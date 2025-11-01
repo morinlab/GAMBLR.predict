@@ -103,7 +103,7 @@
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="http://mvtnorm.R-forge.R-project.org" class="external-link">mvtnorm</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jtlandis/ggside" class="external-link">ggside</a></span><span class="op">)</span></span></code></pre></div>
 </div>
-<p>Load the GAMBLR.predict package associated training files from extdata:</p>
+<p>Load the GAMBLR.predict package associated feature matrix and metadata files from extdata:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dlbcl_meta</span> <span class="op">=</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/dlbcl_meta_with_dlbclass.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span></span>
@@ -112,10 +112,12 @@
 <span>                          <span class="va">lymphgen</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"EZB"</span>,<span class="st">"BN2"</span>,<span class="st">"N1"</span>,<span class="st">"ST2"</span>,<span class="st">"Other"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">all_full_status</span> <span class="op">=</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/all_full_status.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/rownames.html" class="external-link">column_to_rownames</a></span><span class="op">(</span><span class="st">"sample_id"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Example feature matrix uses the following all_full_status features:</span></span>
-<span><span class="va">best_opt_model_genes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/rownames.html" class="external-link">column_to_rownames</a></span><span class="op">(</span><span class="st">"sample_id"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<p>The covering how to run DLBCLone use the following all_full_status features:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">best_opt_model_genes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ACTB"</span>, <span class="st">"ACTG1"</span>, <span class="st">"BCL10"</span>, <span class="st">"BCL2"</span>, <span class="st">"BCL2L1"</span>, </span>
 <span>  <span class="st">"BCL6"</span>, <span class="st">"BIRC3"</span>, <span class="st">"BRAF"</span>, <span class="st">"BTG1"</span>, <span class="st">"BTG2"</span>, </span>
 <span>  <span class="st">"BTK"</span>, <span class="st">"CD19"</span>, <span class="st">"CD70"</span>, <span class="st">"CD79B"</span>, <span class="st">"CD83"</span>, </span>
@@ -137,6 +139,25 @@
 <span></span>
 <span><span class="va">best_opt_model_matrix</span> <span class="op">&lt;-</span> <span class="va">all_full_status</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">best_opt_model_genes</span><span class="op">)</span></span></code></pre></div>
+</div>
+<p>Alternatively, you can load the stored optimized model <code>best_opt_model.rds</code> from extdata:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">loaded_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_load_optimized.html">DLBCLone_load_optimized</a></span><span class="op">(</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/basename.html" class="external-link">dirname</a></span><span class="op">(</span></span>
+<span>            <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
+<span>                <span class="st">"extdata/models"</span>,</span>
+<span>                <span class="st">"best_opt_model.rds"</span>,</span>
+<span>                package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span></span>
+<span>            <span class="op">)</span></span>
+<span>        <span class="op">)</span>,</span>
+<span>        <span class="va">default_model</span></span>
+<span>    <span class="op">)</span></span>
+<span></span>
+<span><span class="va">best_opt_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_activate.html">DLBCLone_activate</a></span><span class="op">(</span> <span class="co"># Reactivates stored model setting the UMAP projection</span></span>
+<span>  <span class="va">loaded_model</span>, </span>
+<span>  force <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <p><img src="concept_map.png"></p>
 <p><em>There are dedicated DLBCLone Tutorial Pages that cover:</em></p>

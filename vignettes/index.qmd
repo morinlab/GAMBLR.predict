@@ -40,7 +40,7 @@ library(mvtnorm)
 library(ggside)
 ```
 
-Load the GAMBLR.predict package associated training files from extdata: 
+Load the GAMBLR.predict package associated feature matrix and metadata files from extdata: 
 ```{r, message=FALSE, warning=FALSE, eval = FALSE}
 dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 
@@ -49,8 +49,10 @@ dlbcl_meta_clean = filter(dlbcl_meta,
 
 all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
   tibble::column_to_rownames("sample_id")
+```
 
-# Example feature matrix uses the following all_full_status features:
+The covering how to run DLBCLone use the following all_full_status features:
+```{r, message=FALSE, warning=FALSE, eval = FALSE}
 best_opt_model_genes <- sort(c(
   "ACTB", "ACTG1", "BCL10", "BCL2", "BCL2L1", 
   "BCL6", "BIRC3", "BRAF", "BTG1", "BTG2", 
@@ -73,6 +75,25 @@ best_opt_model_genes <- sort(c(
 
 best_opt_model_matrix <- all_full_status %>%
   select(best_opt_model_genes)
+```
+
+Alternatively, you can load the stored optimized model `best_opt_model.rds` from extdata:
+```{r, message=FALSE, warning=FALSE, eval = FALSE}
+loaded_model <- DLBCLone_load_optimized(
+        dirname(
+            system.file(
+                "extdata/models",
+                "best_opt_model.rds",
+                package = "GAMBLR.predict"
+            )
+        ),
+        default_model
+    )
+
+best_opt_model <- DLBCLone_activate( # Reactivates stored model setting the UMAP projection
+  loaded_model, 
+  force = TRUE
+)
 ```
 
 ![](concept_map.png)

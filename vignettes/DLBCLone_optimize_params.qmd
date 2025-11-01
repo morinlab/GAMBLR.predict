@@ -25,7 +25,7 @@ loaded_model <- DLBCLone_load_optimized(
         default_model
     )
 
-all_features_optimized <- DLBCLone_activate(loaded_model, force = TRUE)
+best_opt_model <- DLBCLone_activate(loaded_model, force = TRUE)
 ```
 
 ## Overview of function 
@@ -51,7 +51,7 @@ Let's assume we are generally happy with the separation of samples in this laten
 
 ```{r optimize1, eval=FALSE}
 
-all_features_optimized = DLBCLone_optimize_params(  
+best_opt_model = DLBCLone_optimize_params(  
   #mu_everything$features, 
   metadata_df = dlbcl_meta_clean,
   umap_out = mu_everything,
@@ -61,7 +61,7 @@ all_features_optimized = DLBCLone_optimize_params(
 )
 ```
 ```{r, message=FALSE, warning=FALSE}
-knitr::kable(all_features_optimized$best_params)
+knitr::kable(best_opt_model$best_params)
 ```
 
 ## Overview of classifications
@@ -92,8 +92,8 @@ Interested in the most contributing mutations per subtype? Whether it be the mos
 
 ```{r, message=FALSE, warning=FALSE}
 plots<- posthoc_feature_enrichment(
-  sample_metadata = all_features_optimized$predictions,
-  features = all_features_optimized$features,
+  sample_metadata = best_opt_model$predictions,
+  features = best_opt_model$features,
   method = "fisher"
 )
 ```
@@ -128,7 +128,7 @@ A more advanced plotting function for the UMAP projections. This function can al
 
 ```{r, message=FALSE, warning=FALSE,results='hide'}
 basic_umap_scatterplot(
-  all_features_optimized$prediction, 
+  best_opt_model$prediction, 
   colour_by = "lymphgen",
   pred_column = "lymphgen",
   title = "truth"
@@ -147,12 +147,12 @@ Plotting function `make_alluvial` generates detailed alluvial plots to visualize
 
 DLBCLone with outgroup optimization ("wo") w for weighted, o for optimized for other.
 ```{r plot_alluvial2, message=FALSE, warning=FALSE,results='hide'}
-make_alluvial(all_features_optimized,pred_column = "DLBCLone_wo",pred_name = "DLBCLone_wo")
+make_alluvial(best_opt_model,pred_column = "DLBCLone_wo",pred_name = "DLBCLone_wo")
 ```
 
 ```{r, message=FALSE, warning=FALSE,results='hide'}
 basic_umap_scatterplot(
-  all_features_optimized$prediction, 
+  best_opt_model$prediction, 
   colour_by = "DLBCLone_wo",
   pred_column = "DLBCLone_wo",
   title = "DLBCLone_wo"
@@ -165,7 +165,7 @@ Generates and saves a set of summary plots as PDF, and tables for a DLBCLone mod
 
 ```{r, message=FALSE, warning=FALSE, eval = FALSE}
 DLBCLone_summarize_model(
-  optimized_model = all_features_optimized,
+  optimized_model = best_opt_model,
   base_name="model_summaries/all_full_status"
 )
 ```
@@ -177,12 +177,12 @@ When looking at w for weighted, not wo for weighted and optimized for other, DLB
 DLBCLone without outgroup optimization ("w") w for weighted.
 
 ```{r, message=FALSE,warning=FALSE,results='hide'}
-make_alluvial(all_features_optimized,pred_column = "DLBCLone_w",pred_name = "DLBCLone_w")
+make_alluvial(best_opt_model,pred_column = "DLBCLone_w",pred_name = "DLBCLone_w")
 ```
 
 ```{r, message=FALSE, warning=FALSE,results='hide'}
 basic_umap_scatterplot(
-  all_features_optimized$prediction, 
+  best_opt_model$prediction, 
   colour_by = "DLBCLone_w",
   pred_column = "DLBCLone_w",
   title = "DLBCLone_w"
@@ -206,7 +206,7 @@ This is an optional function you can run after `DLBCLone_optimize_params`. it wi
 ```{r, message=FALSE, warning=FALSE}
 
 postprocess_params <- DLBCLone_ensemble_postprocess(
-  optimized_model = all_features_optimized,
+  optimized_model = best_opt_model,
   other_min = 3,
   assign_composites = TRUE,
   any_split = TRUE,

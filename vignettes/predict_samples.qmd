@@ -60,7 +60,7 @@ loaded_model <- DLBCLone_load_optimized( # Load your stored optimized model from
         default_model
     )
 
-all_features_optimized <- DLBCLone_activate( # Reactivates stored model setting the UMAP projection
+best_opt_model <- DLBCLone_activate( # Reactivates stored model setting the UMAP projection
   loaded_model, 
   force = TRUE
 )
@@ -78,7 +78,7 @@ test_sample = "00-14595_tumorC"
 
 pred_train <- DLBCLone_predict(
   mutation_status = best_opt_model_matrix[test_sample,],
-  optimized_model = all_features_optimized
+  optimized_model = best_opt_model
 )
 
 knitr::kable(head(pred_train$prediction))
