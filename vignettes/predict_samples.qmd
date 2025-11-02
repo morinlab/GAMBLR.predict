@@ -98,7 +98,7 @@ Used for visualizing how and where neighbors are selected, a umap plot is produc
 
 `add_circle` Plot will include a circle surrounding the set of neighbors, helpful for identification
 
-```{r, message=FALSE, warning=FALSE}
+```{r make_neighborhood_plot, message=FALSE, warning=FALSE}
 make_neighborhood_plot(
   single_sample_prediction_output = pred_train,
   this_sample_id = "00-14595_tumorC",
@@ -124,7 +124,7 @@ Generates a heatmap of feature values for the nearest neighbors of a specified s
 
 `font_size` font size for heatmap text (default: 14)
 
-```{r, message=FALSE,warning=FALSE}
+```{r nearest_neighbor_heatmap, message=FALSE,warning=FALSE}
 nearest_neighbor_heatmap(
   this_sample_id = "00-14595_tumorC",
   DLBCLone_model = pred_train,
