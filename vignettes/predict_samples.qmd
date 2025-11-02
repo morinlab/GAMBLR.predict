@@ -98,7 +98,7 @@ Used for visualizing how and where neighbors are selected, a umap plot is produc
 
 `add_circle` Plot will include a circle surrounding the set of neighbors, helpful for identification
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 make_neighborhood_plot(
   single_sample_prediction_output = pred_train,
   this_sample_id = "00-14595_tumorC",

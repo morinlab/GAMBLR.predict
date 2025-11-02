@@ -151,7 +151,7 @@ knitr::kable(head(pred_train$prediction))
 ```
 
 ## make_neighborhood_plot 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 make_neighborhood_plot(
   single_sample_prediction_output = pred_train,
   this_sample_id = "00-14595_tumorC",
@@ -167,6 +167,6 @@ make_neighborhood_plot(
 nearest_neighbor_heatmap(
   this_sample_id = "00-14595_tumorC",
   DLBCLone_model = pred_train,
-  font_size = 10
+  font_size = 7
 )
 ```

@@ -52,7 +52,7 @@ Let's assume we are generally happy with the separation of samples in this laten
 ```{r optimize1, eval=FALSE}
 
 best_opt_model = DLBCLone_optimize_params(  
-  #mu_everything$features, 
+  combined_mutation_status_df = mu_everything$features, 
   metadata_df = dlbcl_meta_clean,
   umap_out = mu_everything,
   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),

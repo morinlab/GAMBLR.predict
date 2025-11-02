@@ -91,7 +91,7 @@
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">best_opt_model</span> <span class="op">=</span> <span class="fu"><a href="../reference/DLBCLone_optimize_params.html">DLBCLone_optimize_params</a></span><span class="op">(</span>  </span>
-<span>  <span class="co">#mu_everything$features, </span></span>
+<span>  combined_mutation_status_df <span class="op">=</span> <span class="va">mu_everything</span><span class="op">$</span><span class="va">features</span>, </span>
 <span>  metadata_df <span class="op">=</span> <span class="va">dlbcl_meta_clean</span>,</span>
 <span>  umap_out <span class="op">=</span> <span class="va">mu_everything</span>,</span>
 <span>  truth_classes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"EZB"</span>,<span class="st">"BN2"</span>,<span class="st">"N1"</span>,<span class="st">"ST2"</span>,<span class="st">"Other"</span><span class="op">)</span>,</span>
