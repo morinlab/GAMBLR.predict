@@ -39,7 +39,27 @@ dlbcl_meta_clean = filter(dlbcl_meta,
 
 all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
   tibble::column_to_rownames("sample_id")
+```
 
+```
+
+Alternatively, you can load the stored optimized model `best_opt_model.rds` from extdata:
+```{r, message=FALSE, warning=FALSE, eval = FALSE}
+loaded_model <- DLBCLone_load_optimized(
+        dirname(
+            system.file(
+                "extdata/models",
+                "best_opt_model.rds",
+                package = "GAMBLR.predict"
+            )
+        ),
+        default_model
+    )
+
+best_opt_model <- DLBCLone_activate( # Reactivates stored model setting the UMAP projection
+  loaded_model, 
+  force = TRUE
+)
 ```
 
 ![](concept_map.png)

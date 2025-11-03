@@ -15,7 +15,7 @@ library(tidyverse)
 
 default_model <- "best_opt_w"
 
-all_features_optimized <- DLBCLone_load_optimized(
+best_opt_model <- DLBCLone_load_optimized(
         dirname(
             system.file(
                 "extdata/models",
@@ -28,7 +28,7 @@ all_features_optimized <- DLBCLone_load_optimized(
 
 #all_features_optimized <- DLBCLone_activate(loaded_model, force = TRUE)
 
-model_feats = grep("_feats",colnames(all_features_optimized$features),invert=T,value=T)
+model_feats = grep("_feats",colnames(best_opt_model$features),invert=T,value=T)
 ```
 
 *A step by step example workflow from start to finish*
@@ -129,7 +129,7 @@ make_umap_scatterplot(
 ## DLBCLone_optimize_params 
 
 ```{r optimize1, eval = FALSE}
-all_features_optimized = DLBCLone_optimize_params(  
+best_opt_model = DLBCLone_optimize_params(  
   mu_everything$features, 
   dlbcl_meta_clean,
   umap_out = mu_everything,
@@ -144,7 +144,7 @@ all_features_optimized = DLBCLone_optimize_params(
 
 DLBCLone with outgroup optimization ("wo") w for weighted, o for optimized for other.
 ```{r plot_alluvial2, message=FALSE, warning=FALSE,results='hide'}
-make_alluvial(all_features_optimized,pred_column = "DLBCLone_wo",pred_name = "DLBCLone_wo")
+make_alluvial(best_opt_model,pred_column = "DLBCLone_wo",pred_name = "DLBCLone_wo")
 ```
 
 ## DLBCLone_predict
@@ -155,13 +155,13 @@ test_sample = "00-14595_tumorC"
 
 pred_train <- DLBCLone_predict(
   mutation_status = best_opt_model_matrix[test_sample,],
-  optimized_model = all_features_optimized
+  optimized_model = best_opt_model
 )
 knitr::kable(head(pred_train$prediction))
 ```
 
 ## make_neighborhood_plot 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 make_neighborhood_plot(
   single_sample_prediction_output = pred_train,
   this_sample_id = "00-14595_tumorC",
@@ -177,6 +177,6 @@ make_neighborhood_plot(
 nearest_neighbor_heatmap(
   this_sample_id = "00-14595_tumorC",
   DLBCLone_model = pred_train,
-  font_size = 10
+  font_size = 7
 )
 ```

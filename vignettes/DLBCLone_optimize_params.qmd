@@ -37,9 +37,11 @@ The `DLBCLone_optimize_params` function tunes the K value and a few thresholds b
 
 * `combined_mutation_status_df` feature matrix data frame with one row per sample and one column per mutation
 
+
 Confusingly, this argument is no longer required. The mutation status is stored in the output of `make_and_annotate_umap`
 
 * `metadata_df` data frame of metadata with one row per sample and three required columns: sample_id, dataset and the column containing the "truth" lable, which defaults to lymphgen
+
 
 * `umap_out` the output of `make_and_annotate_umap`
 
@@ -56,8 +58,8 @@ If you're here, then we assume you've run `make_and_annotate_umap` and are gener
 
 ```{r optimize_params, eval=FALSE}
 
-all_features_optimized = DLBCLone_optimize_params(  
-  #mu_everything$features, 
+best_opt_model = DLBCLone_optimize_params(  
+  combined_mutation_status_df = mu_everything$features, 
   metadata_df = dlbcl_meta_clean,
   umap_out = mu_everything,
   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
@@ -66,9 +68,6 @@ all_features_optimized = DLBCLone_optimize_params(
 )
 ```
 
-```{r, message=FALSE, warning=FALSE}
-knitr::kable(all_features_optimized$best_params)
-```
 
 ## Overview of classifications
 

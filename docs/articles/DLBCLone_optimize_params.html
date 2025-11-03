@@ -98,109 +98,14 @@
 <p>If you’re here, then we assume you’ve run <code>make_and_annotate_umap</code> and are generally happy with the separation of samples in this latent representation. We can use <code>DLBCLone_optimize_params</code> to automate finding an optimal K value (number of neighbors) and a few thresholds to categorize each sample based on its location and proximity to other points in the UMAP. Here, you provide the original UMAP produced by <code>make_and_annotate_umap</code> and <em>not</em> the re-projected UMAP, because this function will perform the sample-by-sample projection for us.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">all_features_optimized</span> <span class="op">=</span> <span class="fu"><a href="../reference/DLBCLone_optimize_params.html">DLBCLone_optimize_params</a></span><span class="op">(</span>  </span>
-<span>  <span class="co">#mu_everything$features, </span></span>
+<code class="sourceCode R"><span><span class="va">best_opt_model</span> <span class="op">=</span> <span class="fu"><a href="../reference/DLBCLone_optimize_params.html">DLBCLone_optimize_params</a></span><span class="op">(</span>  </span>
+<span>  combined_mutation_status_df <span class="op">=</span> <span class="va">mu_everything</span><span class="op">$</span><span class="va">features</span>, </span>
 <span>  metadata_df <span class="op">=</span> <span class="va">dlbcl_meta_clean</span>,</span>
 <span>  umap_out <span class="op">=</span> <span class="va">mu_everything</span>,</span>
 <span>  truth_classes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"EZB"</span>,<span class="st">"BN2"</span>,<span class="st">"N1"</span>,<span class="st">"ST2"</span>,<span class="st">"Other"</span><span class="op">)</span>,</span>
 <span>  min_k<span class="op">=</span><span class="fl">5</span>,</span>
 <span>  max_k<span class="op">=</span><span class="fl">13</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">all_features_optimized</span><span class="op">$</span><span class="va">best_params</span><span class="op">)</span></span></code></pre></div>
-<div class="cell-output-display">
-<table class="table caption-top">
-<colgroup>
-<col style="width: 1%">
-<col style="width: 3%">
-<col style="width: 4%">
-<col style="width: 6%">
-<col style="width: 5%">
-<col style="width: 7%">
-<col style="width: 4%">
-<col style="width: 2%">
-<col style="width: 3%">
-<col style="width: 3%">
-<col style="width: 3%">
-<col style="width: 3%">
-<col style="width: 3%">
-<col style="width: 3%">
-<col style="width: 3%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 3%">
-<col style="width: 6%">
-<col style="width: 4%">
-<col style="width: 3%">
-<col style="width: 4%">
-<col style="width: 4%">
-<col style="width: 2%">
-</colgroup>
-<thead><tr class="header">
-<th style="text-align: right;">k</th>
-<th style="text-align: right;">threshold</th>
-<th style="text-align: left;">use_weights</th>
-<th style="text-align: right;">optimized_accuracy</th>
-<th style="text-align: right;">overall_accuracy</th>
-<th style="text-align: right;">mean_balanced_accuracy</th>
-<th style="text-align: right;">sensitivity</th>
-<th style="text-align: right;">N1_sn</th>
-<th style="text-align: right;">BN2_sn</th>
-<th style="text-align: right;">ST2_sn</th>
-<th style="text-align: right;">BN2_bacc</th>
-<th style="text-align: right;">MCD_bacc</th>
-<th style="text-align: right;">EZB_bacc</th>
-<th style="text-align: right;">A53_bacc</th>
-<th style="text-align: right;">Other_bacc</th>
-<th style="text-align: right;">C1_bacc</th>
-<th style="text-align: right;">C2_bacc</th>
-<th style="text-align: right;">C3_bacc</th>
-<th style="text-align: right;">C4_bacc</th>
-<th style="text-align: right;">C5_bacc</th>
-<th style="text-align: right;">ST2_bacc</th>
-<th style="text-align: right;">threshold_outgroup</th>
-<th style="text-align: right;">accuracy_out</th>
-<th style="text-align: left;">na_option</th>
-<th style="text-align: right;">num_classes</th>
-<th style="text-align: right;">num_features</th>
-<th style="text-align: right;">seed</th>
-</tr></thead>
-<tbody><tr class="odd">
-<td style="text-align: right;">13</td>
-<td style="text-align: right;">0.6</td>
-<td style="text-align: left;">TRUE</td>
-<td style="text-align: right;">0.898813</td>
-<td style="text-align: right;">0.6383951</td>
-<td style="text-align: right;">0.898813</td>
-<td style="text-align: right;">0.8749128</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">0.8054475</td>
-<td style="text-align: right;">0.6956522</td>
-<td style="text-align: right;">0.8454807</td>
-<td style="text-align: right;">0.9306097</td>
-<td style="text-align: right;">0.9162663</td>
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">0.6258829</td>
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">0.8022226</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: left;">drop</td>
-<td style="text-align: right;">6</td>
-<td style="text-align: right;">90</td>
-<td style="text-align: right;">12345</td>
-</tr></tbody>
-</table>
-</div>
 </div>
 </section><section class="level2"><h2 id="overview-of-classifications">Overview of classifications<a class="anchor" aria-label="anchor" href="#overview-of-classifications"></a>
 </h2>
@@ -212,7 +117,7 @@
 <li><p><code>pred_name</code> Display name for the predictions (e.g. DLBCLone)</p></li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="va">all_features_optimized</span>,</span>
 <span>  pred_column <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,</span>
 <span>  pred_name <span class="op">=</span> <span class="st">"DLBCLone Optimized"</span><span class="op">)</span></span></code></pre></div>
@@ -224,7 +129,7 @@
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="va">all_features_optimized</span>,</span>
 <span>  pred_column <span class="op">=</span> <span class="st">"DLBCLone_w"</span>,</span>
 <span>  pred_name <span class="op">=</span> <span class="st">"DLBCLone Greedy"</span><span class="op">)</span></span></code></pre></div>
@@ -239,7 +144,7 @@
 </h3>
 <p>An overview of the classification result can also be visualized in our UMAP space. It can be useful to compare the UMAP coloured the ground truth labels to the new labels produced by DLBCLone.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_umap_scatterplot.html">make_umap_scatterplot</a></span><span class="op">(</span></span>
 <span>  <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">prediction</span>, </span>
 <span>  colour_by <span class="op">=</span> <span class="st">"lymphgen"</span>,</span>
@@ -253,7 +158,7 @@
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_umap_scatterplot.html">make_umap_scatterplot</a></span><span class="op">(</span></span>
 <span>  <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">prediction</span>, </span>
 <span>  colour_by <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,</span>

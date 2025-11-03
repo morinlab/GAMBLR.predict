@@ -103,6 +103,27 @@
 <span><span class="va">all_full_status</span> <span class="op">=</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/all_full_status.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
 <span>  <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/rownames.html" class="external-link">column_to_rownames</a></span><span class="op">(</span><span class="st">"sample_id"</span><span class="op">)</span></span></code></pre></div>
 </div>
+<pre><code>
+Alternatively, you can load the stored optimized model `best_opt_model.rds` from extdata:
+::: {.cell}
+
+```{.r .cell-code}
+loaded_model &lt;- DLBCLone_load_optimized(
+        dirname(
+            system.file(
+                "extdata/models",
+                "best_opt_model.rds",
+                package = "GAMBLR.predict"
+            )
+        ),
+        default_model
+    )
+
+best_opt_model &lt;- DLBCLone_activate( # Reactivates stored model setting the UMAP projection
+  loaded_model,
+  force = TRUE
+)</code></pre>
+<p>:::</p>
 <p><img src="concept_map.png"></p>
 </section><script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {

@@ -204,7 +204,6 @@ lyseq_features_optimized = DLBCLone_optimize_params(
   dlbcl_meta_clean,
   umap_out = mu_lyseq_train,
   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
-  optimize_for_other = T,
   min_k=11,
   max_k=21
 )
@@ -221,11 +220,12 @@ lyseq_features_optimized = DLBCLone_optimize_params(
   dlbcl_meta_clean,
   umap_out = mu_lyseq_train,
   truth_classes = c("MCD","EZB","BN2","N1","ST2","Other"),
-  optimize_for_other = T,
   min_k=19,
   max_k=19
 )
+```
 
+```{r optimize activate}
 lyseq_features_optimized <- DLBCLone_activate( # Activates optimized model setting the UMAP projection
   lyseq_features_optimized, 
   force = TRUE
