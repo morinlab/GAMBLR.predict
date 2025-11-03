@@ -248,6 +248,12 @@ assemble_genetic_features <- function(these_samples_metadata,
     status_combined[[onco_column]] = 0
     status_combined[sv_samples[[oncogene]],onco_column] = sv_value
   }
+  #fill in any genes with zero mutations as 0
+  for(g in genes){
+    if(!g %in% colnames(status_combined)){
+      status_combined[[g]] = 0
+    }
+  }
   return(status_combined)
 
 }

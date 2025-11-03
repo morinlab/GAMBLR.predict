@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>DLBCLone Functions - Predicting classes with DLBCLone_predict • GAMBLR.predict</title>
+<title>Classifying samples with DLBCLone • GAMBLR.predict</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
-<link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="predict_samples_files/libs/quarto-html/popper.min.js"></script><script src="predict_samples_files/libs/quarto-html/tippy.umd.min.js"></script><link href="predict_samples_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="predict_samples_files/libs/quarto-html/light-border.css" rel="stylesheet">
-<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DLBCLone Functions - Predicting classes with DLBCLone_predict">
+<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Classifying samples with DLBCLone">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -37,15 +37,15 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone</a></li>
-    <li><a class="dropdown-item" href="../articles/umap.html">DLBCLone Functions - UMAP</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">DLBCLone Functions - Optimizing Parameters</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Functions - DLBCLone Model Management</a></li>
-    <li><a class="dropdown-item" href="../articles/predict_samples.html">DLBCLone Functions - Predicting classes with DLBCLone_predict</a></li>
-    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone Full Walkthrough of Associated Functions</a></li>
-    <li><a class="dropdown-item" href="../articles/validation.html">DLBCLone Validation Data Generation and Example</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">DLBCLone Functions - K-Nearest Neighbors</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">DLBCLone Functions - Gaussian Mixture Model</a></li>
+    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone: Overview</a></li>
+    <li><a class="dropdown-item" href="../articles/umap.html">Exploring and selecting features</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">Training a new DLBCLone model</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Models</a></li>
+    <li><a class="dropdown-item" href="../articles/predict_samples.html">Classifying samples with DLBCLone</a></li>
+    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone: Full Walkthrough</a></li>
+    <li><a class="dropdown-item" href="../articles/validation.html">Applying a DLBCLone model to new data</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">K-Nearest Neighbors without UMAP</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">Gaussian Mixture Model</a></li>
   </ul>
 </li>
       </ul>
@@ -62,7 +62,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>DLBCLone Functions - Predicting classes with DLBCLone_predict</h1>
+      <h1>Classifying samples with DLBCLone</h1>
 
 
 
@@ -76,49 +76,25 @@
 
 
 
-    <section class="section level2"><h2 id="predict-samples">Predict Samples<a class="anchor" aria-label="anchor" href="#predict-samples"></a>
+    <section class="level2"><h2 id="preamble">Preamble<a class="anchor" aria-label="anchor" href="#preamble"></a>
 </h2>
-</section><section class="section level2"><h2 id="dlbclone_predict">DLBCLone_predict<a class="anchor" aria-label="anchor" href="#dlbclone_predict"></a>
+<p>The most practical use for a DLBCLone model is to infer the class/subtype of samples based on the genetic features present. This is accomplished with the <code>DLBCLone_predict</code> function. This tutorial assumes you will start with a previously saved model, which you will restore from disk and re-activate as shown in the previous tutorial.</p>
+</section><section class="level2"><h2 id="predicting-the-class-of-a-single-sample">predicting the class of a single sample<a class="anchor" aria-label="anchor" href="#predicting-the-class-of-a-single-sample"></a>
 </h2>
-<p>Now for the primary objective of DLBCLone. What happens when you have new samples with no metadata? Using the trained models produced, <code>DLBCLone_predict</code> can approximate labelings to samples based on their corresponding feature matrix.</p>
-<p>Before running <code>DLBCLone_predict</code> in the events that you the user stored your optimized parameters, I will once again walk you through the reactivation of a stored DLBCLone model. This is necessary to keep your workflow consistent for subsequent calls on the same trained model:</p>
+<p>In this demonstration, we’ll use our model to predict the class of one of our training samples. This is not the normal, or particularly sensible, application of DLBCLone but it’s a convenient way to demonstrate how <code>DLBCLone_predict</code> works. Since we’re using a sample that was in the training data, we can directly recycle the genetic feature matrix from the model via <code>all_features_optimized$features</code>. Because there are meta-features in that data frame, we also need to enable the <code>drop_extra</code> feature.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">default_model</span> <span class="op">&lt;-</span> <span class="st">"best_opt_w"</span></span>
-<span></span>
-<span><span class="va">loaded_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_load_optimized.html">DLBCLone_load_optimized</a></span><span class="op">(</span> <span class="co"># Load your stored optimized model from DLBCLone_save_optimized()</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/basename.html" class="external-link">dirname</a></span><span class="op">(</span></span>
-<span>            <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
-<span>                <span class="st">"extdata/models"</span>,</span>
-<span>                <span class="st">"best_opt_model.rds"</span>,</span>
-<span>                package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span></span>
-<span>            <span class="op">)</span></span>
-<span>        <span class="op">)</span>,</span>
-<span>        <span class="va">default_model</span></span>
-<span>    <span class="op">)</span></span>
-<span></span>
-<span><span class="va">all_features_optimized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_activate.html">DLBCLone_activate</a></span><span class="op">(</span> <span class="co"># Reactivates stored model setting the UMAP projection</span></span>
-<span>  <span class="va">loaded_model</span>, </span>
-<span>  force <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<p><code>DLBCLone_predict</code> is a versatile function, you can use it to cross reference your training data, predict a test sample one at a time, or all of your test samples all at once! Here we will just be using training samples.</p>
-<p><code>mutation_status</code> data frame containing the mutation feature matrix you are testing on</p>
-<p><code>optimized_model</code> list of parameters from DLBCLone_optimize_params</p>
-<section class="level2"><h3 id="predicting-one-training-sample">predicting one training sample<a class="anchor" aria-label="anchor" href="#predicting-one-training-sample"></a>
-</h3>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">test_sample</span> <span class="op">=</span> <span class="st">"00-14595_tumorC"</span></span>
 <span></span>
 <span><span class="va">pred_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
-<span>  mutation_status <span class="op">=</span> <span class="va">best_opt_model_matrix</span><span class="op">[</span><span class="va">test_sample</span>,<span class="op">]</span>,</span>
-<span>  optimized_model <span class="op">=</span> <span class="va">all_features_optimized</span></span>
+<span>  mutation_status <span class="op">=</span> <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">features</span><span class="op">[</span><span class="va">test_sample</span>,<span class="op">]</span>,</span>
+<span>  optimized_model <span class="op">=</span> <span class="va">all_features_optimized</span>,</span>
+<span>  drop_extra <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">pred_train</span><span class="op">$</span><span class="va">prediction</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
-<table class="table caption-top" style="width:100%;">
+<table class="table caption-top">
 <colgroup>
 <col style="width: 1%">
 <col style="width: 1%">
@@ -130,7 +106,7 @@
 <col style="width: 6%">
 <col style="width: 1%">
 <col style="width: 1%">
-<col style="width: 2%">
+<col style="width: 1%">
 <col style="width: 1%">
 <col style="width: 2%">
 <col style="width: 2%">
@@ -214,18 +190,18 @@
 <td style="text-align: left;">EZB</td>
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: left;">DLBCL11584T,CLC03456,DLBCL11428T,05-32762T,LY_RELY_116_tumorA,99-13280T,05-25439T,QC2-32T,SP193546,SP193976,FL1018T2,Reddy_2488T,10-36955_tumorB</td>
-<td style="text-align: left;">1112,351,995,85,1265,416,80,1322,1182,1164,89,1479,172</td>
-<td style="text-align: left;">0.203,0.223,0.231,0.259,0.265,0.293,0.298,0.306,0.321,0.34,0.349,0.356,0.365</td>
+<td style="text-align: left;">DLBCL11584T,CLC03456,DLBCL11428T,05-32762T,LY_RELY_116_tumorA,99-13280T,05-25439T,QC2-32T,SP193546,SP193976,14-20962T,FL1018T2,10-36955_tumorB</td>
+<td style="text-align: left;">1112,351,995,85,1265,416,80,1322,1182,1164,247,89,172</td>
+<td style="text-align: left;">0.203,0.223,0.231,0.259,0.265,0.293,0.297,0.306,0.321,0.34,0.345,0.349,0.352</td>
 <td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
 <td style="text-align: left;"></td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: left;">45.8609381214032</td>
+<td style="text-align: left;">46.055835675141</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">45.86094</td>
-<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">46.05584</td>
+<td style="text-align: right;">46.05584</td>
 <td style="text-align: right;">-3.826784</td>
 <td style="text-align: right;">2.487499</td>
 <td style="text-align: right;">1</td>
@@ -236,14 +212,14 @@
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">46.05584</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">46.05584</td>
 <td style="text-align: right;">13</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">13</td>
@@ -257,8 +233,10 @@
 </table>
 </div>
 </div>
-</section></section><section class="section level2"><h2 id="make_neighborhood_plot">make_neighborhood_plot<a class="anchor" aria-label="anchor" href="#make_neighborhood_plot"></a>
+</section><section class="level2"><h2 id="visualizing-a-the-neighborhood-of-a-single-classification">Visualizing a the neighborhood of a single classification<a class="anchor" aria-label="anchor" href="#visualizing-a-the-neighborhood-of-a-single-classification"></a>
 </h2>
+<section class="level3"><h3 id="make_neighborhood_plot">make_neighborhood_plot<a class="anchor" aria-label="anchor" href="#make_neighborhood_plot"></a>
+</h3>
 <p>Used for visualizing how and where neighbors are selected, a umap plot is produced showcasing the test sample of interest and its trained neighbors that helped determine its labeling.</p>
 <p><code>single_sample_prediction_output</code> output list from predict_single_sample_DLBCLone</p>
 <p><code>training_predictions</code> training predictions from DLBCLone_optimize_params (e.g. optimized_model$df)</p>
@@ -266,7 +244,7 @@
 <p><code>prediction_in_title</code> if TRUE: includes the predicted label in the plot title</p>
 <p><code>add_circle</code> Plot will include a circle surrounding the set of neighbors, helpful for identification</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_neighborhood_plot.html">make_neighborhood_plot</a></span><span class="op">(</span></span>
 <span>  single_sample_prediction_output <span class="op">=</span> <span class="va">pred_train</span>,</span>
 <span>  this_sample_id <span class="op">=</span> <span class="st">"00-14595_tumorC"</span>,</span>
@@ -281,8 +259,8 @@
 </div>
 </div>
 </div>
-</section><section class="section level2"><h2 id="nearest_neighbor_heatmap">nearest_neighbor_heatmap<a class="anchor" aria-label="anchor" href="#nearest_neighbor_heatmap"></a>
-</h2>
+</section><section class="level3"><h3 id="nearest_neighbor_heatmap">nearest_neighbor_heatmap<a class="anchor" aria-label="anchor" href="#nearest_neighbor_heatmap"></a>
+</h3>
 <p>Generates a heatmap of feature values for the nearest neighbors of a specified sample, based on a DLBCLone model object. This visualization helps to inspect the feature profiles of samples most similar to the query sample.</p>
 <p><code>this_sample_id</code> the sample ID for which to plot the nearest neighbor heatmap</p>
 <p><code>DLBCLone_model</code> a DLBCLone model object, which can be the output of DLBCLone_optimize_params, DLBCLone_KNN, or DLBCLone_predict</p>
@@ -291,7 +269,7 @@
 <p><code>clustering_dis</code> the distance metric to use for clustering rows (default: “binary”)</p>
 <p><code>font_size</code> font size for heatmap text (default: 14)</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/nearest_neighbor_heatmap.html">nearest_neighbor_heatmap</a></span><span class="op">(</span></span>
 <span>  this_sample_id <span class="op">=</span> <span class="st">"00-14595_tumorC"</span>,</span>
 <span>  DLBCLone_model <span class="op">=</span> <span class="va">pred_train</span>,</span>
@@ -304,99 +282,118 @@
 </div>
 </div>
 </div>
-</section><script id="quarto-html-after-body" type="application/javascript">
-  window.document.addEventListener("DOMContentLoaded", function (event) {
-      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-      var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
-      var isInternal = (href) => {
-          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-      }
-      // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-      for (var i=0; i<links.length; i++) {
-        const link = links[i];
-        if (!isInternal(link.href)) {
-          // undo the damage that might have been done by quarto-nav.js in the case of
-          // links that we want to consider external
-          if (link.dataset.originalHref !== undefined) {
-            link.href = link.dataset.originalHref;
-          }
-        }
-      }
-    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-      const config = {
-        allowHTML: true,
-        maxWidth: 500,
-        delay: 100,
-        arrow: false,
-        appendTo: function(el) {
-            return el.parentElement;
-        },
-        interactive: true,
-        interactiveBorder: 10,
-        theme: 'light-border',
-        placement: 'bottom-start',
-      };
-      if (contentFn) {
-        config.content = contentFn;
-      }
-      if (onTriggerFn) {
-        config.onTrigger = onTriggerFn;
-      }
-      if (onUntriggerFn) {
-        config.onUntrigger = onUntriggerFn;
-      }
-      window.tippy(el, config);
+</section></section><script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
     }
-    const findCites = (el) => {
-      const parentEl = el.parentElement;
-      if (parentEl) {
-        const cites = parentEl.dataset.cites;
-        if (cites) {
-          return {
-            el,
-            cites: cites.split(' ')
-          };
-        } else {
-          return findCites(el.parentElement)
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
         }
-      } else {
-        return undefined;
       }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'light-border',
+      placement: 'bottom-start',
     };
-    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-    for (var i=0; i<bibliorefs.length; i++) {
-      const ref = bibliorefs[i];
-      const citeInfo = findCites(ref);
-      if (citeInfo) {
-        tippyHover(citeInfo.el, function() {
-          var popup = window.document.createElement('div');
-          citeInfo.cites.forEach(function(cite) {
-            var citeDiv = window.document.createElement('div');
-            citeDiv.classList.add('hanging-indent');
-            citeDiv.classList.add('csl-entry');
-            var biblioDiv = window.document.getElementById('ref-' + cite);
-            if (biblioDiv) {
-              citeDiv.innerHTML = biblioDiv.innerHTML;
-            }
-            popup.appendChild(citeDiv);
-          });
-          return popup.innerHTML;
-        });
-      }
+    if (contentFn) {
+      config.content = contentFn;
     }
-  });
-  </script></main>
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config);
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside>
 </div>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Kostiantyn Dreval.</p>
+  <p>Developed by Kostiantyn Dreval, Ryan Morin.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer>

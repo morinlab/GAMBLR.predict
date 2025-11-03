@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>DLBCLone Functions - Optimizing Parameters • GAMBLR.predict</title>
+<title>Training a new DLBCLone model • GAMBLR.predict</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
-<link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="DLBCLone_optimize_params_files/libs/quarto-html/popper.min.js"></script><script src="DLBCLone_optimize_params_files/libs/quarto-html/tippy.umd.min.js"></script><link href="DLBCLone_optimize_params_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="DLBCLone_optimize_params_files/libs/quarto-html/light-border.css" rel="stylesheet">
-<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DLBCLone Functions - Optimizing Parameters">
+<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Training a new DLBCLone model">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -37,15 +37,15 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone</a></li>
-    <li><a class="dropdown-item" href="../articles/umap.html">DLBCLone Functions - UMAP</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">DLBCLone Functions - Optimizing Parameters</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Functions - DLBCLone Model Management</a></li>
-    <li><a class="dropdown-item" href="../articles/predict_samples.html">DLBCLone Functions - Predicting classes with DLBCLone_predict</a></li>
-    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone Full Walkthrough of Associated Functions</a></li>
-    <li><a class="dropdown-item" href="../articles/validation.html">DLBCLone Validation Data Generation and Example</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">DLBCLone Functions - K-Nearest Neighbors</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">DLBCLone Functions - Gaussian Mixture Model</a></li>
+    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone: Overview</a></li>
+    <li><a class="dropdown-item" href="../articles/umap.html">Exploring and selecting features</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">Training a new DLBCLone model</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Models</a></li>
+    <li><a class="dropdown-item" href="../articles/predict_samples.html">Classifying samples with DLBCLone</a></li>
+    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone: Full Walkthrough</a></li>
+    <li><a class="dropdown-item" href="../articles/validation.html">Applying a DLBCLone model to new data</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">K-Nearest Neighbors without UMAP</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">Gaussian Mixture Model</a></li>
   </ul>
 </li>
       </ul>
@@ -62,7 +62,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>DLBCLone Functions - Optimizing Parameters</h1>
+      <h1>Training a new DLBCLone model</h1>
 
 
 
@@ -76,18 +76,26 @@
 
 
 
-    <section class="section level3"><h3 id="overview-of-function">Overview of function<a class="anchor" aria-label="anchor" href="#overview-of-function"></a>
-</h3>
-<p>The <code>DLBCLone_optimize_params</code> function tunes the K value and a few thresholds based on the training data, working to maximize balanced accuracy or (optionally) another metric.</p>
-<p><code>combined_mutation_status_df</code> feature matrix data frame with one row per sample and one column per mutation</p>
-<p><code>metadata_df</code> data frame of metadata with one row per sample and three required columns: sample_id, dataset and the column containing the “truth” lable, which defaults to lymphgen</p>
-<p><code>umap_out</code> the output of <code>make_and_annotate_umap</code></p>
-<p><code>truth_classes</code> vector of classes to use for training and testing (LymphGen default: c(“EZB”, “MCD”, “ST2”, “N1”, “BN2”, “Other”))</p>
-<p><code>min_k</code> lowest k in the range of values to try for KNN (default: 3)</p>
-<p><code>max_k</code> highest k in the range of values to try for KNN (default: 33)</p>
-</section><section class="section level3"><h3 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
-</h3>
-<p>Let’s assume we are generally happy with the separation of samples in this latent representation. We can use <code>DLBCLone_optimize_params</code> to pick a combination of k (number of neighbors) and a few thresholds to categorize each sample based on its location and proximity to other points in the UMAP. Here, we give the original UMAP produced by <code>make_and_annotate_umap</code> and not the repojected UMAP, because this function will perform the sample-by-sample projection for us. Optimize for other will be set to TRUE as we are interested in high confidence predictions that are less likely to actually be “Other”.</p>
+    <section class="level2"><h2 id="preamble">Preamble<a class="anchor" aria-label="anchor" href="#preamble"></a>
+</h2>
+<p>If you do not have a DLBCLone model suitable for your application, you can train a custom model to meet your needs. The training process leverages bundled mutation data and LymphGen classifications for over 2000 DLBCLs. Once you have a model you’re satisfied with, it can be applied to your own data using <code>DLBCLone_predict</code>.</p>
+</section><section class="level2"><h2 id="optimizing-parameters">Optimizing parameters<a class="anchor" aria-label="anchor" href="#optimizing-parameters"></a>
+</h2>
+<p>The <code>DLBCLone_optimize_params</code> function tunes the K value and a few thresholds based on the training data, working to maximize balanced accuracy or (optionally) another metric. The required and commonly used arguments are:</p>
+<ul>
+<li>
+<code>combined_mutation_status_df</code> feature matrix data frame with one row per sample and one column per mutation</li>
+</ul>
+<p>Confusingly, this argument is no longer required. The mutation status is stored in the output of <code>make_and_annotate_umap</code></p>
+<ul>
+<li><p><code>metadata_df</code> data frame of metadata with one row per sample and three required columns: sample_id, dataset and the column containing the “truth” lable, which defaults to lymphgen</p></li>
+<li><p><code>umap_out</code> the output of <code>make_and_annotate_umap</code></p></li>
+<li><p><code>truth_classes</code> vector of classes to use for training and testing (LymphGen default: c(“EZB”, “MCD”, “ST2”, “N1”, “BN2”, “Other”))</p></li>
+<li><p><code>min_k</code> lowest k in the range of values to try for KNN (default: 3). Set higher to restrict to a narrower range.</p></li>
+<li><p><code>max_k</code> highest k in the range of values to try for KNN (default: 33). Set lower to restrict to a narrower range.</p></li>
+</ul></section><section class="level2"><h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
+</h2>
+<p>If you’re here, then we assume you’ve run <code>make_and_annotate_umap</code> and are generally happy with the separation of samples in this latent representation. We can use <code>DLBCLone_optimize_params</code> to automate finding an optimal K value (number of neighbors) and a few thresholds to categorize each sample based on its location and proximity to other points in the UMAP. Here, you provide the original UMAP produced by <code>make_and_annotate_umap</code> and <em>not</em> the re-projected UMAP, because this function will perform the sample-by-sample projection for us.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">all_features_optimized</span> <span class="op">=</span> <span class="fu"><a href="../reference/DLBCLone_optimize_params.html">DLBCLone_optimize_params</a></span><span class="op">(</span>  </span>
@@ -194,86 +202,32 @@
 </table>
 </div>
 </div>
-</section><section class="section level3"><h3 id="overview-of-classifications">Overview of classifications<a class="anchor" aria-label="anchor" href="#overview-of-classifications"></a>
+</section><section class="level2"><h2 id="overview-of-classifications">Overview of classifications<a class="anchor" aria-label="anchor" href="#overview-of-classifications"></a>
+</h2>
+<section class="level3"><h3 id="make_alluvial">make_alluvial<a class="anchor" aria-label="anchor" href="#make_alluvial"></a>
 </h3>
-<section class="level3"><h4 id="posthoc_feature_enrichment">posthoc_feature_enrichment<a class="anchor" aria-label="anchor" href="#posthoc_feature_enrichment"></a>
-</h4>
-<p>Interested in the most contributing mutations per subtype? Whether it be the most frequently mutated, or the most significantly mutated via chi square subtype vs. rest? <code>posthoc_feature_enrichment</code> can help evaluate structure and potential biases in your training data. If Fisher or Chi-square test is used, bar plots and forest plots will be produced.</p>
-<p><code>sample_metadata</code> Data frame containing sample metadata with class labels, by default in a column named “lymphgen”. Use <code>label_column</code> to specify a different column</p>
-<p><code>features</code> Feature matrix with one row per sample and one column per mutation feature</p>
-<p><code>label_column</code> Name of the column containing the class labels (default: “lymphgen”)</p>
-<p><code>truth_classes</code> Vector of class labels to consider (default: c(“BN2”,“EZB”,“MCD”,“ST2”,“N1”))</p>
-<p><code>method</code> Method to determine top features: “frequency” for most abundant features, “chi_square” for top differentially mutated features in the classes vs all other classes or “fisher” to compare in-class vs out-class feature frequency across all classes (default : “frequency”)</p>
-<p><code>num_feats</code> Number of top features to display per subtype (default: 10)</p>
-<p><code>separate_plot_per_group</code> If TRUE, creates separate plots for each group and also combines them with ggarrange (default: FALSE).</p>
-<p><code>title</code> Title for the plot (default: NULL)</p>
-<p><code>p_threshold</code> Maximum P value to retain (when method is fisher)</p>
-<p><code>base_size</code> Base font size used (passed to theme_Morons)</p>
+<p>There is a convenience plotting function <code>make_alluvial</code> generates alluvial plots that summarize the relationship between original (e.g., Lymphgen) and predicted (e.g., DLBCLone) class assignments for a set of samples. Typically, you would use these to evaluate how well your model performs across each of the classes. The only required argument is the DLBCLone model, for example, the output of <code>DLBCLone_optimize_params</code>. Some additional arguments that are commonly used:</p>
+<ul>
+<li><p><code>pred_column</code> name of the column in predictions to use for the predicted class. This is usually one of DLBCLone_wo or DLBCLone_w, respectively for DLBCLone with or without outgroup optimization</p></li>
+<li><p><code>pred_name</code> Display name for the predictions (e.g. DLBCLone)</p></li>
+</ul>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots</span><span class="op">&lt;-</span> <span class="fu"><a href="../reference/posthoc_feature_enrichment.html">posthoc_feature_enrichment</a></span><span class="op">(</span></span>
-<span>  sample_metadata <span class="op">=</span> <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">predictions</span>,</span>
-<span>  features <span class="op">=</span> <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">features</span>,</span>
-<span>  method <span class="op">=</span> <span class="st">"fisher"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="va">all_features_optimized</span>,</span>
+<span>  pred_column <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,</span>
+<span>  pred_name <span class="op">=</span> <span class="st">"DLBCLone Optimized"</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure><p><img src="DLBCLone_optimize_params_files/figure-html/plot_alluvial1-1.png" width="672"></p>
+</figure>
+</div>
+</div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots</span><span class="op">$</span><span class="va">bar_plot</span></span></code></pre></div>
-<div class="cell-output-display">
-<div>
-<figure><p><img src="DLBCLone_optimize_params_files/figure-html/unnamed-chunk-3-1.png" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots</span><span class="op">$</span><span class="va">forest_plot</span></span></code></pre></div>
-<div class="cell-output-display">
-<div>
-<figure><p><img src="DLBCLone_optimize_params_files/figure-html/unnamed-chunk-4-1.png" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-</section><section class="level3"><h4 id="basic_umap_scatterplot">basic_umap_scatterplot<a class="anchor" aria-label="anchor" href="#basic_umap_scatterplot"></a>
-</h4>
-<p>A more advanced plotting function for the UMAP projections. This function can also cover predicted columns of your choosing.</p>
-<p><code>optimized</code> data frame containing at least V1, V2, sample_id, and grouping columns</p>
-<p><code>plot_samples</code> Optional character vector of sample_id’s to label in the plot</p>
-<p><code>colour_by</code> column name to color points by (default: <code>truth_column</code>)</p>
-<p><code>truth_column</code> name of the truth/ground-truth column</p>
-<p><code>pred_column</code> name of the predicted-class column</p>
-<p><code>other_label</code> label used for the outgroup/unclassified class</p>
-<p><code>title</code> plot title</p>
-<p><code>use_plotly</code> if FALSE and <code>plot_samples</code> provided, draw static</p>
-<p><code>custom_colours</code> custom color palette for the plot. If not provided, uses default GAMBL colors</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/basic_umap_scatterplot.html">basic_umap_scatterplot</a></span><span class="op">(</span></span>
-<span>  <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">prediction</span>, </span>
-<span>  colour_by <span class="op">=</span> <span class="st">"lymphgen"</span>,</span>
-<span>  pred_column <span class="op">=</span> <span class="st">"lymphgen"</span>,</span>
-<span>  title <span class="op">=</span> <span class="st">"truth"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<div class="cell-output-display">
-<div>
-<figure><p><img src="DLBCLone_optimize_params_files/figure-html/unnamed-chunk-5-1.png" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-</section><section class="level3"><h4 id="make_alluvial">make_alluvial<a class="anchor" aria-label="anchor" href="#make_alluvial"></a>
-</h4>
-<p>Plotting function <code>make_alluvial</code> generates detailed alluvial plots to visualize the concordance and discordance between original (e.g., Lymphgen) and predicted (e.g., DLBCLone) class assignments for samples.</p>
-<p><code>optimized</code> output from DLBCLone_optimize_params function</p>
-<p><code>pred_column</code> name of the column in predictions to use for the predicted class</p>
-<p><code>pred_name</code> name for the predicted class column</p>
-<p>DLBCLone with outgroup optimization (“wo”) w for weighted, o for optimized for other.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="va">all_features_optimized</span>,pred_column <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,pred_name <span class="op">=</span> <span class="st">"DLBCLone_wo"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="va">all_features_optimized</span>,</span>
+<span>  pred_column <span class="op">=</span> <span class="st">"DLBCLone_w"</span>,</span>
+<span>  pred_name <span class="op">=</span> <span class="st">"DLBCLone Greedy"</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
 <figure><p><img src="DLBCLone_optimize_params_files/figure-html/plot_alluvial2-1.png" width="672"></p>
@@ -281,172 +235,149 @@
 </div>
 </div>
 </div>
+</section><section class="level3"><h3 id="make_umap_scatterplot">make_umap_scatterplot<a class="anchor" aria-label="anchor" href="#make_umap_scatterplot"></a>
+</h3>
+<p>An overview of the classification result can also be visualized in our UMAP space. It can be useful to compare the UMAP coloured the ground truth labels to the new labels produced by DLBCLone.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/basic_umap_scatterplot.html">basic_umap_scatterplot</a></span><span class="op">(</span></span>
+<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_umap_scatterplot.html">make_umap_scatterplot</a></span><span class="op">(</span></span>
+<span>  <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">prediction</span>, </span>
+<span>  colour_by <span class="op">=</span> <span class="st">"lymphgen"</span>,</span>
+<span>  title <span class="op">=</span> <span class="st">"Ground Truth"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure><p><img src="DLBCLone_optimize_params_files/figure-html/scatter1-1.png" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_umap_scatterplot.html">make_umap_scatterplot</a></span><span class="op">(</span></span>
 <span>  <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">prediction</span>, </span>
 <span>  colour_by <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,</span>
-<span>  pred_column <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,</span>
-<span>  title <span class="op">=</span> <span class="st">"DLBCLone_wo"</span></span>
+<span>  title <span class="op">=</span> <span class="st">"DLBCLone Optimized"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
-<figure><p><img src="DLBCLone_optimize_params_files/figure-html/unnamed-chunk-6-1.png" width="672"></p>
+<figure><p><img src="DLBCLone_optimize_params_files/figure-html/scatter2-1.png" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-</section><section class="level3"><h4 id="dlbclone_summarize_model">DLBCLone_summarize_model<a class="anchor" aria-label="anchor" href="#dlbclone_summarize_model"></a>
-</h4>
-<p>Generates and saves a set of summary plots as PDF, and tables for a DLBCLone model in a preallocated folder. This summary includes; UMAP scatterplots, alluvial plots, and oncoplots.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/DLBCLone_summarize_model.html">DLBCLone_summarize_model</a></span><span class="op">(</span></span>
-<span>  optimized_model <span class="op">=</span> <span class="va">all_features_optimized</span>,</span>
-<span>  base_name<span class="op">=</span><span class="st">"model_summaries/all_full_status"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-</section></section><section class="section level2"><h2 id="example-2-optimize-for-other-false">Example 2 Optimize for other FALSE<a class="anchor" aria-label="anchor" href="#example-2-optimize-for-other-false"></a>
-</h2>
-<p>When looking at w for weighted, not wo for weighted and optimized for other, DLBCLone outputs its greedy search strategy, aiming to classify as many samples as possible, even at low confidence levels. This approach can reveal trends in the underlying data structure, but it also increases the risk of assigning low-confidence predicted labels.</p>
-<p>DLBCLone without outgroup optimization (“w”) w for weighted.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="va">all_features_optimized</span>,pred_column <span class="op">=</span> <span class="st">"DLBCLone_w"</span>,pred_name <span class="op">=</span> <span class="st">"DLBCLone_w"</span><span class="op">)</span></span></code></pre></div>
-<div class="cell-output-display">
-<div>
-<figure><p><img src="DLBCLone_optimize_params_files/figure-html/unnamed-chunk-8-1.png" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/basic_umap_scatterplot.html">basic_umap_scatterplot</a></span><span class="op">(</span></span>
-<span>  <span class="va">all_features_optimized</span><span class="op">$</span><span class="va">prediction</span>, </span>
-<span>  colour_by <span class="op">=</span> <span class="st">"DLBCLone_w"</span>,</span>
-<span>  pred_column <span class="op">=</span> <span class="st">"DLBCLone_w"</span>,</span>
-<span>  title <span class="op">=</span> <span class="st">"DLBCLone_w"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<div class="cell-output-display">
-<div>
-<figure><p><img src="DLBCLone_optimize_params_files/figure-html/unnamed-chunk-9-1.png" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-</section><section class="section level2"><h2 id="dlbclone_ensemble_postprocess">DLBCLone_ensemble_postprocess<a class="anchor" aria-label="anchor" href="#dlbclone_ensemble_postprocess"></a>
-</h2>
-<p>This is an optional function you can run after <code>DLBCLone_optimize_params</code>. it will post-process KNN results across K to score consistency, optionally refine classified/Other cutoffs per-class and can assign composite classes. This is a more complex approach that may yield better results but is not yet fully validated.</p>
-<p><code>optimized_model</code> output of DLBCLone_optimize_params</p>
-<p><code>other_min</code> for comparing across a range of K values, this is the threshold for the number of K values a sample is classified as Other for it to be re-assigned as Other. Set this to a high value if you don’t want samples to be reassigned at all</p>
-<p><code>assign_composites</code> if TRUE: samples with split votes across multiple in-group classes will be assigned a composite class (e.g. “EZB/MCD”) instead of “Other”</p>
-<p><code>any_split</code> if TRUE: any split among in-group votes across the Ks tested will triggers reassignment (or composite)</p>
-<p><code>optimize_per_class</code> if TRUE: a range of thresholds will be tested per class to optimize the classification/Other cutoff</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">postprocess_params</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_ensemble_postprocess.html">DLBCLone_ensemble_postprocess</a></span><span class="op">(</span></span>
-<span>  optimized_model <span class="op">=</span> <span class="va">all_features_optimized</span>,</span>
-<span>  other_min <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>  assign_composites <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  any_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  optimize_per_class <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-</section><script id="quarto-html-after-body" type="application/javascript">
-  window.document.addEventListener("DOMContentLoaded", function (event) {
-      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-      var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
-      var isInternal = (href) => {
-          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-      }
-      // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-      for (var i=0; i<links.length; i++) {
-        const link = links[i];
-        if (!isInternal(link.href)) {
-          // undo the damage that might have been done by quarto-nav.js in the case of
-          // links that we want to consider external
-          if (link.dataset.originalHref !== undefined) {
-            link.href = link.dataset.originalHref;
-          }
-        }
-      }
-    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-      const config = {
-        allowHTML: true,
-        maxWidth: 500,
-        delay: 100,
-        arrow: false,
-        appendTo: function(el) {
-            return el.parentElement;
-        },
-        interactive: true,
-        interactiveBorder: 10,
-        theme: 'light-border',
-        placement: 'bottom-start',
-      };
-      if (contentFn) {
-        config.content = contentFn;
-      }
-      if (onTriggerFn) {
-        config.onTrigger = onTriggerFn;
-      }
-      if (onUntriggerFn) {
-        config.onUntrigger = onUntriggerFn;
-      }
-      window.tippy(el, config);
+</section></section><script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
     }
-    const findCites = (el) => {
-      const parentEl = el.parentElement;
-      if (parentEl) {
-        const cites = parentEl.dataset.cites;
-        if (cites) {
-          return {
-            el,
-            cites: cites.split(' ')
-          };
-        } else {
-          return findCites(el.parentElement)
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
         }
-      } else {
-        return undefined;
       }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'light-border',
+      placement: 'bottom-start',
     };
-    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-    for (var i=0; i<bibliorefs.length; i++) {
-      const ref = bibliorefs[i];
-      const citeInfo = findCites(ref);
-      if (citeInfo) {
-        tippyHover(citeInfo.el, function() {
-          var popup = window.document.createElement('div');
-          citeInfo.cites.forEach(function(cite) {
-            var citeDiv = window.document.createElement('div');
-            citeDiv.classList.add('hanging-indent');
-            citeDiv.classList.add('csl-entry');
-            var biblioDiv = window.document.getElementById('ref-' + cite);
-            if (biblioDiv) {
-              citeDiv.innerHTML = biblioDiv.innerHTML;
-            }
-            popup.appendChild(citeDiv);
-          });
-          return popup.innerHTML;
-        });
-      }
+    if (contentFn) {
+      config.content = contentFn;
     }
-  });
-  </script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config);
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Kostiantyn Dreval.</p>
+  <p>Developed by Kostiantyn Dreval, Ryan Morin.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer>

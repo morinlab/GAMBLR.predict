@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone Functions - UMAP"
+title: "Exploring and selecting features"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}
@@ -12,7 +12,64 @@ fig.align: "center"
 library(GAMBLR.predict)
 library(tidyverse)
 
-best_opt_model_genes <- sort(c(
+
+```
+
+## Preamble
+
+GAMBLR.predict comes bundled with data that can be used to explore the genetic features that are associated with DLBCL genetic subgroups. The code below loads the two bundled files that will be needed for these examples.
+
+
+```{r load_metadata, message=FALSE, warning=FALSE, results='hide'}
+mutation_status <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
+  tibble::column_to_rownames("sample_id") 
+
+dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
+
+dlbcl_meta_clean <- filter(dlbcl_meta,
+                          lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other"))
+```
+
+## Determining features relevant to a classification
+
+To create your own classifier, you will need to know what features are relevant. This can be done through a post-hoc analysis of classified data, searching for genetic features that are significantly over-represented in individual classes. `posthoc_feature_enrichment` accomplishes this using Fisher's exact test or Chi-square test. Frequencies and differences can be visualized with bar plots and forest plots. The required inputs and some commonly used arguments are:
+
+* `sample_metadata` Data frame containing sample metadata with class labels. Normally, this would be the bundled training metadata. 
+
+* `features` Feature matrix with one row per sample and one column per mutation feature. Normally, this would be the bundled training mutation matrix (i.e., `mutation_status` per the code shown above)
+
+* `label_column` Name of the column containing the class labels (default: "lymphgen"). You should rarely/never need to change this unless working with a different training classifier.
+
+* `truth_classes` Vector of class labels to consider (default: BN2, EZB, MCD, ST2, N1). You should rarely/never need to change this unless working with a different training classifier.
+
+* `method` Method to determine top features: "frequency" for most abundant features, "chi_square" for top differentially mutated features in the classes vs all other classes or "fisher" to compare in-class vs out-class feature frequency across all classes (default : "frequency"). *Note: the forest plot is only generated when the method is either chi_square or fisher*
+
+```{r, message=FALSE, warning=FALSE}
+plots<- posthoc_feature_enrichment(
+  sample_metadata = dlbcl_meta_clean,
+  features = mutation_status,
+  method = "fisher"
+)
+```
+
+View the stacked bar plot output:
+
+```{r, message=FALSE, warning=FALSE}
+plots$bar_plot
+```
+
+View the forest plot output:
+
+```{r, message=FALSE, warning=FALSE}
+plots$forest_plot
+```
+
+## Subsetting to your selected features
+
+Let's assume you used outputs such as these to hand-select a set of features based on these analyses. The following code shows how the full feature set can be subset to your selected features. 
+
+```{r}
+my_features <- c(
   "ACTB", "ACTG1", "BCL10", "BCL2", "BCL2L1", 
   "BCL6", "BIRC3", "BRAF", "BTG1", "BTG2", 
   "BTK", "CD19", "CD70", "CD79B", "CD83", 
@@ -30,101 +87,72 @@ best_opt_model_genes <- sort(c(
   "TET2", "TMEM30A", "TMSB4X", "TNFAIP3", "TNFRSF14", 
   "TOX", "TP53", "TP73", "UBE2A", "WEE1", 
   "XBP1", "ZFP36L1", "MYD88HOTSPOT", "BCL2_SV", "BCL6_SV"
-))
+)
+selected_mutation_status <- mutation_status %>% 
+  select(all_of(my_features))
 
-best_opt_model_matrix <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
-  tibble::column_to_rownames("sample_id") %>%
-  select(best_opt_model_genes)
-
-dlbcl_meta <- readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
-
-dlbcl_meta_clean <- filter(dlbcl_meta,
-                          lymphgen %in% c("MCD","EZB","BN2","N1","ST2","Other"))
 ```
 
-# make_and_annotate_umap 
+## make_and_annotate_umap 
 
-This function accepts your training data as input, and will run a UMAP projection attaching the result to your metadata. This is a foundational step for running DLBCLone.
+It can be exremely useful to see how UMAP converts your feature space into a 2D representation. The `make_and_annotate_umap` function will generate an initial UMAP projection of your samples based on the mutation features provided to it. This is a foundational step for running DLBCLone. Importantly, when provided with the optional `umap_out` argument, it will project the same (or new) data to the locked latent representation in a deterministic way.
 
-If you are not confident the UMAP is separating classes well, you can encourage better separation by assigining certain "core" genes a higher weight. This is done by specifying a vector of feature names that will have their values multiplied by 1.5. There is also a convenience option `problem_genes` to exclude/ignore certain features that are in your matrix if you think they aren't helpful. 
+```{r, message=FALSE, warning=FALSE}
 
-`df` feature matrix with one row per sample and one column per mutation
+mu_all = make_and_annotate_umap(
+  selected_mutation_status,
+  dlbcl_meta_clean
+)
 
-`metadata` data frame with one row per sample and a column sample_id that matches the row names of the data frame. This data frame will be joined to the UMAP output
+```
 
-`umap_out` insert a UMAP output from a previous run. If provided, the function will use this model to project the data instead of re-running UMAP. This is neccessary for future functions setting a static projection of UMAP coordinates that then will stay in place and not move. Run this param to ensure reproducibility of results
+The convenience function `make_umap_scatterplot` allows you to view the result as a scatter plot, with marginal density plots that help show where the most dense representation of each class is across the X and Y axes. This can help you scrutinize how well samples of each class separate. 
 
-`core_features` a vector of column names in df that should be multiplied by core_feature_multiplier. These features are considered "core" and will be weighted more heavily in the UMAP embedding
 
-`core_feature_multiplier` a numeric value that will be used to multiply the core features specified in core_features (default: 1.5)
+```{r}
+make_umap_scatterplot(mu_all$df)
 
-`hidden_features` a vector of column names in df that should be dropped from the UMAP input. These features are considered "hidden" and will not be used in the UMAP embedding
+```
 
-```{r umap1}
-mu_everything = make_and_annotate_umap(
-  best_opt_model_matrix,
+## Re-using an existing UMAP model 
+
+Under the hood, running `make_and_annotate_umap` with an existing model (provided via `umap_out`) will determine the coordinates for every sample in a deterministic way. This step iteratively places each sample into the same latent space using the model generated in the last step based on distances to all samples in your original training data. In this case, the location of other samples doesn't influence where each sample is placed.  As a result, the coordinates for each point are slightly different than the original UMAP but always identical whenever this function is re-run this way.  This is important because it means the result will be deterministic regardless of the order in which you specify samples. 
+
+```{r project, message=FALSE}
+mu_all_proj = make_and_annotate_umap(
+  mu_all$features,
   dlbcl_meta_clean,
-  core_features = list(
+  umap_out = mu_all
+)
+
+make_umap_scatterplot(
+  mu_all_proj$df
+)
+```
+
+
+## Core features and meta-features
+
+In addition to choosing different feature combinations, you may be able to achieve better separation of certain classes by assigning certain features a higher weight. This is accomplished by specifying a vector of feature names that will have their values multiplied by 1.5 using the `core_features` argument. This argument can also be used to specify how features will be grouped into meta-features. 
+
+
+```{r umap1, message = FALSE, warning = FALSE}
+meta_feats <- list(
     ST2=c("SGK1","DUSP2","TET2","SOCS1"),
     N1="NOTCH1",
     EZB=c("EZH2","BCL2_SV"),
     MCD=c("MYD88HOTSPOT","CD79B","PIM1"),
     BN2=c("BCL6_SV","NOTCH2","SPEN","CD70")
-  )
 )
-```
 
-# make_umap_scatterplot 
-
-A plotting function for the UMAP projection.
-
-`df` data frame containing the UMAP coordinates and annotations  
-
-`drop_composite` if TRUE: removes composite labels from the lymphgen column
-
-`colour_by` column name to color points by
-
-`drop_other` if TRUE: removes "Other" and "NOS" labels from the lymphgen column
-
-`high_confidence` if TRUE: filters the data to include only samples with confidence > 0.7
-
-`custom_colours` custom color palette for the plot. If not provided, uses default GAMBL colors
-
-`add_labels` if TRUE: adds labels to the points based on the median coordinates of each group 
-
-`title` Plot title
-
-`base_size` Base font and point size for the plot (passed to theme_Morons())
-
-`alpha` Point transparency (default: 0.8)
-
-```{r plot1, message=FALSE, warning=FALSE}
-make_umap_scatterplot(
-  mu_everything$df,
-  drop_other = F
-)
-```
-
-```{r plot2, message=FALSE, warning=FALSE}
-make_umap_scatterplot(
-  mu_everything$df,
-  drop_other = T
-)
-```
-
-# Using a UMAP model to project the same data 
-
-For reproducibility, future use, and faster run times, DLBCLone will re-project your umap output when optimizing parameters. As a proof of concept, we will reproject the same data using the `umap_out` paramter of `make_and_annotate_umap`. This step iteratively places each sample into the same latent space using the model generated in the last step. In this case, the location of other samples doesn't influence where each sample is placed. This is important because it means the result will be deterministic regardless of the order in which you specify samples. 
-
-```{r project, message=FALSE}
-mu_everything_proj = make_and_annotate_umap(
-  mu_everything$features,
+mu_weighted = make_and_annotate_umap(
+  selected_mutation_status,
   dlbcl_meta_clean,
-  umap_out = mu_everything
+  core_features = meta_feats
+  
 )
+make_umap_scatterplot(mu_weighted$df)
 
-make_umap_scatterplot(
-  mu_everything_proj$df,
-  drop_other = F
-)
 ```
+
+

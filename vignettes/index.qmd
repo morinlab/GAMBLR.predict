@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone"
+title: "DLBCLone: Overview"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}
@@ -8,7 +8,7 @@ from: markdown+emoji
 fig.align: "center"
 ---
 
-# Preface 
+## Preface 
 
 *The one classifier to classify all*
 
@@ -16,9 +16,9 @@ DLBCLone is a data-driven, open-source classifier for diffuse large B-cell lymph
 
 The tool is designed to address key limitations of the current primary classifiers; [LymphGen](https://llmpp.nih.gov/lymphgen/index.php) and [DLBclass](https://innovations.dana-farber.org/technology/dlbclass-a-breakthrough-in-diagnosing-and-managing-diffuse-large-b-cell-lymphoma/). LymphGen often labels a large proportion of samples as “Other,” while DLBclass frequently produces low-confidence predictions.
 
-DLBCLone incorporates threshold optimization strategies to adapt to the structure of your input data. When trained on LymphGen-labeled cohorts, it can reclassify “Other” samples into genetic subtypes by leveraging their nearest neighbors in the UMAP space, providing subtype calls with associated confidence scores.
+DLBCLone incorporates threshold optimization strategies to adapt to the structure of your input data. When trained on LymphGen-labeled cohorts, it can reclassify “Other” samples into genetic subtypes by leveraging their nearest neighbors in the UMAP space, providing subtype calls with associated confidence scores. See the [DLBCLone preprint](https://www.medrxiv.org/content/10.1101/2025.09.18.25335809v1) for more details on the methodology and its intended applications.
 
-# Introduction
+## Introduction
 
 This tutorial introduces how to use all of DLBCLone's functions. 
 
@@ -26,21 +26,11 @@ Package Requirements to run DLBCLone:
 ```{r, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 library(GAMBLR.open)
 library(GAMBLR.predict)
-library(tidyverse)
-library(ComplexHeatmap)
-library(uwot)
-library(caret)
-library(FNN)
-library(ggalluvial)
-library(ggbeeswarm)
-library(ggExtra)
-library(ggrepel)
-library(dbscan)
-library(mvtnorm)
-library(ggside)
+library(GAMBLR.utils)
 ```
 
-Load the GAMBLR.predict package associated training files from extdata: 
+Many of the examples use the following two bundled data files.  
+
 ```{r, message=FALSE, warning=FALSE, eval = FALSE}
 dlbcl_meta = readr::read_tsv(system.file("extdata/dlbcl_meta_with_dlbclass.tsv",package = "GAMBLR.predict"))
 
@@ -50,39 +40,6 @@ dlbcl_meta_clean = filter(dlbcl_meta,
 all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
   tibble::column_to_rownames("sample_id")
 
-# Example feature matrix uses the following all_full_status features:
-best_opt_model_genes <- sort(c(
-  "ACTB", "ACTG1", "BCL10", "BCL2", "BCL2L1", 
-  "BCL6", "BIRC3", "BRAF", "BTG1", "BTG2", 
-  "BTK", "CD19", "CD70", "CD79B", "CD83", 
-  "CDKN2A", "CREBBP", "DDX3X", "DTX1", "DUSP2", 
-  "EDRF1", "EIF4A2", "EP300", "ETS1", "ETV6", 
-  "EZH2", "FAS", "FCGR2B", "FOXC1", "FOXO1", 
-  "GNA13", "GRHPR", "HLA-A", "HLA-B", "HNRNPD", 
-  "IRF4", "IRF8", "ITPKB", "JUNB", "KLF2", 
-  "KLHL14", "KLHL6", "KMT2D", "MEF2B", "MPEG1", 
-  "MYD88", "NFKBIA", "NFKBIE", "NFKBIZ", "NOL9", 
-  "NOTCH1", "NOTCH2", "OSBPL10", "PIM1", "PIM2", 
-  "PRDM1", "PRDM15", "PRKDC", "PRRC2C", "PTPN1", 
-  "RFTN1", "S1PR2", "SETD1B", "SGK1", "SOCS1", 
-  "SPEN", "STAT3", "STAT6", "TBCC", "TBL1XR1", 
-  "TET2", "TMEM30A", "TMSB4X", "TNFAIP3", "TNFRSF14", 
-  "TOX", "TP53", "TP73", "UBE2A", "WEE1", 
-  "XBP1", "ZFP36L1", "MYD88HOTSPOT", "BCL2_SV", "BCL6_SV"
-))
-
-best_opt_model_matrix <- all_full_status %>%
-  select(best_opt_model_genes)
 ```
 
 ![](concept_map.png)
-
-*There are dedicated DLBCLone Tutorial Pages that cover:*
-
-- UMAP Projection Functions
-- Optimizing Parameters
-- Storing & Activating DLBCLone Models
-- Predicting Samples
-- Validation
-- Mixture Model
-- KNN Model

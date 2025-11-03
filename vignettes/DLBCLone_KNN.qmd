@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone Functions - K-Nearest Neighbors"
+title: "K-Nearest Neighbors without UMAP"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}
@@ -8,7 +8,7 @@ from: markdown+emoji
 fig.align: "center"
 ---
 
-To show that our approach also works in the original high-dimensional feature space, we provide two additional functions: `DLBCLone_KNN` and `DLBCLone_KNN_predict`. Unlike the earlier functions, these do not rely on UMAP embeddings. Instead, they call UMAP only to compute pairwise distances in the high-dimensional space, a preliminary step in the UMAP algorithm before applying KNN directly. It’s important not to confuse these with the previously introduced DLBCLone functions, which embed the data in a lower-dimensional space and run KNN on those embeddings. With the earlier functions, users never need to handle the KNN step themselves, since it is built into the workflow.
+To demonstrate that our approach also works in the original high-dimensional feature space as well as UMAP space, we provide two additional functions: `DLBCLone_KNN` and `DLBCLone_KNN_predict`. Unlike the earlier functions, these do not rely on UMAP embeddings. Instead, they call UMAP only to compute pairwise distances in the high-dimensional space, a preliminary step in the UMAP algorithm before applying KNN directly. It’s important not to confuse these with the previously introduced DLBCLone functions, which embed the data in a lower-dimensional space and run KNN on those embeddings. With the earlier functions, users never need to handle the KNN step themselves, since it is built into the workflow. *These are not meant for production usage!* 
 
 ```{r set working directory and libs, echo=FALSE, include=FALSE, cahce=FALSE}
 library(tidyverse)
@@ -44,7 +44,7 @@ best_opt_model_matrix <- readr::read_tsv(system.file("extdata/all_full_status.ts
   select(best_opt_model_genes)
 ```
 
-# DLBCLone_KNN 
+## DLBCLone_KNN 
 
 Weighted KNN on a feature (mutation) matrix with optional upweighting of user-specified "core" features, optional exclusion of "hidden" features, and optional optimization of an explicit outgroup (e.g. "Other").
 
@@ -100,7 +100,7 @@ dlbcl_knn$plot_truth
 dlbcl_knn$plot_predicted
 ```
 
-# DLBCLone_KNN_predict 
+## DLBCLone_KNN_predict 
 
 Applies a previously optimized `DLBCLone_KNN` model to predict class labels for new (test) samples. This function combines the training and test feature matrices, ensures feature compatibility, and uses the parameters from a DLBCLone KNN optimization run to classify the test samples. Optionally, runs in iterative mode for more stable results when predicting multiple samples. DLBCLone_KNN_predict is only reproducible when you run a sample through individually because the other samples affect the nearest-neighbor distances. It is OK for when users want to “try out” a model but it doesn’t scale well, `predict_single_sample_DLBCLone` is the way to go.
 

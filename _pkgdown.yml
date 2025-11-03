@@ -7,37 +7,35 @@ template:
     right: [search, github, lightswitch]
 
 reference:
-  - title: "DLBCLone Functions - Feature Matrix Assembly"
+  - title: "DLBCLone: Data pre-processing"
     contents:
       - assemble_genetic_features
     examples: false
-  - title: "DLBCLone Functions - UMAP"
+  - title: "DLBCLone: UMAP"
     desc: >
       Functions for generating and annotating UMAP visualizations.
     contents:
       - make_and_annotate_umap
       - make_umap_scatterplot
+      - basic_umap_scatterplot
     examples: true
   - title: "DLBCLone Functions - Optimizing Parameters"
     desc: >
-      Tools for model optimization and downstream analysis.
+      Tools for feature selection, model optimization and QC.
     contents:
       - DLBCLone_optimize_params
       - posthoc_feature_enrichment
-      - basic_umap_scatterplot
       - make_alluvial
       - DLBCLone_summarize_model
       - DLBCLone_ensemble_postprocess
     examples: true
-  - title: "DLBCLone Functions - DLBCLone Model Management"
-    desc: >
-      Functions to store, load, and activate DLBCLone models.
+  - title: "DLBCLone: Model persistence"
     contents:
       - DLBCLone_save_optimized
       - DLBCLone_load_optimized
       - DLBCLone_activate
     examples: true
-  - title: "DLBCLone Functions - Predicting Samples"
+  - title: "DLBCLone: Classifying samples"
     desc: >
       Functions for applying trained DLBCLone models to new samples and generating visual summaries of prediction confidence and neighborhood relationships.
     contents:
@@ -45,16 +43,16 @@ reference:
       - make_neighborhood_plot
       - nearest_neighbor_heatmap
     examples: true
-  - title: "DLBCLone Functions - K-Nearest Neighbors"
+  - title: "DLBCLone: K-Nearest Neighbors"
     desc: >
-      Functions to train and predict using KNN. Do not confuse these with the previously introduced DLBCLone functions.
+      Functions to train and predict using KNN in high-dimensional space instead of UMAP. Not part of the core DLBCLone functionality.
     contents:
       - DLBCLone_KNN
       - DLBCLone_KNN_predict
     examples: true
-  - title: "DLBCLone Functions - Gaussian Mixture Model"
+  - title: "DLBCLone: Gaussian Mixture Model"
     desc: >
-      Functions to train and predict using gaussian mixture models.
+      Functions to train and predict using gaussian mixture models in UMAP space.
     contents:
       - DLBCLone_train_mixture_model
       - DLBCLone_predict_mixture_model

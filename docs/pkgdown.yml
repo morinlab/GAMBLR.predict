@@ -1,5 +1,5 @@
-pandoc: 3.6.3
-pkgdown: 2.1.3
+pandoc: '3.2'
+pkgdown: 2.1.1
 pkgdown_sha: ~
 articles:
   DLBCLone_KNN: DLBCLone_KNN.html
@@ -11,7 +11,7 @@ articles:
   predict_samples: predict_samples.html
   umap: umap.html
   validation: validation.html
-last_built: 2025-10-29T02:42Z
+last_built: 2025-11-03T19:55Z
 urls:
   reference: https://morinlab.github.io/GAMBLR.predict/reference
   article: https://morinlab.github.io/GAMBLR.predict/articles

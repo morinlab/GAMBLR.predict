@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>DLBCLone Validation Data Generation and Example • GAMBLR.predict</title>
+<title>Applying a DLBCLone model to new data • GAMBLR.predict</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
-<link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="validation_files/libs/quarto-html/popper.min.js"></script><script src="validation_files/libs/quarto-html/tippy.umd.min.js"></script><link href="validation_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="validation_files/libs/quarto-html/light-border.css" rel="stylesheet">
-<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DLBCLone Validation Data Generation and Example">
+<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Applying a DLBCLone model to new data">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -37,15 +37,15 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone</a></li>
-    <li><a class="dropdown-item" href="../articles/umap.html">DLBCLone Functions - UMAP</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">DLBCLone Functions - Optimizing Parameters</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Functions - DLBCLone Model Management</a></li>
-    <li><a class="dropdown-item" href="../articles/predict_samples.html">DLBCLone Functions - Predicting classes with DLBCLone_predict</a></li>
-    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone Full Walkthrough of Associated Functions</a></li>
-    <li><a class="dropdown-item" href="../articles/validation.html">DLBCLone Validation Data Generation and Example</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">DLBCLone Functions - K-Nearest Neighbors</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">DLBCLone Functions - Gaussian Mixture Model</a></li>
+    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone: Overview</a></li>
+    <li><a class="dropdown-item" href="../articles/umap.html">Exploring and selecting features</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">Training a new DLBCLone model</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Models</a></li>
+    <li><a class="dropdown-item" href="../articles/predict_samples.html">Classifying samples with DLBCLone</a></li>
+    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone: Full Walkthrough</a></li>
+    <li><a class="dropdown-item" href="../articles/validation.html">Applying a DLBCLone model to new data</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">K-Nearest Neighbors without UMAP</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">Gaussian Mixture Model</a></li>
   </ul>
 </li>
       </ul>
@@ -62,7 +62,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>DLBCLone Validation Data Generation and Example</h1>
+      <h1>Applying a DLBCLone model to new data</h1>
 
 
 
@@ -76,54 +76,254 @@
 
 
 
-    <section class="section level3"><h3 id="load-the-gamblr-predict-package-associated-training-files-from-extdata">Load the GAMBLR.predict package associated training files from extdata:<a class="anchor" aria-label="anchor" href="#load-the-gamblr-predict-package-associated-training-files-from-extdata"></a>
+    <section class="level2"><h2 id="preamble">Preamble<a class="anchor" aria-label="anchor" href="#preamble"></a>
+</h2>
+<p>This guide will demonstrate the steps for training a custom DLBCLone model and applying it to classify new samples.</p>
+</section><section class="level2"><h2 id="preparing-your-test-data">Preparing your <em>test</em> data<a class="anchor" aria-label="anchor" href="#preparing-your-test-data"></a>
+</h2>
+<p>To use a trained DLBCLone model on your data, you need (at a minimum) either a MAF file or a mutation status matrix for the genes (features) that were used to generate the model. Here, you will learn how to generate a mutation status matrix using one of our published cohorts, which was sequenced with the LySeqST panel. If you have translocation status for BCL2, BCL6 etc and want to include that in the model, you will also need a second table that includes the translocation status for each sample. We generally refer to this as the metadata table. Together, your MAF and metadata files will be used to assemble the feature matrix that will be used for UMAP and KNN approximation on your samples.</p>
+<section class="level3"><h3 id="sv-status">SV status<a class="anchor" aria-label="anchor" href="#sv-status"></a>
 </h3>
+<p>For this example, we will extract the BCL2 and BCL6 status directly from the output of LymphGen. We will also use the LymphGen classification to evaluate our accuracy. Importantly, you do not need a LymphGen result from your <em>test</em> data but it can be useful to sanity check your UMAP and your model performance. The MAF and metadata for these samples (in the form of a LymphGen output) are both bundled with this package. The code below loads these files and restructures a few columns to make them compatible with downstream functions.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">all_full_status_train</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/all_full_status.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/rownames.html" class="external-link">column_to_rownames</a></span><span class="op">(</span><span class="st">"sample_id"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">GAMBLR.open</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">GAMBLR.utils</span><span class="op">)</span> </span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyverse.tidyverse.org" class="external-link">tidyverse</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">GAMBLR.predict</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">dlbcl_meta</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/dlbcl_meta_with_dlbclass.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">dlbcl_meta_clean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">dlbcl_meta</span>,</span>
-<span>                          <span class="va">lymphgen</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"EZB"</span>,<span class="st">"BN2"</span>,<span class="st">"N1"</span>,<span class="st">"ST2"</span>,<span class="st">"Other"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-</div>
-</section><section class="section level2"><h2 id="generating-validation-data">Generating Validation Data<a class="anchor" aria-label="anchor" href="#generating-validation-data"></a>
-</h2>
-<p>When using DLBCLone, you need to provide the following files to initialize training: metadata, and MAF data. In this example, I will go step by step producing a mutation matrix for a validation test. When producing training data your metadata <em>must</em> possess a truth column containing genetic subtype results for each sample as a result of running a previous model (ie. LymphGen, DLBclass, etc.). When producing a test or validation set for your training, the truth column is not required in the metadata. MAF and metadata files are required to assemble the feature matrix that will be used for UMAP and KNN approximation on your samples. The validation will focus on a lyseq feature matrix.</p>
-<section class="level2"><h3 id="metadata-data">metadata data<a class="anchor" aria-label="anchor" href="#metadata-data"></a>
-</h3>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">valid_meta_dir</span> <span class="op">&lt;-</span> <span class="st">"../data/metadata/metadata_sequencing_vaf.tsv"</span></span>
-<span></span>
-<span><span class="va">valid_metadata_vaf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="va">valid_meta_dir</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>sample_id <span class="op">=</span> <span class="va">DNAseq_sample_id</span><span class="op">)</span></span></code></pre></div>
-</div>
-</section><section class="level2"><h3 id="maf-data">MAF data<a class="anchor" aria-label="anchor" href="#maf-data"></a>
-</h3>
-<p>When using MAF files in GAMBLR functions, the MAF must be a S3 object. Simply feed the MAF dataframe through GAMBLR.util’s <code>create_maf_data</code> function.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">valid_maf_dir</span> <span class="op">&lt;-</span> <span class="st">"../data/maf/LySeqST_only_read_threshold_vaf.maf"</span></span>
-<span></span>
-<span><span class="va">valid_maf_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="va">valid_maf_dir</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>  </span>
+<span><span class="va">lymphgen_test</span> <span class="op">=</span> <span class="st">"extdata/lyseq_validation/LySeqST_only_unaugmented_vaf.lymphgen_calls.no_cnvs.with_sv.no_A53.tsv"</span></span>
+<span><span class="va">valid_metadata</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="va">lymphgen_test</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/rename.html" class="external-link">rename</a></span><span class="op">(</span></span>
+<span>    sample_id <span class="op">=</span> <span class="va">Sample.Name</span>,</span>
+<span>    lymphgen <span class="op">=</span> <span class="va">Subtype.Prediction</span></span>
+<span>  <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span></span>
+<span>    BCL2.Translocation <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html" class="external-link">if_else</a></span><span class="op">(</span><span class="va">BCL2.Translocation</span> <span class="op">==</span> <span class="st">"yes"</span>, <span class="st">"POS"</span>, <span class="va">BCL2.Translocation</span><span class="op">)</span>,</span>
+<span>    BCL2.Translocation <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html" class="external-link">if_else</a></span><span class="op">(</span><span class="va">BCL2.Translocation</span> <span class="op">==</span> <span class="st">"no"</span>, <span class="st">"NEG"</span>, <span class="va">BCL2.Translocation</span><span class="op">)</span>,</span>
+<span>    BCL2.Translocation <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html" class="external-link">if_else</a></span><span class="op">(</span><span class="va">BCL2.Translocation</span> <span class="op">==</span> <span class="st">"Not Available"</span>, <span class="st">"NA"</span>, <span class="va">BCL2.Translocation</span><span class="op">)</span>,</span>
+<span>    BCL6.Translocation <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html" class="external-link">if_else</a></span><span class="op">(</span><span class="va">BCL6.Translocation</span> <span class="op">==</span> <span class="st">"yes"</span>, <span class="st">"POS"</span>, <span class="va">BCL6.Translocation</span><span class="op">)</span>,</span>
+<span>    BCL6.Translocation <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html" class="external-link">if_else</a></span><span class="op">(</span><span class="va">BCL6.Translocation</span> <span class="op">==</span> <span class="st">"no"</span>, <span class="st">"NEG"</span>, <span class="va">BCL6.Translocation</span><span class="op">)</span>,</span>
+<span>    BCL6.Translocation <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html" class="external-link">if_else</a></span><span class="op">(</span><span class="va">BCL6.Translocation</span> <span class="op">==</span> <span class="st">"Not Available"</span>, <span class="st">"NA"</span>, <span class="va">BCL6.Translocation</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="va">maf_test</span> <span class="op">=</span> <span class="st">"extdata/lyseq_validation/LySeqST_merged_unaugmented_vaf.maf"</span></span>
+<span><span class="va">valid_maf_vaf_dir</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="va">maf_test</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>  </span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span></span>
 <span>    sample_id <span class="op">=</span> <span class="va">Tumor_Sample_Barcode</span></span>
 <span>  <span class="op">)</span></span>
-<span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">GAMBLR.utils</span><span class="op">)</span> <span class="co"># S3 compatible maf generation for GAMBLR functions</span></span>
-<span></span>
+<span><span class="co">#convert to S3 object for compatability</span></span>
 <span><span class="va">valid_maf_vaf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/GAMBLR.utils/man/create_maf_data.html" class="external-link">create_maf_data</a></span><span class="op">(</span></span>
-<span>  maf_df <span class="op">=</span> <span class="va">valid_maf_df</span>,</span>
-<span>  genome_build <span class="op">=</span> <span class="st">"grch37"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span>    maf_df <span class="op">=</span> <span class="va">valid_maf_vaf_dir</span>,</span>
+<span>    genome_build <span class="op">=</span> <span class="st">"grch37"</span></span>
+<span>  <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>Chromosome <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">Chromosome</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 </div>
-</section><section class="level2"><h3 id="lyseq-features">lyseq features<a class="anchor" aria-label="anchor" href="#lyseq-features"></a>
+</section><section class="level3"><h3 id="synonymous-mutations">Synonymous mutations<a class="anchor" aria-label="anchor" href="#synonymous-mutations"></a>
 </h3>
+<p>If the model you’re using used base-3 encoding (0,1,2), that means synonymous mutations are considered for some genes. You will have to know up-front (or find out) which genes this applies to, so you can encode your data consistently. If your MAF file doesn’t contain any synonyous mutations, be sure to use a model that was trained only on coding mutations.</p>
+</section></section><section class="level2"><h2 id="metadata">metadata<a class="anchor" aria-label="anchor" href="#metadata"></a>
+</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">lyseq_genes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">valid_metadata</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output-display">
+<table class="table caption-top" style="width:100%;">
+<colgroup>
+<col style="width: 3%">
+<col style="width: 2%">
+<col style="width: 3%">
+<col style="width: 3%">
+<col style="width: 2%">
+<col style="width: 3%">
+<col style="width: 3%">
+<col style="width: 3%">
+<col style="width: 2%">
+<col style="width: 3%">
+<col style="width: 3%">
+<col style="width: 3%">
+<col style="width: 3%">
+<col style="width: 3%">
+<col style="width: 3%">
+<col style="width: 12%">
+<col style="width: 15%">
+<col style="width: 8%">
+<col style="width: 3%">
+<col style="width: 8%">
+<col style="width: 1%">
+</colgroup>
+<thead><tr class="header">
+<th style="text-align: left;">sample_id</th>
+<th style="text-align: left;">Copy.Number</th>
+<th style="text-align: left;">BCL2.Translocation</th>
+<th style="text-align: left;">BCL6.Translocation</th>
+<th style="text-align: left;">Model.Used</th>
+<th style="text-align: right;">Confidence.BN2</th>
+<th style="text-align: right;">Confidence.EZB</th>
+<th style="text-align: right;">Confidence.MCD</th>
+<th style="text-align: right;">Confidence.N1</th>
+<th style="text-align: right;">Confidence.ST2</th>
+<th style="text-align: right;">BN2.Feature.Count</th>
+<th style="text-align: right;">EZB.Feature.Count</th>
+<th style="text-align: right;">MCD.Feature.Count</th>
+<th style="text-align: right;">N1.Feature.Count</th>
+<th style="text-align: right;">ST2.Feature.Count</th>
+<th style="text-align: left;">BN2.Features</th>
+<th style="text-align: left;">EZB.Features</th>
+<th style="text-align: left;">MCD.Features</th>
+<th style="text-align: left;">N1.Features</th>
+<th style="text-align: left;">ST2.Features</th>
+<th style="text-align: left;">lymphgen</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">00-14595_tumorA</td>
+<td style="text-align: left;">Not Available</td>
+<td style="text-align: left;">POS</td>
+<td style="text-align: left;">POS</td>
+<td style="text-align: left;">NOCGH</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">BCL6FusionCatcherORInHouse_FUSION,DTX1_MUTATION,BTG2_SubSyn</td>
+<td style="text-align: left;">BCL2TransFISHMUTFusion_CompUp,EZH2_SubMUTATION,SOCS1_MUTATION</td>
+<td style="text-align: left;">BTG2_SubSyn</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">SOCS1_MUTATION,ITPKB_MUTATION</td>
+<td style="text-align: left;">EZB</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">00-14595_tumorB</td>
+<td style="text-align: left;">Not Available</td>
+<td style="text-align: left;">POS</td>
+<td style="text-align: left;">POS</td>
+<td style="text-align: left;">NOCGH</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.68</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">BCL6FusionCatcherORInHouse_FUSION,DTX1_MUTATION,BTG2_SubSyn</td>
+<td style="text-align: left;">BCL2TransFISHMUTFusion_CompUp,EZH2_SubMUTATION,SOCS1_MUTATION</td>
+<td style="text-align: left;">TBL1XR1_MUTATION,PIM2_SubSyn,BTG2_SubSyn</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">SGK1_TRUNC,SOCS1_MUTATION,ITPKB_MUTATION</td>
+<td style="text-align: left;">EZB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">00-14595_tumorC</td>
+<td style="text-align: left;">Not Available</td>
+<td style="text-align: left;">POS</td>
+<td style="text-align: left;">POS</td>
+<td style="text-align: left;">NOCGH</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.68</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">BCL6FusionCatcherORInHouse_FUSION,DTX1_MUTATION,BTG2_SubSyn</td>
+<td style="text-align: left;">BCL2TransFISHMUTFusion_CompUp,EZH2_SubMUTATION,KMT2D_TRUNC,SOCS1_MUTATION</td>
+<td style="text-align: left;">TBL1XR1_MUTATION,PIM2_SubSyn,BTG2_SubSyn</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">SGK1_TRUNC,SOCS1_MUTATION,ITPKB_MUTATION</td>
+<td style="text-align: left;">EZB</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">00-14595_tumorD</td>
+<td style="text-align: left;">Not Available</td>
+<td style="text-align: left;">POS</td>
+<td style="text-align: left;">NEG</td>
+<td style="text-align: left;">NOCGH</td>
+<td style="text-align: right;">0.17</td>
+<td style="text-align: right;">0.98</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">DTX1_MUTATION,BTG2_SubSyn</td>
+<td style="text-align: left;">BCL2TransFISHMUTFusion_CompUp,EZH2_SubMUTATION</td>
+<td style="text-align: left;">PIM2_SubSyn,BTG2_SubSyn</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">EZB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">00-15201_tumorA</td>
+<td style="text-align: left;">Not Available</td>
+<td style="text-align: left;">NEG</td>
+<td style="text-align: left;">NEG</td>
+<td style="text-align: left;">NOCGH</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.15</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">TNFAIP3_TRUNC</td>
+<td style="text-align: left;">KMT2D_TRUNC</td>
+<td style="text-align: left;">PIM1_Synon,BTG1_SubSyn,HLA-A_MUTATION</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">CD83_Synon,DUSP2_MUTATION,WEE1_Synon</td>
+<td style="text-align: left;">Other</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">00-15201_tumorB</td>
+<td style="text-align: left;">Not Available</td>
+<td style="text-align: left;">NEG</td>
+<td style="text-align: left;">NEG</td>
+<td style="text-align: left;">NOCGH</td>
+<td style="text-align: right;">0.18</td>
+<td style="text-align: right;">0.11</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">TNFAIP3_TRUNC,KLF2_Synon</td>
+<td style="text-align: left;">EP300_MUTATION</td>
+<td style="text-align: left;">HLA-B_MUTATION,PIM2_SubSyn,HLA-A_MUTATION</td>
+<td style="text-align: left;">NOTCH1_MUTATION</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">N1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section><section class="level2"><h2 id="lyseq-features">lyseq features<a class="anchor" aria-label="anchor" href="#lyseq-features"></a>
+</h2>
+<p>The LySeqST sequencing panel includes the following genes. In order to train a classifier compatible with this panel, we need to subset the training data to ensure only these genes are included in training.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">lyseq_genes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="st">"TNFRSF14"</span>, <span class="st">"SPEN"</span>, <span class="st">"ID3"</span>, <span class="st">"ARID1A"</span>, <span class="st">"RRAGC"</span>,</span>
 <span>  <span class="st">"BCL10"</span>, <span class="st">"CD58"</span>, <span class="st">"NOTCH2"</span>, <span class="st">"FCGR2B"</span>, <span class="st">"FCRLA"</span>,</span>
 <span>  <span class="st">"FAS"</span>, <span class="st">"CCND1"</span>, <span class="st">"BIRC3"</span>, <span class="st">"ATM"</span>, <span class="st">"KMT2D"</span>,</span>
@@ -144,39 +344,48 @@
 <span>  <span class="st">"KLHL14"</span>, <span class="st">"MED16"</span>, <span class="st">"CD70"</span>, <span class="st">"JUNB"</span>, <span class="st">"KLF2"</span>,</span>
 <span>  <span class="st">"CD79A"</span>, <span class="st">"DYSF"</span>, <span class="st">"DUSP2"</span>, <span class="st">"BCL2L1"</span>, <span class="st">"PRDM15"</span>,</span>
 <span>  <span class="st">"RFTN1"</span>, <span class="st">"OSBPL10"</span>, <span class="st">"EIF4A2"</span>, <span class="st">"BCL6"</span>, <span class="st">"IRF4"</span>,</span>
-<span>  <span class="st">"FOXC1"</span>, <span class="st">"CD83"</span>, <span class="st">"H2BC4"</span>, <span class="st">"H1-3"</span>, <span class="st">"H1-5"</span>,</span>
+<span>  <span class="st">"FOXC1"</span>, <span class="st">"CD83"</span>, </span>
 <span>  <span class="st">"HLA-A"</span>, <span class="st">"HLA-B"</span>, <span class="st">"PRRC2A"</span>, <span class="st">"TBCC"</span>, <span class="st">"INTS1"</span>,</span>
 <span>  <span class="st">"ACTB"</span>, <span class="st">"PIK3CG"</span>, <span class="st">"PRKDC"</span>, <span class="st">"TOX"</span>, <span class="st">"CDKN2A"</span>,</span>
 <span>  <span class="st">"GRHPR"</span>, <span class="st">"DDX3X"</span>, <span class="st">"PIM2"</span>, <span class="st">"UBE2A"</span>, <span class="st">"ETV6"</span>,</span>
 <span>  <span class="st">"MS4A1"</span>, <span class="st">"CD19"</span>, <span class="st">"HNRNPD"</span>, <span class="st">"NFKBIE"</span>, <span class="st">"TMSB4X"</span></span>
-<span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
-</section></section><section class="section level2"><h2 id="assemble_genetic_features">assemble_genetic_features<a class="anchor" aria-label="anchor" href="#assemble_genetic_features"></a>
+</section><section class="level2"><h2 id="making-a-compatible-feature-matrix">Making a compatible feature matrix<a class="anchor" aria-label="anchor" href="#making-a-compatible-feature-matrix"></a>
 </h2>
-<p>This function allows you to assemble all samples producing a matrix of genetic features. This includes mutation status, and structural variant status for BCL2, BCL6, and MYC. This customizable function allows you to pick apart what features you are most interested in, as well as the option to assign different values for the class of genetic features.</p>
-<p><code>these_samples_metadata</code> data frame with sample metadata, must include seq_type and sample_id</p>
-<p><code>sv_from_metadata</code> columns in metadata to use for SV status (default: c(“BCL2”,“BCL6”,“MYC”))</p>
-<p><code>genes</code> vector of gene symbols to include</p>
-<p><code>synon_genes</code> vector of gene symbols for synonymous mutations</p>
-<p><code>maf_with_synon</code> MAF data frame including synonymous mutations</p>
-<p><code>hotspot_genes</code> vector of hotspot genes</p>
-<p><code>sv_value</code> value to assign for SV presence (default: 3)</p>
-<p><code>synon_value</code> value to assign for synonymous mutations (default: 1)</p>
-<p><code>coding_value</code> value to assign for coding mutations (default: 2)</p>
+<p>You create a mutation feature matrix with <code>assemble_genetic_features</code>. This can include mutation status and structural variant status for BCL2, BCL6, and MYC. By default, synonymous mutations will be encoded as 1 and SV and coding mutations will be encoded as 2. The genes for which synonymous mutations are considered are specified separately. The genes we commonly use are shown in the example below.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">lyseq_valid</span> <span class="op">=</span> <span class="fu"><a href="../reference/assemble_genetic_features.html">assemble_genetic_features</a></span><span class="op">(</span></span>
-<span>  these_samples_metadata <span class="op">=</span> <span class="va">valid_metadata_vaf</span>,</span>
+<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ashm_genes</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ACTB"</span>,<span class="st">"ACTG1"</span>,<span class="st">"BCL2"</span>,<span class="st">"BCL6"</span>,<span class="st">"BIRC3"</span>,</span>
+<span>     <span class="st">"BTG1"</span>,<span class="st">"BTG2"</span>,<span class="st">"CD83"</span>,<span class="st">"CIITA"</span>,<span class="st">"CXCR4"</span>,<span class="st">"DDX3X"</span>,    </span>
+<span>     <span class="st">"DTX1"</span>,<span class="st">"DUSP2"</span>,<span class="st">"ETS1"</span>,<span class="st">"ETV6"</span>,<span class="st">"GRHPR"</span>,<span class="st">"ID3"</span>, </span>
+<span>     <span class="st">"IL4R"</span>,<span class="st">"IRF4"</span>,<span class="st">"IRF8"</span>,<span class="st">"ITPKB"</span>,<span class="st">"KLF2"</span>,<span class="st">"KLHL6"</span>,</span>
+<span>     <span class="st">"MEF2B"</span>,<span class="st">"MS4A1"</span>,<span class="st">"MYC"</span>,<span class="st">"NFKBIZ"</span>,<span class="st">"OSBPL10"</span>,<span class="st">"PIM1"</span>,</span>
+<span>     <span class="st">"PIM2"</span>,<span class="st">"PTPN1"</span>,<span class="st">"RFTN1"</span>,<span class="st">"S1PR2"</span>,<span class="st">"SGK1"</span>,<span class="st">"SOCS1"</span>,</span>
+<span>     <span class="st">"TMSB4X"</span>,<span class="st">"WEE1"</span>,<span class="st">"XBP1"</span>,<span class="st">"ZFP36L1"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">lyseq_valid</span> <span class="op">=</span> <span class="fu"><a href="../reference/assemble_genetic_features.html">assemble_genetic_features</a></span><span class="op">(</span></span>
+<span>  these_samples_metadata <span class="op">=</span> <span class="va">valid_metadata</span>,</span>
 <span>  sv_from_metadata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>BCL2 <span class="op">=</span> <span class="st">'BCL2.Translocation'</span>, BCL6 <span class="op">=</span> <span class="st">'BCL6.Translocation'</span><span class="op">)</span>,</span>
 <span>  genes<span class="op">=</span><span class="va">lyseq_genes</span>,</span>
 <span>  maf_with_synon <span class="op">=</span> <span class="va">valid_maf_vaf</span>,</span>
 <span>  hotspot_genes <span class="op">=</span> <span class="st">"MYD88"</span>,</span>
-<span>  synon_genes<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"PIM1"</span>,<span class="st">"SOCS1"</span><span class="op">)</span></span>
+<span>  synon_genes<span class="op">=</span><span class="va">ashm_genes</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</section><section class="section level2"><h2 id="full-walkthrough-with-validation-data">Full Walkthrough with Validation Data<a class="anchor" aria-label="anchor" href="#full-walkthrough-with-validation-data"></a>
+</section><section class="level2"><h2 id="load-the-training-data">Load the training data<a class="anchor" aria-label="anchor" href="#load-the-training-data"></a>
 </h2>
-<p>Now that we have a feature set different from the training provided earlier <code>&lt;all_full_status_train&gt;</code> we can now validate DLBCLone. It is important to ensure the training matches the features of the validation or test set to ensure the featrues in your training provide appropriate, accurate, predictions.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">all_full_status_train</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/all_full_status.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span>  <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/rownames.html" class="external-link">column_to_rownames</a></span><span class="op">(</span><span class="st">"sample_id"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">dlbcl_meta</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/dlbcl_meta_with_dlbclass.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">dlbcl_meta_clean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">dlbcl_meta</span>,</span>
+<span>                          <span class="va">lymphgen</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"EZB"</span>,<span class="st">"BN2"</span>,<span class="st">"N1"</span>,<span class="st">"ST2"</span>,<span class="st">"Other"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</div>
+<p>Before training, the mutation matrix from the bundled training data must be subset to exclude any features that are not part of your panel.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">all_full_status_train</span><span class="op">)</span></span></code></pre></div>
@@ -186,21 +395,16 @@
 <div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">lyseq_valid</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 116</code></pre>
+<pre><code>[1] 125</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lyseq_train</span> <span class="op">&lt;-</span> <span class="va">all_full_status_train</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">all_of</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">lyseq_valid</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">lyseq_train</span><span class="op">)</span>,<span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">lyseq_valid</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] TRUE</code></pre>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">all_of</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">lyseq_valid</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 </div>
-</div>
-<section class="level2"><h3 id="make_and_annotate_umap">make_and_annotate_umap<a class="anchor" aria-label="anchor" href="#make_and_annotate_umap"></a>
-</h3>
+</section><section class="level2"><h2 id="create-training-data-umap">Create training data UMAP<a class="anchor" aria-label="anchor" href="#create-training-data-umap"></a>
+</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mu_lyseq_train</span> <span class="op">=</span> <span class="fu"><a href="../reference/make_and_annotate_umap.html">make_and_annotate_umap</a></span><span class="op">(</span></span>
 <span>  <span class="va">lyseq_train</span>,</span>
 <span>  <span class="va">dlbcl_meta_clean</span>,</span>
@@ -213,85 +417,118 @@
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</section><section class="level2"><h3 id="dlbclone_optimize_params">DLBCLone_optimize_params<a class="anchor" aria-label="anchor" href="#dlbclone_optimize_params"></a>
+<section class="level3"><h3 id="visualize-umap">Visualize UMAP<a class="anchor" aria-label="anchor" href="#visualize-umap"></a>
 </h3>
+<p>Visually confirm the separation of the training samples based on their LymphGen class labels.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_umap_scatterplot.html">make_umap_scatterplot</a></span><span class="op">(</span><span class="va">mu_lyseq_train</span><span class="op">$</span><span class="va">df</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure><p><img src="validation_files/figure-html/unnamed-chunk-2-1.png" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section></section><section class="level2"><h2 id="train-the-model">Train the model<a class="anchor" aria-label="anchor" href="#train-the-model"></a>
+</h2>
+<p>Train and optimize our model using the training data with our custom feature set.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">lyseq_features_optimized_train</span> <span class="op">=</span> <span class="fu"><a href="../reference/DLBCLone_optimize_params.html">DLBCLone_optimize_params</a></span><span class="op">(</span>  </span>
+<code class="sourceCode R"><span><span class="va">lyseq_features_optimized</span> <span class="op">=</span> <span class="fu"><a href="../reference/DLBCLone_optimize_params.html">DLBCLone_optimize_params</a></span><span class="op">(</span>  </span>
 <span>  <span class="va">mu_lyseq_train</span><span class="op">$</span><span class="va">features</span>, </span>
 <span>  <span class="va">dlbcl_meta_clean</span>,</span>
 <span>  umap_out <span class="op">=</span> <span class="va">mu_lyseq_train</span>,</span>
 <span>  truth_classes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"EZB"</span>,<span class="st">"BN2"</span>,<span class="st">"N1"</span>,<span class="st">"ST2"</span>,<span class="st">"Other"</span><span class="op">)</span>,</span>
 <span>  optimize_for_other <span class="op">=</span> <span class="cn">T</span>,</span>
-<span>  min_k<span class="op">=</span><span class="fl">5</span>,</span>
-<span>  max_k<span class="op">=</span><span class="fl">13</span></span>
+<span>  min_k<span class="op">=</span><span class="fl">11</span>,</span>
+<span>  max_k<span class="op">=</span><span class="fl">21</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">lyseq_features_optimized_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_activate.html">DLBCLone_activate</a></span><span class="op">(</span> <span class="co"># Activates optimized model setting the UMAP projection</span></span>
-<span>  <span class="va">lyseq_features_optimized_train</span>, </span>
+<span><span class="va">lyseq_features_optimized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_activate.html">DLBCLone_activate</a></span><span class="op">(</span> <span class="co"># Activates optimized model setting the UMAP projection</span></span>
+<span>  <span class="va">lyseq_features_optimized</span>, </span>
 <span>  force <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</section><section class="level2"><h3 id="dlbclone_predict">DLBCLone_predict<a class="anchor" aria-label="anchor" href="#dlbclone_predict"></a>
-</h3>
-<section class="level3"><h4 id="predicting-all-validation-samples">predicting all validation samples<a class="anchor" aria-label="anchor" href="#predicting-all-validation-samples"></a>
-</h4>
+</section><section class="level2"><h2 id="training-accuracy">Training accuracy<a class="anchor" aria-label="anchor" href="#training-accuracy"></a>
+</h2>
+<p>Check the classification accuracy of the optimized classifier (DLBCLone_wo) on the training data set.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">test_sample</span> <span class="op">=</span> <span class="st">"00-14595_tumorC"</span></span>
-<span></span>
-<span><span class="va">pred_valid_lyseq</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
-<span>  mutation_status <span class="op">=</span> <span class="va">lyseq_valid</span><span class="op">[</span><span class="va">test_sample</span>,<span class="op">]</span>,</span>
-<span>  optimized_model <span class="op">=</span> <span class="va">lyseq_features_optimized_train</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="va">lyseq_features_optimized</span>,</span>
+<span>  pred_column<span class="op">=</span><span class="st">"DLBCLone_wo"</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Duplicated aesthetics after name standardisation: fill</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in to_lodes_form(data = data, axes = axis_ind, discern =
+params$discern): Some strata appear at multiple axes.
+Warning in to_lodes_form(data = data, axes = axis_ind, discern =
+params$discern): Some strata appear at multiple axes.</code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure><p><img src="validation_files/figure-html/alluvial%20train-1.png" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section><section class="level2"><h2 id="apply-the-model-to-the-test-data">Apply the model to the <em>test</em> data<a class="anchor" aria-label="anchor" href="#apply-the-model-to-the-test-data"></a>
+</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pred_valid_lyseq_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
+<span>  mutation_status <span class="op">=</span> <span class="va">lyseq_valid</span>,</span>
+<span>  optimized_model <span class="op">=</span> <span class="va">lyseq_features_optimized</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">pred_valid_lyseq</span><span class="op">$</span><span class="va">prediction</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">pred_valid_lyseq_all</span><span class="op">$</span><span class="va">prediction</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <table class="table caption-top" style="width:100%;">
 <colgroup>
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 15%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 12%">
+<col style="width: 4%">
 <col style="width: 5%">
-<col style="width: 8%">
-<col style="width: 5%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 2%">
-<col style="width: 2%">
 <col style="width: 3%">
-<col style="width: 2%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
+<col style="width: 47%">
+<col style="width: 0%">
+<col style="width: 3%">
 <col style="width: 0%">
 <col style="width: 1%">
 <col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
-<col style="width: 1%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
 </colgroup>
 <thead><tr class="header">
 <th style="text-align: left;">sample_id</th>
@@ -338,99 +575,365 @@
 <th style="text-align: left;">DLBCLone_w</th>
 <th style="text-align: left;">DLBCLone_wo</th>
 </tr></thead>
-<tbody><tr class="odd">
-<td style="text-align: left;">00-14595_tumorC</td>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">00-14595_tumorA</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: left;">SP193546,98-28290T,CAR_154_PreCART,08-13706T,FL1016T2,03-11110T,96-31596T,05-25674T,CAR_177_PreCART,CLC03454,02-13135T</td>
-<td style="text-align: left;">1296,445,507,139,178,46,440,88,513,356,28</td>
-<td style="text-align: left;">0.125,0.194,0.236,0.239,0.24,0.246,0.266,0.272,0.273,0.273,0.276</td>
-<td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
+<td style="text-align: right;">1.0000000</td>
+<td style="text-align: right;">0.0000000</td>
+<td style="text-align: left;">00-14595_tumorC,17-33848_tumorB,06-30025T,DLBCL11428T,09-41114T,03-11110T,06-30145T,SP116620,DLBCL-MC_F349_BJJ-Tumor,16-13732T,DLBCL11572T,CAR_154_PreCART,SU-DHL-4,05-25439T,DLBCL11656T,08-13706T,CAR_178_PreCART,05-25674T,06-18449_tumorB</td>
+<td style="text-align: left;">1,354,121,1106,172,47,122,1331,626,321,1218,508,2425,88,1240,140,515,89,109</td>
+<td style="text-align: left;">0.128,0.142,0.145,0.149,0.152,0.156,0.195,0.205,0.212,0.223,0.227,0.244,0.251,0.251,0.251,0.26,0.271,0.274,0.288</td>
+<td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
 <td style="text-align: left;"></td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: left;">48.2057820042242</td>
+<td style="text-align: left;">95.7664551143418</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">48.20578</td>
-<td style="text-align: right;">48.20578</td>
-<td style="text-align: right;">2.927276</td>
-<td style="text-align: right;">-3.456404</td>
+<td style="text-align: right;">0.0000000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">95.76646</td>
+<td style="text-align: right;">95.76646</td>
+<td style="text-align: right;">-0.8899906</td>
+<td style="text-align: right;">4.3290272</td>
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">11</td>
+<td style="text-align: right;">19</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">48.20578</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">95.76646</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">0.000000</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">48.20578</td>
-<td style="text-align: right;">11</td>
+<td style="text-align: right;">95.76646</td>
+<td style="text-align: right;">19</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">11</td>
+<td style="text-align: right;">19</td>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: right;">Inf</td>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: left;">EZB</td>
-</tr></tbody>
+</tr>
+<tr class="even">
+<td style="text-align: left;">00-14595_tumorB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">1.0000000</td>
+<td style="text-align: right;">0.0000000</td>
+<td style="text-align: left;">09-41114T,03-11110T,00-14595_tumorC,17-33848_tumorB,DLBCL11428T,DLBCL-MC_F349_BJJ-Tumor,06-30025T,DLBCL11572T,SU-DHL-4,08-13706T,05-25439T,CAR_178_PreCART,CAR_154_PreCART,DLBCL11656T,SP116620,06-30145T,CAR_177_PreCART,06-18449_tumorB,DLBCL11567T</td>
+<td style="text-align: left;">172,47,1,354,1106,626,121,1218,2425,140,88,515,508,1240,1331,122,514,109,1213</td>
+<td style="text-align: left;">0.113,0.115,0.13,0.141,0.158,0.163,0.181,0.188,0.194,0.207,0.21,0.215,0.219,0.229,0.229,0.247,0.259,0.26,0.263</td>
+<td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">103.880530854753</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0000000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">103.88053</td>
+<td style="text-align: right;">103.88053</td>
+<td style="text-align: right;">-0.8807368</td>
+<td style="text-align: right;">4.2731309</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">103.88053</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">103.88053</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">Inf</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">00-14595_tumorC</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">1.0000000</td>
+<td style="text-align: right;">0.0000000</td>
+<td style="text-align: left;">08-13706T,CAR_177_PreCART,CLC03454,SU-DHL-4,DLBCL11567T,DLBCL11572T,DLBCL-MC_F349_BJJ-Tumor,SP116659,CLC00259,CAR_154_PreCART,06-18449_tumorB,DLBCL-MC_F300_TBF-Tumor,DLBCL10459T,CAR_178_PreCART,02-13135T,05-32762T,FL1002T2,09-41114T,DLBCL10465T</td>
+<td style="text-align: left;">139,513,356,2424,1212,1217,625,1338,188,507,108,621,831,514,28,93,10,171,836</td>
+<td style="text-align: left;">0.132,0.159,0.161,0.163,0.165,0.167,0.172,0.18,0.181,0.192,0.193,0.197,0.197,0.197,0.228,0.229,0.231,0.233,0.235</td>
+<td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">102.42382208477</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0000000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">102.42382</td>
+<td style="text-align: right;">102.42382</td>
+<td style="text-align: right;">-0.9343416</td>
+<td style="text-align: right;">4.1505504</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">102.42382</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">102.42382</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">Inf</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">00-14595_tumorD</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">1.0000000</td>
+<td style="text-align: right;">0.0409382</td>
+<td style="text-align: left;">190806-PL01-PL02,DLBCL11666T,DLBCL-MC_F358_WDS-Tumor,DLBCL11573T,05-25674T,10-15025T,Aph_13_PreCART,DLBCL11558T,FL1010T2,SU-DHL-6,SP116620,06-15922T,SP194216,CAR_276_PreCART,DLBCL11575T,SP193957,171290-PL01,170867-PL02,15-11280_CLC02281</td>
+<td style="text-align: left;">450,1249,627,1219,89,177,469,1206,449,2427,1331,105,1301,526,1220,1307,461,460,285</td>
+<td style="text-align: left;">0.118,0.126,0.154,0.157,0.159,0.166,0.173,0.18,0.202,0.204,0.207,0.21,0.21,0.234,0.236,0.252,0.253,0.253,0.255</td>
+<td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
+<td style="text-align: left;">FL1003T2</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">101.424039965503</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.0526316</td>
+<td style="text-align: right;">4.152118</td>
+<td style="text-align: right;">101.42404</td>
+<td style="text-align: right;">101.42404</td>
+<td style="text-align: right;">-0.6999627</td>
+<td style="text-align: right;">4.4204650</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">101.42404</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">4.152118</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">101.42404</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">24.4270604</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: left;">EZB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">00-15201_tumorA</td>
+<td style="text-align: left;">BN2</td>
+<td style="text-align: right;">0.4536479</td>
+<td style="text-align: right;">8.6321139</td>
+<td style="text-align: left;">Reddy_3551T,Reddy_2620T,Reddy_2789T,Reddy_3904T,DLBCL11518T,SP116690,DLBCL-c_D_1158-Tumor,Reddy_2650T,1011-2020_FFPE,DLBCL-RICOVER_978-Tumor,Reddy_2603T,Reddy_2534T,Reddy_3616T,QC2-30T,DLBCL10856T,DLBCL10919T,Reddy_705T,Reddy_3849T,H041_T_WGS</td>
+<td style="text-align: left;">2076,1768,1862,2315,1184,1343,813,1788,218,761,1756,1714,2112,1503,941,999,2411,2279,600</td>
+<td style="text-align: left;">0.189,0.233,0.484,0.491,0.569,0.575,0.624,0.679,0.681,0.683,0.722,0.739,0.821,0.857,0.859,0.865,0.888,0.91,0.952</td>
+<td style="text-align: left;">BN2,BN2,ST2,ST2,BN2,ST2,ST2,EZB,EZB,BN2,EZB,BN2,BN2,EZB,EZB,EZB,EZB,EZB,MCD</td>
+<td style="text-align: left;">1102503091T,Reddy_3739T,Reddy_2147T,1102503011T,Reddy_3865T,DFCIDL008-Tumor,DLBCL10977T,1011-2018_FFPE,Reddy_3843T,Reddy_3819T,1011-2018_plasma,Reddy_2634T,DLBCL10933T,DLBCL-c_D_1120-Tumor,00-22011_tumorB,DLBCL11002T,DLBCL11595T,Reddy_2206T,1001-2030_FFPE,Reddy_3845T,1102503013T,Reddy_3733T,DLBCL10955T,OZM073-017_Diagnosis,Reddy_3988T,Reddy_3914T,Reddy_3519T,Reddy_3487T,Reddy_2996T,Reddy_2138T,03-10440_tumorB,03-10440_tumorA,DLBCL11468T,DLBCL-RICOVER_314-Tumor,Reddy_3580T,DLBCL11255T,DLBCL10455T,DLBCL10943T,Reddy_2463T,SP116627,Reddy_3431T,Reddy_2253T,Reddy_702T,Reddy_2123T,Reddy_3943T,Reddy_3556T,Reddy_3412T,Reddy_2714T,Reddy_2479T,Reddy_2719T,Reddy_3981T,02-15630_tumorB,Reddy_3978T,86-30788_tumorA,Reddy_813T,Reddy_2157T,Reddy_2889T,Seq_1_PreCART,94-15772_tumorA,Reddy_2928T,Reddy_2680T,QC2-5T,Reddy_2194T,DLBCL10499T,98-22532T,DLBCL10908T,DLBCL-c_D_1152-Tumor,Reddy_3470T,Reddy_3946T,94-15772_tumorB,DLBCL11180T,DLBCL11681T,Reddy_3654T,Reddy_2688T,1001-2030_plasma</td>
+<td style="text-align: left;">BN2,EZB,MCD,ST2</td>
+<td style="text-align: left;">15.3910313542603,10.0403628209901,1.05047600249142,7.44539197428758</td>
+<td style="text-align: right;">75</td>
+<td style="text-align: right;">3.9473684</td>
+<td style="text-align: right;">132.857136</td>
+<td style="text-align: right;">33.92726</td>
+<td style="text-align: right;">15.39103</td>
+<td style="text-align: right;">-1.2391076</td>
+<td style="text-align: right;">0.3538165</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">EZB</td>
+<td style="text-align: right;">1.050476</td>
+<td style="text-align: right;">10.04036</td>
+<td style="text-align: right;">15.39103</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">7.445392</td>
+<td style="text-align: right;">132.857136</td>
+<td style="text-align: left;">BN2</td>
+<td style="text-align: right;">15.39103</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">75</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: left;">Other</td>
+<td style="text-align: left;">BN2</td>
+<td style="text-align: right;">0.1158465</td>
+<td style="text-align: left;">Other</td>
+<td style="text-align: left;">BN2</td>
+<td style="text-align: left;">Other</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">00-15201_tumorB</td>
+<td style="text-align: left;">N1</td>
+<td style="text-align: right;">0.9709068</td>
+<td style="text-align: right;">0.0466497</td>
+<td style="text-align: left;">DLBCL10973T,DLBCL11648T,10-39294_tumorA,DLBCL10520T,DLBCL11005T,14-33798_tumorB,DLBCL11503T,DLBCL11513T,10-39294_tumorB,DLBCL10844T,CLC00246,DLBCL-MAYO_DLBCL_234-Tumor,1102502995T,Reddy_3982T,DLBCL10915T,c_D_1050_T,DLBCL10952T,Reddy_3997T,DLBCL11439T</td>
+<td style="text-align: left;">1048,1235,186,885,1078,276,1172,1180,187,929,315,1442,1418,2384,995,1433,1028,2399,1115</td>
+<td style="text-align: left;">0.173,0.183,0.224,0.264,0.284,0.288,0.289,0.293,0.389,0.412,0.478,0.486,0.5,0.528,0.529,0.542,0.571,0.613,0.623</td>
+<td style="text-align: left;">N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,ST2</td>
+<td style="text-align: left;">1102503029T</td>
+<td style="text-align: left;">N1,ST2</td>
+<td style="text-align: left;">53.5304488302436,1.6040359180294</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.0526316</td>
+<td style="text-align: right;">2.497182</td>
+<td style="text-align: right;">55.13448</td>
+<td style="text-align: right;">53.53045</td>
+<td style="text-align: right;">0.7030904</td>
+<td style="text-align: right;">-4.2771802</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">N1</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">53.53045</td>
+<td style="text-align: right;">1.604036</td>
+<td style="text-align: right;">2.497182</td>
+<td style="text-align: left;">N1</td>
+<td style="text-align: right;">53.53045</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: left;">N1</td>
+<td style="text-align: left;">N1</td>
+<td style="text-align: right;">21.4363427</td>
+<td style="text-align: left;">N1</td>
+<td style="text-align: left;">N1</td>
+<td style="text-align: left;">N1</td>
+</tr>
+</tbody>
 </table>
 </div>
 </div>
-</section></section><section class="level2"><h3 id="make_neighborhood_plot">make_neighborhood_plot<a class="anchor" aria-label="anchor" href="#make_neighborhood_plot"></a>
+<section class="level3"><h3 id="sanity-check-the-umap">Sanity check the UMAP<a class="anchor" aria-label="anchor" href="#sanity-check-the-umap"></a>
+</h3>
+<p>If the UMAP is working as it should be, you should see a similar level of separation of your <em>test</em> samples in UMAP space. Since we have LymphGen classifications for our test samples, we can check this. In order to visualize these, the metadata will need to be attached to the UMAP projection of the new samples. What you should hopefully see is roughly the same placement of your samples on this scatterplot relative to the training samples.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">projected_with_meta</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span><span class="va">pred_valid_lyseq_all</span><span class="op">$</span><span class="va">projection</span>,</span>
+<span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">valid_metadata</span>,<span class="va">sample_id</span>,<span class="va">lymphgen</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Joining with `by = join_by(sample_id)`</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">projected_with_meta</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>        sample_id         V1         V2 lymphgen
+1 00-14595_tumorA -0.8899906  4.3290272      EZB
+2 00-14595_tumorB -0.8807368  4.2731309      EZB
+3 00-14595_tumorC -0.9343416  4.1505504      EZB
+4 00-14595_tumorD -0.6999627  4.4204650      EZB
+5 00-15201_tumorA -1.2391076  0.3538165    Other
+6 00-15201_tumorB  0.7030904 -4.2771802       N1</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">projected_with_meta</span><span class="op">$</span><span class="va">lymphgen</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "EZB"         "Other"       "N1"          "BN2/N1"      "BN2"
+ [6] "MCD"         "ST2"         "EZB/MCD/ST2" "EZB/ST2"     "BN2/EZB"
+[11] "BN2/MCD"     "EZB/MCD"    </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb24"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#drop composites</span></span>
+<span><span class="va">projected_with_meta</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">projected_with_meta</span>,<span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">"/"</span>,<span class="va">lymphgen</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_umap_scatterplot.html">make_umap_scatterplot</a></span><span class="op">(</span><span class="va">projected_with_meta</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure><p><img src="validation_files/figure-html/unnamed-chunk-4-1.png" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section><section class="level3"><h3 id="make_neighborhood_plot">make_neighborhood_plot<a class="anchor" aria-label="anchor" href="#make_neighborhood_plot"></a>
 </h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/make_neighborhood_plot.html">make_neighborhood_plot</a></span><span class="op">(</span></span>
-<span>  single_sample_prediction_output <span class="op">=</span> <span class="va">pred_valid_lyseq</span>,</span>
-<span>  this_sample_id <span class="op">=</span> <span class="st">"00-14595_tumorC"</span>,</span>
+<div class="sourceCode cell-code" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">test_sample</span> <span class="op">=</span> <span class="st">"92-38267_tumorB"</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/make_neighborhood_plot.html">make_neighborhood_plot</a></span><span class="op">(</span></span>
+<span>  single_sample_prediction_output <span class="op">=</span> <span class="va">pred_valid_lyseq_all</span>,</span>
+<span>  this_sample_id <span class="op">=</span> <span class="va">test_sample</span>,</span>
 <span>  prediction_in_title <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  add_circle <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  label_column <span class="op">=</span> <span class="st">"DLBCLone_wo"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
-<figure><p><img src="validation_files/figure-html/unnamed-chunk-8-1.png" width="672"></p>
+<figure><p><img src="validation_files/figure-html/neighborhood-1.png" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-</section><section class="level2"><h3 id="nearest_neighbor_heatmap">nearest_neighbor_heatmap<a class="anchor" aria-label="anchor" href="#nearest_neighbor_heatmap"></a>
+</section><section class="level3"><h3 id="nearest_neighbor_heatmap">nearest_neighbor_heatmap<a class="anchor" aria-label="anchor" href="#nearest_neighbor_heatmap"></a>
 </h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/nearest_neighbor_heatmap.html">nearest_neighbor_heatmap</a></span><span class="op">(</span></span>
-<span>  this_sample_id <span class="op">=</span> <span class="st">"00-14595_tumorC"</span>,</span>
-<span>  DLBCLone_model <span class="op">=</span> <span class="va">pred_valid_lyseq</span>,</span>
+<span>  this_sample_id <span class="op">=</span> <span class="va">test_sample</span>,</span>
+<span>  DLBCLone_model <span class="op">=</span> <span class="va">pred_valid_lyseq_all</span>,</span>
 <span>  font_size <span class="op">=</span> <span class="fl">8</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
-<figure><p><img src="validation_files/figure-html/unnamed-chunk-9-1.png" width="672"></p>
+<figure><p><img src="validation_files/figure-html/heatmap-1.png" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-</section><section class="level2"><h3 id="accuracy-assessment">Accuracy Assessment<a class="anchor" aria-label="anchor" href="#accuracy-assessment"></a>
-</h3>
-<p>Finally, lets assess the accuracy of the validation set by comparing <code>dlbclone_predict</code> predictions with its ground truth lymphgen labeling found in its metadata. To do this we should first get predictions from <code>dlbclone_predict</code> on all of the 148 lyseq panel validation samples.</p>
+</section></section><section class="level2"><h2 id="accuracy-assessment">Accuracy Assessment<a class="anchor" aria-label="anchor" href="#accuracy-assessment"></a>
+</h2>
+<p>Finally, lets assess the accuracy of the validation set by comparing <code>dlbclone_predict</code> predictions with the LymphGen results that were previously generated.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">pred_valid_lyseq_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
-<span>  mutation_status <span class="op">=</span> <span class="va">lyseq_valid</span>,</span>
-<span>  optimized_model <span class="op">=</span> <span class="va">lyseq_features_optimized_train</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">pred_vs_original</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span><span class="va">pred_valid_lyseq_all</span><span class="op">$</span><span class="va">prediction</span>,<span class="va">valid_metadata_vaf</span><span class="op">)</span></span>
+<div class="sourceCode cell-code" id="cb28"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pred_vs_original</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span><span class="va">pred_valid_lyseq_all</span><span class="op">$</span><span class="va">prediction</span>,<span class="va">valid_metadata</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">#collapse composites into group-COMP</span></span>
 <span><span class="va">pred_vs_original</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/GAMBLR.utils/man/tidy_lymphgen.html" class="external-link">tidy_lymphgen</a></span><span class="op">(</span><span class="va">pred_vs_original</span>,lymphgen_column_in <span class="op">=</span> <span class="st">"lymphgen"</span>,lymphgen_column_out <span class="op">=</span> <span class="st">"lymphgen_tidy"</span><span class="op">)</span></span>
@@ -438,7 +941,10 @@
 <span><span class="co">#convert composites into their primary class</span></span>
 <span><span class="va">pred_vs_original</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span><span class="va">pred_vs_original</span>,lymphgen_basic <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">gsub</a></span><span class="op">(</span><span class="st">"-COMP"</span>,<span class="st">""</span>,<span class="va">lymphgen_tidy</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>predictions<span class="op">=</span><span class="va">pred_vs_original</span><span class="op">)</span>,pred_column <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,group_order <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"BN2"</span>,<span class="st">"ST2"</span>,<span class="st">"EZB"</span>,<span class="st">"N1"</span>,<span class="st">"Other"</span><span class="op">)</span>,truth_column <span class="op">=</span> <span class="st">"lymphgen_basic"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>predictions<span class="op">=</span><span class="va">pred_vs_original</span><span class="op">)</span>,</span>
+<span>  pred_column <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,</span>
+<span>  group_order <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"BN2"</span>,<span class="st">"ST2"</span>,<span class="st">"EZB"</span>,<span class="st">"N1"</span>,<span class="st">"Other"</span><span class="op">)</span>,</span>
+<span>  truth_column <span class="op">=</span> <span class="st">"lymphgen_basic"</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
 <figure><p><img src="validation_files/figure-html/compare_to_lymphgen-1.png" width="672"></p>
@@ -446,100 +952,118 @@
 </div>
 </div>
 </div>
-</section></section><script id="quarto-html-after-body" type="application/javascript">
-  window.document.addEventListener("DOMContentLoaded", function (event) {
-      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-      var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
-      var isInternal = (href) => {
-          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-      }
-      // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-      for (var i=0; i<links.length; i++) {
-        const link = links[i];
-        if (!isInternal(link.href)) {
-          // undo the damage that might have been done by quarto-nav.js in the case of
-          // links that we want to consider external
-          if (link.dataset.originalHref !== undefined) {
-            link.href = link.dataset.originalHref;
-          }
-        }
-      }
-    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-      const config = {
-        allowHTML: true,
-        maxWidth: 500,
-        delay: 100,
-        arrow: false,
-        appendTo: function(el) {
-            return el.parentElement;
-        },
-        interactive: true,
-        interactiveBorder: 10,
-        theme: 'light-border',
-        placement: 'bottom-start',
-      };
-      if (contentFn) {
-        config.content = contentFn;
-      }
-      if (onTriggerFn) {
-        config.onTrigger = onTriggerFn;
-      }
-      if (onUntriggerFn) {
-        config.onUntrigger = onUntriggerFn;
-      }
-      window.tippy(el, config);
+</section><script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
     }
-    const findCites = (el) => {
-      const parentEl = el.parentElement;
-      if (parentEl) {
-        const cites = parentEl.dataset.cites;
-        if (cites) {
-          return {
-            el,
-            cites: cites.split(' ')
-          };
-        } else {
-          return findCites(el.parentElement)
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
         }
-      } else {
-        return undefined;
       }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'light-border',
+      placement: 'bottom-start',
     };
-    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-    for (var i=0; i<bibliorefs.length; i++) {
-      const ref = bibliorefs[i];
-      const citeInfo = findCites(ref);
-      if (citeInfo) {
-        tippyHover(citeInfo.el, function() {
-          var popup = window.document.createElement('div');
-          citeInfo.cites.forEach(function(cite) {
-            var citeDiv = window.document.createElement('div');
-            citeDiv.classList.add('hanging-indent');
-            citeDiv.classList.add('csl-entry');
-            var biblioDiv = window.document.getElementById('ref-' + cite);
-            if (biblioDiv) {
-              citeDiv.innerHTML = biblioDiv.innerHTML;
-            }
-            popup.appendChild(citeDiv);
-          });
-          return popup.innerHTML;
-        });
-      }
+    if (contentFn) {
+      config.content = contentFn;
     }
-  });
-  </script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config);
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Kostiantyn Dreval.</p>
+  <p>Developed by Kostiantyn Dreval, Ryan Morin.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer>

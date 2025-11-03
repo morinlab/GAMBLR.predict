@@ -1,5 +1,5 @@
 ---
-title: "DLBCLone Functions - Gaussian Mixture Model"
+title: "Gaussian Mixture Model"
 vignette: >
   %\VignetteIndexEntry{quarto vignettes}
   %\VignetteEngine{quarto::html}
@@ -13,7 +13,7 @@ library(GAMBLR.predict)
 library(tidyverse)
 ```
 
-DLBCLone can also work using a gaussian mixture model relying on UMAP embeddings. It’s important not to confuse this modeling with the previously introduced DLBCLone functions, which runs KNN on the embeddings. 
+A variant of DLBCLone that doesn't use K-nearest neighbors relies instead on a gaussian mixture model and UMAP embeddings. This functionality is experimental. It’s important not to confuse this modeling with the previously introduced DLBCLone functions.
 
 # DLBCLone_train_mixture_model 
 

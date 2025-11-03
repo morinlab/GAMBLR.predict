@@ -8,8 +8,8 @@
 <title>ML functionality for classification of B-cell lymphomas • GAMBLR.predict</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
-<link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
+<link href="deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="ML functionality for classification of B-cell lymphomas">
 <meta name="description" content="Collection of functions and helpers to classify different B-cell lymphomas. This is part of the Genomic Analysis of Mature B-cell Lymphomas (GAMBL) project of the Morin Lab and is closely related to R packages GAMBLR and GAMBLR.data.">
 <meta property="og:description" content="Collection of functions and helpers to classify different B-cell lymphomas. This is part of the Genomic Analysis of Mature B-cell Lymphomas (GAMBL) project of the Morin Lab and is closely related to R packages GAMBLR and GAMBLR.data.">
@@ -37,15 +37,15 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guides</h6></li>
-    <li><a class="dropdown-item" href="articles/index.html">DLBCLone</a></li>
-    <li><a class="dropdown-item" href="articles/umap.html">DLBCLone Functions — UMAP</a></li>
-    <li><a class="dropdown-item" href="articles/DLBCLone_optimize_params.html">DLBCLone Functions — Optimizing Parameters</a></li>
-    <li><a class="dropdown-item" href="articles/DLBCLone_stored.html">DLBCLone Functions — DLBCLone Model Management</a></li>
-    <li><a class="dropdown-item" href="articles/predict_samples.html">UNKNOWN TITLE</a></li>
-    <li><a class="dropdown-item" href="articles/full_walkthrough.html">DLBCLone Full Walkthrough of Associated Functions</a></li>
-    <li><a class="dropdown-item" href="articles/validation.html">DLBCLone — Validation Data Generation and Example</a></li>
-    <li><a class="dropdown-item" href="articles/DLBCLone_KNN.html">DLBCLone Functions — K-Nearest Neighbors</a></li>
-    <li><a class="dropdown-item" href="articles/DLBCLone_mixture_model.html">DLBCLone Functions — Gaussian Mixture Model</a></li>
+    <li><a class="dropdown-item" href="articles/index.html">DLBCLone: Overview</a></li>
+    <li><a class="dropdown-item" href="articles/umap.html">Exploring and selecting features</a></li>
+    <li><a class="dropdown-item" href="articles/DLBCLone_optimize_params.html">Training a new DLBCLone model</a></li>
+    <li><a class="dropdown-item" href="articles/DLBCLone_stored.html">DLBCLone Models</a></li>
+    <li><a class="dropdown-item" href="articles/predict_samples.html">Classifying samples with DLBCLone</a></li>
+    <li><a class="dropdown-item" href="articles/full_walkthrough.html">DLBCLone: Full Walkthrough</a></li>
+    <li><a class="dropdown-item" href="articles/validation.html">Applying a DLBCLone model to new data</a></li>
+    <li><a class="dropdown-item" href="articles/DLBCLone_KNN.html">K-Nearest Neighbors without UMAP</a></li>
+    <li><a class="dropdown-item" href="articles/DLBCLone_mixture_model.html">Gaussian Mixture Model</a></li>
   </ul>
 </li>
       </ul>
@@ -103,7 +103,8 @@
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Kostiantyn Dreval <br><small class="roles"> Author, maintainer </small> <a href="https://orcid.org/0000-0002-6214-2843" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a>  </li>
+<li>Kostiantyn Dreval <br><small class="roles"> Author, maintainer </small> <a href="https://orcid.org/0000-0002-6214-2843" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
+<li>Ryan Morin <br><small class="roles"> Author </small> <a href="https://orcid.org/0000-0003-2932-7800" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
 </ul>
 </div>
 
@@ -114,11 +115,11 @@
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Kostiantyn Dreval.</p>
+  <p>Developed by Kostiantyn Dreval, Ryan Morin.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer>

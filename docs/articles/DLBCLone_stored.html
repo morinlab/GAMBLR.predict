@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>DLBCLone Functions - DLBCLone Model Management • GAMBLR.predict</title>
+<title>DLBCLone Models • GAMBLR.predict</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
-<link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="DLBCLone_stored_files/libs/quarto-html/popper.min.js"></script><script src="DLBCLone_stored_files/libs/quarto-html/tippy.umd.min.js"></script><link href="DLBCLone_stored_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="DLBCLone_stored_files/libs/quarto-html/light-border.css" rel="stylesheet">
-<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DLBCLone Functions - DLBCLone Model Management">
+<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DLBCLone Models">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -37,15 +37,15 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone</a></li>
-    <li><a class="dropdown-item" href="../articles/umap.html">DLBCLone Functions - UMAP</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">DLBCLone Functions - Optimizing Parameters</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Functions - DLBCLone Model Management</a></li>
-    <li><a class="dropdown-item" href="../articles/predict_samples.html">DLBCLone Functions - Predicting classes with DLBCLone_predict</a></li>
-    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone Full Walkthrough of Associated Functions</a></li>
-    <li><a class="dropdown-item" href="../articles/validation.html">DLBCLone Validation Data Generation and Example</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">DLBCLone Functions - K-Nearest Neighbors</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">DLBCLone Functions - Gaussian Mixture Model</a></li>
+    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone: Overview</a></li>
+    <li><a class="dropdown-item" href="../articles/umap.html">Exploring and selecting features</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">Training a new DLBCLone model</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Models</a></li>
+    <li><a class="dropdown-item" href="../articles/predict_samples.html">Classifying samples with DLBCLone</a></li>
+    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone: Full Walkthrough</a></li>
+    <li><a class="dropdown-item" href="../articles/validation.html">Applying a DLBCLone model to new data</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">K-Nearest Neighbors without UMAP</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">Gaussian Mixture Model</a></li>
   </ul>
 </li>
       </ul>
@@ -62,7 +62,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>DLBCLone Functions - DLBCLone Model Management</h1>
+      <h1>DLBCLone Models</h1>
 
 
 
@@ -76,12 +76,12 @@
 
 
 
-    <section class="section level2"><h2 id="save-and-load-optimize-params">Save and Load Optimize Params<a class="anchor" aria-label="anchor" href="#save-and-load-optimize-params"></a>
+    <section class="level2"><h2 id="preamble">Preamble<a class="anchor" aria-label="anchor" href="#preamble"></a>
 </h2>
-<p>For future use cases and reproducibility purposes you may store the outputs of <code>DLBCLone_optimize_params</code>.</p>
-<section class="level2"><h3 id="dlbclone_save_optimized">DLBCLone_save_optimized<a class="anchor" aria-label="anchor" href="#dlbclone_save_optimized"></a>
-</h3>
-<p>Allows you to store your model in a given directory with a name prefix.</p>
+<p>For future use and to facilitate reproducibility, you can save the outputs of <code>DLBCLone_optimize_params</code> (i.e. a DLBCLone model) and restore them in a subsequent session.</p>
+</section><section class="level2"><h2 id="dlbclone_save_optimized">DLBCLone_save_optimized<a class="anchor" aria-label="anchor" href="#dlbclone_save_optimized"></a>
+</h2>
+<p>To store your model, you simply specify the directory and a name prefix that will be incorporated into the file names. A saved model has two separate compoents, a <code>.rds</code> file and a <code>.uwot</code> file.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/DLBCLone_save_optimized.html">DLBCLone_save_optimized</a></span><span class="op">(</span> <span class="co"># saving DLBCLone_optimize_params</span></span>
@@ -90,8 +90,8 @@
 <span>  name_prefix<span class="op">=</span><span class="st">"all_features_optimized"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</section><section class="level2"><h3 id="dlbclone_load_optimized">DLBCLone_load_optimized<a class="anchor" aria-label="anchor" href="#dlbclone_load_optimized"></a>
-</h3>
+</section><section class="level2"><h2 id="dlbclone_load_optimized">DLBCLone_load_optimized<a class="anchor" aria-label="anchor" href="#dlbclone_load_optimized"></a>
+</h2>
 <p>Allows you to load in your stored model.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
@@ -100,107 +100,206 @@
 <span>   name_prefix<span class="op">=</span><span class="st">"all_features_optimized"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</section><section class="level2"><h3 id="dlbclone_activate">DLBCLone_activate<a class="anchor" aria-label="anchor" href="#dlbclone_activate"></a>
-</h3>
-<p>Reactivates a model after optimization, setting the UMAP projections.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">all_features_optimized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_activate.html">DLBCLone_activate</a></span><span class="op">(</span><span class="va">loaded_model</span>, force <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">default_model</span> <span class="op">&lt;-</span> <span class="st">"best_opt_w"</span></span>
+<span><span class="co"># Load your stored optimized model from DLBCLone_save_optimized()</span></span>
+<span><span class="va">all_features_optimized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_load_optimized.html">DLBCLone_load_optimized</a></span><span class="op">(</span> </span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/basename.html" class="external-link">dirname</a></span><span class="op">(</span></span>
+<span>            <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
+<span>                <span class="st">"extdata/models"</span>,</span>
+<span>                <span class="st">"best_opt_model.rds"</span>,</span>
+<span>                package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span></span>
+<span>            <span class="op">)</span></span>
+<span>        <span class="op">)</span>,</span>
+<span>        <span class="va">default_model</span></span>
+<span>    <span class="op">)</span></span></code></pre></div>
 </div>
-</section></section><script id="quarto-html-after-body" type="application/javascript">
-  window.document.addEventListener("DOMContentLoaded", function (event) {
-      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-      var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
-      var isInternal = (href) => {
-          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-      }
-      // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-      for (var i=0; i<links.length; i++) {
-        const link = links[i];
-        if (!isInternal(link.href)) {
-          // undo the damage that might have been done by quarto-nav.js in the case of
-          // links that we want to consider external
-          if (link.dataset.originalHref !== undefined) {
-            link.href = link.dataset.originalHref;
-          }
-        }
-      }
-    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-      const config = {
-        allowHTML: true,
-        maxWidth: 500,
-        delay: 100,
-        arrow: false,
-        appendTo: function(el) {
-            return el.parentElement;
-        },
-        interactive: true,
-        interactiveBorder: 10,
-        theme: 'light-border',
-        placement: 'bottom-start',
-      };
-      if (contentFn) {
-        config.content = contentFn;
-      }
-      if (onTriggerFn) {
-        config.onTrigger = onTriggerFn;
-      }
-      if (onUntriggerFn) {
-        config.onUntrigger = onUntriggerFn;
-      }
-      window.tippy(el, config);
+</section><section class="level2"><h2 id="key-components-of-a-dlbclone-model">Key components of a DLBCLone model<a class="anchor" aria-label="anchor" href="#key-components-of-a-dlbclone-model"></a>
+</h2>
+<p>DLBCLone models are simply named lists that keep track of all the necessary objects required for downstream functions such as <code>DLBCLone_predict</code>. Key components you should be aware of:</p>
+<ul>
+<li>
+<code>features</code> feature matrix for the training data and what is used to initially create the UMAP model and determine the coordinates of training samples in UMAP space. It contains all the original mutation features plus (where applicable) any meta-features. The latter are recognizable because they’re named differently (all end in <code>_feats</code>).</li>
+<li>
+<code>model</code> the actual UMAP model, generated by the <code>uwot</code> package</li>
+<li>
+<code>predictions</code> these are the original predicted labels for every training sample as determined during <code>DLBCLone_optimize_params</code>.</li>
+</ul>
+<p>Let’s take a peek at what’s in the <code>features</code> for this model. As you will see, this model used 5 meta-features, one for each of ST2, N1, EZB, MCD and BN2.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">all_features_optimized</span><span class="op">$</span><span class="va">features</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "ACTB"         "ACTG1"        "BCL10"        "BCL2"         "BCL2L1"
+ [6] "BCL2_SV"      "BCL6"         "BCL6_SV"      "BIRC3"        "BRAF"
+[11] "BTG1"         "BTG2"         "BTK"          "CD19"         "CD70"
+[16] "CD79B"        "CD83"         "CDKN2A"       "CREBBP"       "DDX3X"
+[21] "DTX1"         "DUSP2"        "EDRF1"        "EIF4A2"       "EP300"
+[26] "ETS1"         "ETV6"         "EZH2"         "FAS"          "FCGR2B"
+[31] "FOXC1"        "FOXO1"        "GNA13"        "GRHPR"        "HLA-A"
+[36] "HLA-B"        "HNRNPD"       "IRF4"         "IRF8"         "ITPKB"
+[41] "JUNB"         "KLF2"         "KLHL14"       "KLHL6"        "KMT2D"
+[46] "MEF2B"        "MPEG1"        "MYD88"        "MYD88HOTSPOT" "NFKBIA"
+[51] "NFKBIE"       "NFKBIZ"       "NOL9"         "NOTCH1"       "NOTCH2"
+[56] "OSBPL10"      "PIM1"         "PIM2"         "PRDM1"        "PRDM15"
+[61] "PRKDC"        "PRRC2C"       "PTPN1"        "RFTN1"        "S1PR2"
+[66] "SETD1B"       "SGK1"         "SOCS1"        "SPEN"         "STAT3"
+[71] "STAT6"        "TBCC"         "TBL1XR1"      "TET2"         "TMEM30A"
+[76] "TMSB4X"       "TNFAIP3"      "TNFRSF14"     "TOX"          "TP53"
+[81] "TP73"         "UBE2A"        "WEE1"         "XBP1"         "ZFP36L1"
+[86] "st2_feats"    "n1_feats"     "ezb_feats"    "mcd_feats"    "bn2_feats"   </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">all_features_optimized</span><span class="op">$</span><span class="va">features</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "00-14595_tumorC"   "00-15201_tumorA"   "00-15201_tumorB"
+[4] "00-17960_CLC01670" "FL1015T2"          "00-22011_tumorB"  </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">all_features_optimized</span><span class="op">$</span><span class="va">features</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                  ACTB ACTG1 BCL10 BCL2 BCL2L1 BCL2_SV BCL6 BCL6_SV BIRC3 BRAF
+00-14595_tumorC      0     0     0    2      0       2    2       2     0    0
+00-15201_tumorA      0     0     0    0      0       0    2       0     0    0
+00-15201_tumorB      0     0     0    0      0       0    0       0     0    0
+00-17960_CLC01670    2     0     0    1      0       2    0       2     0    0
+FL1015T2             0     0     0    0      0       2    0       2     0    0
+00-22011_tumorB      0     0     0    0      0       0    0       0     0    0
+00-23442_tumorB      0     0     0    0      0       2    0       0     0    0
+00-26427_tumorA      0     0     0    0      0       2    0       0     0    0
+00-26427_tumorC      0     0     0    0      0       2    0       0     0    0
+FL1002T2             0     0     0    2      0       2    0       0     0    0</code></pre>
+</div>
+</div>
+<p><code>DLBCLone_predict</code> is a versatile function, you can use it to cross reference your training data, predict a test sample one at a time, or all of your test samples all at once! Here we will just be re-analyzing training samples. There are only two required arguments:</p>
+<ul>
+<li><p><code>mutation_status</code> A data frame with sample_id as rownames and feature name as columns. This is the feature matrix you want to predict classes for. You can subset it to contain only rows for the samples you want analyzed but this isn’t necessary.</p></li>
+<li><p><code>optimized_model</code> The actual DLBCLone model you want to use. For example, the output of DLBCLone_optimize_params or a model you’ve re-loaded from disk via <code>DLBCLone_load_optimized</code></p></li>
+</ul></section><section class="level2"><h2 id="activating-a-model">Activating a model<a class="anchor" aria-label="anchor" href="#activating-a-model"></a>
+</h2>
+<p>If you plan on classifying more than one sample in a session, an activated model will perform better. This simply pre-computes the coordinates of all training samples using the model and stores these for re-use.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Reactivates stored model setting the UMAP projection</span></span>
+<span></span>
+<span><span class="va">all_features_optimized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_activate.html">DLBCLone_activate</a></span><span class="op">(</span> </span>
+<span>  <span class="va">all_features_optimized</span>, </span>
+<span>  force <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+</section><script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
     }
-    const findCites = (el) => {
-      const parentEl = el.parentElement;
-      if (parentEl) {
-        const cites = parentEl.dataset.cites;
-        if (cites) {
-          return {
-            el,
-            cites: cites.split(' ')
-          };
-        } else {
-          return findCites(el.parentElement)
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
         }
-      } else {
-        return undefined;
       }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'light-border',
+      placement: 'bottom-start',
     };
-    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-    for (var i=0; i<bibliorefs.length; i++) {
-      const ref = bibliorefs[i];
-      const citeInfo = findCites(ref);
-      if (citeInfo) {
-        tippyHover(citeInfo.el, function() {
-          var popup = window.document.createElement('div');
-          citeInfo.cites.forEach(function(cite) {
-            var citeDiv = window.document.createElement('div');
-            citeDiv.classList.add('hanging-indent');
-            citeDiv.classList.add('csl-entry');
-            var biblioDiv = window.document.getElementById('ref-' + cite);
-            if (biblioDiv) {
-              citeDiv.innerHTML = biblioDiv.innerHTML;
-            }
-            popup.appendChild(citeDiv);
-          });
-          return popup.innerHTML;
-        });
-      }
+    if (contentFn) {
+      config.content = contentFn;
     }
-  });
-  </script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config);
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Kostiantyn Dreval.</p>
+  <p>Developed by Kostiantyn Dreval, Ryan Morin.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer>

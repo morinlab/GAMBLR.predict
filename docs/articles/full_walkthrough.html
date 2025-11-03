@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>DLBCLone Full Walkthrough of Associated Functions • GAMBLR.predict</title>
+<title>DLBCLone: Full Walkthrough • GAMBLR.predict</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
-<link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="full_walkthrough_files/libs/quarto-html/popper.min.js"></script><script src="full_walkthrough_files/libs/quarto-html/tippy.umd.min.js"></script><link href="full_walkthrough_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="full_walkthrough_files/libs/quarto-html/light-border.css" rel="stylesheet">
-<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DLBCLone Full Walkthrough of Associated Functions">
+<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DLBCLone: Full Walkthrough">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -37,15 +37,15 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone</a></li>
-    <li><a class="dropdown-item" href="../articles/umap.html">DLBCLone Functions - UMAP</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">DLBCLone Functions - Optimizing Parameters</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Functions - DLBCLone Model Management</a></li>
-    <li><a class="dropdown-item" href="../articles/predict_samples.html">DLBCLone Functions - Predicting classes with DLBCLone_predict</a></li>
-    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone Full Walkthrough of Associated Functions</a></li>
-    <li><a class="dropdown-item" href="../articles/validation.html">DLBCLone Validation Data Generation and Example</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">DLBCLone Functions - K-Nearest Neighbors</a></li>
-    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">DLBCLone Functions - Gaussian Mixture Model</a></li>
+    <li><a class="dropdown-item" href="../articles/index.html">DLBCLone: Overview</a></li>
+    <li><a class="dropdown-item" href="../articles/umap.html">Exploring and selecting features</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">Training a new DLBCLone model</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Models</a></li>
+    <li><a class="dropdown-item" href="../articles/predict_samples.html">Classifying samples with DLBCLone</a></li>
+    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone: Full Walkthrough</a></li>
+    <li><a class="dropdown-item" href="../articles/validation.html">Applying a DLBCLone model to new data</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">K-Nearest Neighbors without UMAP</a></li>
+    <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">Gaussian Mixture Model</a></li>
   </ul>
 </li>
       </ul>
@@ -62,7 +62,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>DLBCLone Full Walkthrough of Associated Functions</h1>
+      <h1>DLBCLone: Full Walkthrough</h1>
 
 
 
@@ -82,77 +82,84 @@
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">GAMBLR.open</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyverse.tidyverse.org" class="external-link">tidyverse</a></span><span class="op">)</span></span></code></pre></div>
 </div>
-<section class="level2"><h2 id="load-the-gamblr-predict-package-associated-training-files-from-extdata">Load the GAMBLR.predict package associated training files from extdata:<a class="anchor" aria-label="anchor" href="#load-the-gamblr-predict-package-associated-training-files-from-extdata"></a>
+<section class="level2"><h2 id="training-data">Training data<a class="anchor" aria-label="anchor" href="#training-data"></a>
 </h2>
+<p>For simplicity, we’ll skip feature selection and train our new model using a set of genes that have been pre-selected for you based on a model described in the <a href="https://www.medrxiv.org/content/10.1101/2025.09.18.25335809v1" class="external-link">DLBCLone preprint</a>. The code below shows how to infer what features were used in training our model, starting with the column names of the model’s features (<code>model_feats</code>).</p>
+<p>SSM features</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">best_opt_model_genes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>  <span class="st">"ACTB"</span>, <span class="st">"ACTG1"</span>, <span class="st">"BCL10"</span>, <span class="st">"BCL2"</span>, <span class="st">"BCL2L1"</span>, </span>
-<span>  <span class="st">"BCL6"</span>, <span class="st">"BIRC3"</span>, <span class="st">"BRAF"</span>, <span class="st">"BTG1"</span>, <span class="st">"BTG2"</span>, </span>
-<span>  <span class="st">"BTK"</span>, <span class="st">"CD19"</span>, <span class="st">"CD70"</span>, <span class="st">"CD79B"</span>, <span class="st">"CD83"</span>, </span>
-<span>  <span class="st">"CDKN2A"</span>, <span class="st">"CREBBP"</span>, <span class="st">"DDX3X"</span>, <span class="st">"DTX1"</span>, <span class="st">"DUSP2"</span>, </span>
-<span>  <span class="st">"EDRF1"</span>, <span class="st">"EIF4A2"</span>, <span class="st">"EP300"</span>, <span class="st">"ETS1"</span>, <span class="st">"ETV6"</span>, </span>
-<span>  <span class="st">"EZH2"</span>, <span class="st">"FAS"</span>, <span class="st">"FCGR2B"</span>, <span class="st">"FOXC1"</span>, <span class="st">"FOXO1"</span>, </span>
-<span>  <span class="st">"GNA13"</span>, <span class="st">"GRHPR"</span>, <span class="st">"HLA-A"</span>, <span class="st">"HLA-B"</span>, <span class="st">"HNRNPD"</span>, </span>
-<span>  <span class="st">"IRF4"</span>, <span class="st">"IRF8"</span>, <span class="st">"ITPKB"</span>, <span class="st">"JUNB"</span>, <span class="st">"KLF2"</span>, </span>
-<span>  <span class="st">"KLHL14"</span>, <span class="st">"KLHL6"</span>, <span class="st">"KMT2D"</span>, <span class="st">"MEF2B"</span>, <span class="st">"MPEG1"</span>, </span>
-<span>  <span class="st">"MYD88"</span>, <span class="st">"NFKBIA"</span>, <span class="st">"NFKBIE"</span>, <span class="st">"NFKBIZ"</span>, <span class="st">"NOL9"</span>, </span>
-<span>  <span class="st">"NOTCH1"</span>, <span class="st">"NOTCH2"</span>, <span class="st">"OSBPL10"</span>, <span class="st">"PIM1"</span>, <span class="st">"PIM2"</span>, </span>
-<span>  <span class="st">"PRDM1"</span>, <span class="st">"PRDM15"</span>, <span class="st">"PRKDC"</span>, <span class="st">"PRRC2C"</span>, <span class="st">"PTPN1"</span>, </span>
-<span>  <span class="st">"RFTN1"</span>, <span class="st">"S1PR2"</span>, <span class="st">"SETD1B"</span>, <span class="st">"SGK1"</span>, <span class="st">"SOCS1"</span>, </span>
-<span>  <span class="st">"SPEN"</span>, <span class="st">"STAT3"</span>, <span class="st">"STAT6"</span>, <span class="st">"TBCC"</span>, <span class="st">"TBL1XR1"</span>, </span>
-<span>  <span class="st">"TET2"</span>, <span class="st">"TMEM30A"</span>, <span class="st">"TMSB4X"</span>, <span class="st">"TNFAIP3"</span>, <span class="st">"TNFRSF14"</span>, </span>
-<span>  <span class="st">"TOX"</span>, <span class="st">"TP53"</span>, <span class="st">"TP73"</span>, <span class="st">"UBE2A"</span>, <span class="st">"WEE1"</span>, </span>
-<span>  <span class="st">"XBP1"</span>, <span class="st">"ZFP36L1"</span>, <span class="st">"MYD88HOTSPOT"</span>, <span class="st">"BCL2_SV"</span>, <span class="st">"BCL6_SV"</span></span>
-<span><span class="op">)</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Full set of genes considered for SSM</span></span>
 <span></span>
-<span><span class="va">best_opt_model_matrix</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/all_full_status.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/rownames.html" class="external-link">column_to_rownames</a></span><span class="op">(</span><span class="st">"sample_id"</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">best_opt_model_genes</span><span class="op">)</span></span>
+<span><span class="va">model_genes</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"_SV|HOTS"</span>,<span class="va">model_feats</span>,invert<span class="op">=</span><span class="cn">T</span>,value<span class="op">=</span><span class="cn">T</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">dlbcl_meta</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/dlbcl_meta_with_dlbclass.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">model_genes</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "ACTB"     "ACTG1"    "BCL10"    "BCL2"     "BCL2L1"   "BCL6"
+ [7] "BIRC3"    "BRAF"     "BTG1"     "BTG2"     "BTK"      "CD19"
+[13] "CD70"     "CD79B"    "CD83"     "CDKN2A"   "CREBBP"   "DDX3X"
+[19] "DTX1"     "DUSP2"    "EDRF1"    "EIF4A2"   "EP300"    "ETS1"
+[25] "ETV6"     "EZH2"     "FAS"      "FCGR2B"   "FOXC1"    "FOXO1"
+[31] "GNA13"    "GRHPR"    "HLA-A"    "HLA-B"    "HNRNPD"   "IRF4"
+[37] "IRF8"     "ITPKB"    "JUNB"     "KLF2"     "KLHL14"   "KLHL6"
+[43] "KMT2D"    "MEF2B"    "MPEG1"    "MYD88"    "NFKBIA"   "NFKBIE"
+[49] "NFKBIZ"   "NOL9"     "NOTCH1"   "NOTCH2"   "OSBPL10"  "PIM1"
+[55] "PIM2"     "PRDM1"    "PRDM15"   "PRKDC"    "PRRC2C"   "PTPN1"
+[61] "RFTN1"    "S1PR2"    "SETD1B"   "SGK1"     "SOCS1"    "SPEN"
+[67] "STAT3"    "STAT6"    "TBCC"     "TBL1XR1"  "TET2"     "TMEM30A"
+[73] "TMSB4X"   "TNFAIP3"  "TNFRSF14" "TOX"      "TP53"     "TP73"
+[79] "UBE2A"    "WEE1"     "XBP1"     "ZFP36L1" </code></pre>
+</div>
+</div>
+<p>Hotspot features</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Genes with hotspots considered</span></span>
 <span></span>
+<span><span class="va">hotspot_features</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"HOTS"</span>,<span class="va">model_feats</span>,invert<span class="op">=</span><span class="cn">F</span>,value<span class="op">=</span><span class="cn">T</span><span class="op">)</span> </span>
+<span><span class="va">hotspot_features</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "MYD88HOTSPOT"</code></pre>
+</div>
+</div>
+<p>SV features</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">SV_genes</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"_SV"</span>,<span class="va">model_feats</span>,invert<span class="op">=</span><span class="cn">F</span>,value<span class="op">=</span><span class="cn">T</span><span class="op">)</span></span>
+<span><span class="va">SV_genes</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "BCL2_SV" "BCL6_SV"</code></pre>
+</div>
+</div>
+</section><section class="level2"><h2 id="load-and-subset-the-training-data">Load and subset the training data<a class="anchor" aria-label="anchor" href="#load-and-subset-the-training-data"></a>
+</h2>
+<p>The GAMBLR.predict package is bundled with base-3 mutation status matrix for the training data set. The code below shows how to load that into a data frame (setting sample_id as the row names) and subset it to only the features described above.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">best_opt_model_matrix</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/all_full_status.tsv"</span>,</span>
+<span>             package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span>  <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/rownames.html" class="external-link">column_to_rownames</a></span><span class="op">(</span><span class="st">"sample_id"</span><span class="op">)</span> </span>
+<span></span>
+<span><span class="co"># keep only the columns you want to use for your model</span></span>
+<span><span class="va">best_opt_model_matrix</span> <span class="op">=</span> <span class="va">best_opt_model_matrix</span>  <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">all_of</a></span><span class="op">(</span><span class="va">model_genes</span><span class="op">)</span>,<span class="fu"><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">all_of</a></span><span class="op">(</span><span class="va">hotspot_features</span><span class="op">)</span>,<span class="fu"><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">all_of</a></span><span class="op">(</span><span class="va">SV_genes</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</div>
+<p>To train a model, we also need ground truth labels. These come from another bundled file, which is the sample metadata for the samples in the mutation matrix we just loaded.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dlbcl_meta</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/dlbcl_meta_with_dlbclass.tsv"</span>,package <span class="op">=</span> <span class="st">"GAMBLR.predict"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># remove rows that don't correspond to unambiguous classes (i.e. drop composites)</span></span>
 <span><span class="va">dlbcl_meta_clean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span></span>
 <span>  <span class="va">dlbcl_meta</span>,</span>
 <span>  <span class="va">lymphgen</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MCD"</span>,<span class="st">"EZB"</span>,<span class="st">"BN2"</span>,<span class="st">"N1"</span>,<span class="st">"ST2"</span>,<span class="st">"Other"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</section><section class="level2"><h2 id="stacked_bar_plot">stacked_bar_plot<a class="anchor" aria-label="anchor" href="#stacked_bar_plot"></a>
+</section><section class="level2"><h2 id="make_and_annotate_umap">
+<code>make_and_annotate_umap</code><a class="anchor" aria-label="anchor" href="#make_and_annotate_umap"></a>
 </h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/posthoc_feature_enrichment.html">posthoc_feature_enrichment</a></span><span class="op">(</span></span>
-<span>  sample_metadata <span class="op">=</span> <span class="va">dlbcl_meta_clean</span>,</span>
-<span>  features <span class="op">=</span> <span class="va">best_opt_model_matrix</span>,</span>
-<span>  method <span class="op">=</span> <span class="st">"fisher"</span>,</span>
-<span>  num_feats <span class="op">=</span> <span class="fl">15</span>,</span>
-<span>  title <span class="op">=</span> <span class="st">"LymphGen"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">plots</span><span class="op">$</span><span class="va">bar_plot</span></span></code></pre></div>
-<div class="cell-output-display">
-<div>
-<figure><p><img src="full_walkthrough_files/figure-html/unnamed-chunk-3-1.png" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-</section><section class="level2"><h2 id="forest_plot">forest_plot<a class="anchor" aria-label="anchor" href="#forest_plot"></a>
-</h2>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots</span><span class="op">$</span><span class="va">forest_plot</span></span></code></pre></div>
-<div class="cell-output-display">
-<div>
-<figure><p><img src="full_walkthrough_files/figure-html/unnamed-chunk-4-1.png" width="384"></p>
-</figure>
-</div>
-</div>
-</div>
-</section><section class="level2"><h2 id="make_and_annotate_umap">make_and_annotate_umap<a class="anchor" aria-label="anchor" href="#make_and_annotate_umap"></a>
-</h2>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mu_everything</span> <span class="op">=</span> <span class="fu"><a href="../reference/make_and_annotate_umap.html">make_and_annotate_umap</a></span><span class="op">(</span></span>
 <span>  <span class="va">best_opt_model_matrix</span>,</span>
 <span>  <span class="va">dlbcl_meta_clean</span>,</span>
@@ -168,14 +175,14 @@
 </section><section class="level2"><h2 id="make_umap_scatterplot">make_umap_scatterplot<a class="anchor" aria-label="anchor" href="#make_umap_scatterplot"></a>
 </h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_umap_scatterplot.html">make_umap_scatterplot</a></span><span class="op">(</span></span>
 <span>  <span class="va">mu_everything</span><span class="op">$</span><span class="va">df</span>,</span>
 <span>  drop_other <span class="op">=</span> <span class="cn">F</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
-<figure><p><img src="full_walkthrough_files/figure-html/unnamed-chunk-5-1.png" width="672"></p>
+<figure><p><img src="full_walkthrough_files/figure-html/unnamed-chunk-7-1.png" width="672"></p>
 </figure>
 </div>
 </div>
@@ -183,7 +190,7 @@
 </section><section class="level2"><h2 id="dlbclone_optimize_params">DLBCLone_optimize_params<a class="anchor" aria-label="anchor" href="#dlbclone_optimize_params"></a>
 </h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">all_features_optimized</span> <span class="op">=</span> <span class="fu"><a href="../reference/DLBCLone_optimize_params.html">DLBCLone_optimize_params</a></span><span class="op">(</span>  </span>
 <span>  <span class="va">mu_everything</span><span class="op">$</span><span class="va">features</span>, </span>
 <span>  <span class="va">dlbcl_meta_clean</span>,</span>
@@ -198,7 +205,7 @@
 </h2>
 <p>DLBCLone with outgroup optimization (“wo”) w for weighted, o for optimized for other.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_alluvial.html">make_alluvial</a></span><span class="op">(</span><span class="va">all_features_optimized</span>,pred_column <span class="op">=</span> <span class="st">"DLBCLone_wo"</span>,pred_name <span class="op">=</span> <span class="st">"DLBCLone_wo"</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
@@ -212,7 +219,7 @@
 <section class="level3"><h3 id="predicting-one-training-sample">predicting one training sample<a class="anchor" aria-label="anchor" href="#predicting-one-training-sample"></a>
 </h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">test_sample</span> <span class="op">=</span> <span class="st">"00-14595_tumorC"</span></span>
 <span></span>
 <span><span class="va">pred_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
@@ -221,7 +228,7 @@
 <span><span class="op">)</span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">pred_train</span><span class="op">$</span><span class="va">prediction</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
-<table class="table caption-top" style="width:100%;">
+<table class="table caption-top">
 <colgroup>
 <col style="width: 1%">
 <col style="width: 1%">
@@ -233,7 +240,7 @@
 <col style="width: 6%">
 <col style="width: 1%">
 <col style="width: 1%">
-<col style="width: 2%">
+<col style="width: 1%">
 <col style="width: 1%">
 <col style="width: 2%">
 <col style="width: 2%">
@@ -317,18 +324,18 @@
 <td style="text-align: left;">EZB</td>
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: left;">DLBCL11584T,CLC03456,DLBCL11428T,05-32762T,LY_RELY_116_tumorA,99-13280T,05-25439T,QC2-32T,SP193546,SP193976,FL1018T2,Reddy_2488T,10-36955_tumorB</td>
-<td style="text-align: left;">1112,351,995,85,1265,416,80,1322,1182,1164,89,1479,172</td>
-<td style="text-align: left;">0.203,0.223,0.231,0.259,0.265,0.293,0.298,0.306,0.321,0.34,0.349,0.356,0.365</td>
+<td style="text-align: left;">DLBCL11584T,CLC03456,DLBCL11428T,05-32762T,LY_RELY_116_tumorA,99-13280T,05-25439T,QC2-32T,SP193546,SP193976,14-20962T,FL1018T2,10-36955_tumorB</td>
+<td style="text-align: left;">1112,351,995,85,1265,416,80,1322,1182,1164,247,89,172</td>
+<td style="text-align: left;">0.203,0.223,0.231,0.259,0.265,0.293,0.297,0.306,0.321,0.34,0.345,0.349,0.352</td>
 <td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
 <td style="text-align: left;"></td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: left;">45.8609381214032</td>
+<td style="text-align: left;">46.055835675141</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">45.86094</td>
-<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">46.05584</td>
+<td style="text-align: right;">46.05584</td>
 <td style="text-align: right;">-3.826784</td>
 <td style="text-align: right;">2.487499</td>
 <td style="text-align: right;">1</td>
@@ -339,14 +346,14 @@
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">46.05584</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">45.86094</td>
+<td style="text-align: right;">46.05584</td>
 <td style="text-align: right;">13</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">13</td>
@@ -363,7 +370,7 @@
 </section></section><section class="level2"><h2 id="make_neighborhood_plot">make_neighborhood_plot<a class="anchor" aria-label="anchor" href="#make_neighborhood_plot"></a>
 </h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_neighborhood_plot.html">make_neighborhood_plot</a></span><span class="op">(</span></span>
 <span>  single_sample_prediction_output <span class="op">=</span> <span class="va">pred_train</span>,</span>
 <span>  this_sample_id <span class="op">=</span> <span class="st">"00-14595_tumorC"</span>,</span>
@@ -373,7 +380,7 @@
 <span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
-<figure><p><img src="full_walkthrough_files/figure-html/unnamed-chunk-7-1.png" width="672"></p>
+<figure><p><img src="full_walkthrough_files/figure-html/unnamed-chunk-9-1.png" width="672"></p>
 </figure>
 </div>
 </div>
@@ -381,7 +388,7 @@
 </section><section class="level2"><h2 id="nearest_neighbor_heatmap">nearest_neighbor_heatmap<a class="anchor" aria-label="anchor" href="#nearest_neighbor_heatmap"></a>
 </h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/nearest_neighbor_heatmap.html">nearest_neighbor_heatmap</a></span><span class="op">(</span></span>
 <span>  this_sample_id <span class="op">=</span> <span class="st">"00-14595_tumorC"</span>,</span>
 <span>  DLBCLone_model <span class="op">=</span> <span class="va">pred_train</span>,</span>
@@ -389,105 +396,123 @@
 <span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
-<figure><p><img src="full_walkthrough_files/figure-html/unnamed-chunk-8-1.png" width="672"></p>
+<figure><p><img src="full_walkthrough_files/figure-html/unnamed-chunk-10-1.png" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
 </section><script id="quarto-html-after-body" type="application/javascript">
-  window.document.addEventListener("DOMContentLoaded", function (event) {
-      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-      var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
-      var isInternal = (href) => {
-          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-      }
-      // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-      for (var i=0; i<links.length; i++) {
-        const link = links[i];
-        if (!isInternal(link.href)) {
-          // undo the damage that might have been done by quarto-nav.js in the case of
-          // links that we want to consider external
-          if (link.dataset.originalHref !== undefined) {
-            link.href = link.dataset.originalHref;
-          }
-        }
-      }
-    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-      const config = {
-        allowHTML: true,
-        maxWidth: 500,
-        delay: 100,
-        arrow: false,
-        appendTo: function(el) {
-            return el.parentElement;
-        },
-        interactive: true,
-        interactiveBorder: 10,
-        theme: 'light-border',
-        placement: 'bottom-start',
-      };
-      if (contentFn) {
-        config.content = contentFn;
-      }
-      if (onTriggerFn) {
-        config.onTrigger = onTriggerFn;
-      }
-      if (onUntriggerFn) {
-        config.onUntrigger = onUntriggerFn;
-      }
-      window.tippy(el, config);
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
     }
-    const findCites = (el) => {
-      const parentEl = el.parentElement;
-      if (parentEl) {
-        const cites = parentEl.dataset.cites;
-        if (cites) {
-          return {
-            el,
-            cites: cites.split(' ')
-          };
-        } else {
-          return findCites(el.parentElement)
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
         }
-      } else {
-        return undefined;
       }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'light-border',
+      placement: 'bottom-start',
     };
-    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-    for (var i=0; i<bibliorefs.length; i++) {
-      const ref = bibliorefs[i];
-      const citeInfo = findCites(ref);
-      if (citeInfo) {
-        tippyHover(citeInfo.el, function() {
-          var popup = window.document.createElement('div');
-          citeInfo.cites.forEach(function(cite) {
-            var citeDiv = window.document.createElement('div');
-            citeDiv.classList.add('hanging-indent');
-            citeDiv.classList.add('csl-entry');
-            var biblioDiv = window.document.getElementById('ref-' + cite);
-            if (biblioDiv) {
-              citeDiv.innerHTML = biblioDiv.innerHTML;
-            }
-            popup.appendChild(citeDiv);
-          });
-          return popup.innerHTML;
-        });
-      }
+    if (contentFn) {
+      config.content = contentFn;
     }
-  });
-  </script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config);
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Kostiantyn Dreval.</p>
+  <p>Developed by Kostiantyn Dreval, Ryan Morin.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer>
