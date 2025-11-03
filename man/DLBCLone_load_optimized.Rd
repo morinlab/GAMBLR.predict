@@ -7,7 +7,8 @@
 DLBCLone_load_optimized(
   path = ".",
   name_prefix = "DLBCLone",
-  check_integrity = FALSE
+  check_integrity = FALSE,
+  shiny_app_mode = FALSE
 )
 }
 \arguments{
@@ -25,6 +26,10 @@ confirms that the coordinates match the saved embeddings (within a small
 tolerance). This requires that the saved model list contains
 \code{projection_train}, which is a consequence of activating the model
 with \code{DLBCLone_activate()}.}
+
+\item{shiny_app_mode}{Logical. If \code{TRUE}, the function will just load
+as is and trust the existing pre-embeddings to speed up the load of shiny
+application.}
 }
 \value{
 A list representing the reconstructed DLBCLone model, suitable for
