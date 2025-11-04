@@ -488,10 +488,30 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 </div>
 </div>
 </div>
-</section><section class="level2"><h2 id="apply-the-model-to-the-test-data">Apply the model to the <em>test</em> data<a class="anchor" aria-label="anchor" href="#apply-the-model-to-the-test-data"></a>
+</section><section class="level2"><h2 id="sanity-check-feature-incidence-in-the-test-data">Sanity check feature incidence in the <em>test</em> data<a class="anchor" aria-label="anchor" href="#sanity-check-feature-incidence-in-the-test-data"></a>
 </h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pred_check</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
+<span>  mutation_status <span class="op">=</span> <span class="va">lyseq_valid</span>,</span>
+<span>  optimized_model <span class="op">=</span> <span class="va">lyseq_features_optimized</span>,</span>
+<span>  check_frequencies <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pred_check</span><span class="op">$</span><span class="va">plot</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure><p><img src="validation_files/figure-html/unnamed-chunk-3-1.png" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section><section class="level2"><h2 id="apply-the-model-to-the-test-data">Apply the model to the <em>test</em> data<a class="anchor" aria-label="anchor" href="#apply-the-model-to-the-test-data"></a>
+</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pred_valid_lyseq_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/DLBCLone_predict.html">DLBCLone_predict</a></span><span class="op">(</span></span>
 <span>  mutation_status <span class="op">=</span> <span class="va">lyseq_valid</span>,</span>
 <span>  optimized_model <span class="op">=</span> <span class="va">lyseq_features_optimized</span></span>
@@ -869,13 +889,13 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 </h3>
 <p>If the UMAP is working as it should be, you should see a similar level of separation of your <em>test</em> samples in UMAP space. Since we have LymphGen classifications for our test samples, we can check this. In order to visualize these, the metadata will need to be attached to the UMAP projection of the new samples. What you should hopefully see is roughly the same placement of your samples on this scatterplot relative to the training samples.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">projected_with_meta</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span><span class="va">pred_valid_lyseq_all</span><span class="op">$</span><span class="va">projection</span>,</span>
 <span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">valid_metadata</span>,<span class="va">sample_id</span>,<span class="va">lymphgen</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Joining with `by = join_by(sample_id)`</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">projected_with_meta</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>        sample_id         V1         V2 lymphgen
@@ -886,23 +906,23 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 5 00-15201_tumorA -1.2391076  0.3538165    Other
 6 00-15201_tumorB  0.7030904 -4.2771802       N1</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">projected_with_meta</span><span class="op">$</span><span class="va">lymphgen</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> [1] "EZB"         "Other"       "N1"          "BN2/N1"      "BN2"
  [6] "MCD"         "ST2"         "EZB/MCD/ST2" "EZB/ST2"     "BN2/EZB"
 [11] "BN2/MCD"     "EZB/MCD"    </code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb28"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#drop composites</span></span>
 <span><span class="va">projected_with_meta</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">projected_with_meta</span>,<span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">"/"</span>,<span class="va">lymphgen</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/make_umap_scatterplot.html">make_umap_scatterplot</a></span><span class="op">(</span><span class="va">projected_with_meta</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
-<figure><p><img src="validation_files/figure-html/unnamed-chunk-4-1.png" width="672"></p>
+<figure><p><img src="validation_files/figure-html/unnamed-chunk-5-1.png" width="672"></p>
 </figure>
 </div>
 </div>
@@ -910,7 +930,7 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 </section><section class="level3"><h3 id="make_neighborhood_plot">make_neighborhood_plot<a class="anchor" aria-label="anchor" href="#make_neighborhood_plot"></a>
 </h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb30"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">test_sample</span> <span class="op">=</span> <span class="st">"92-38267_tumorB"</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/make_neighborhood_plot.html">make_neighborhood_plot</a></span><span class="op">(</span></span>
@@ -930,7 +950,7 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 </section><section class="level3"><h3 id="nearest_neighbor_heatmap">nearest_neighbor_heatmap<a class="anchor" aria-label="anchor" href="#nearest_neighbor_heatmap"></a>
 </h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb31"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/nearest_neighbor_heatmap.html">nearest_neighbor_heatmap</a></span><span class="op">(</span></span>
 <span>  this_sample_id <span class="op">=</span> <span class="va">test_sample</span>,</span>
 <span>  DLBCLone_model <span class="op">=</span> <span class="va">pred_valid_lyseq_all</span>,</span>
@@ -947,7 +967,7 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 </h2>
 <p>Finally, lets assess the accuracy of the validation set by comparing <code>dlbclone_predict</code> predictions with the LymphGen results that were previously generated.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb32"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pred_vs_original</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span><span class="va">pred_valid_lyseq_all</span><span class="op">$</span><span class="va">prediction</span>,<span class="va">valid_metadata</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">#collapse composites into group-COMP</span></span>
@@ -967,7 +987,44 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 </div>
 </div>
 </div>
-</section><script id="quarto-html-after-body" type="application/javascript">
+<section class="level3"><h3 id="oncoplot">Oncoplot<a class="anchor" aria-label="anchor" href="#oncoplot"></a>
+</h3>
+<p>Another way to visualize the results is via an Oncoplot (using GAMBLR.viz::prettyOncoplot).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://morinlab.github.io/GAMBLR.viz/" class="external-link">GAMBLR.viz</a></span><span class="op">)</span></span>
+<span><span class="va">ashm_genes</span> <span class="op">=</span> <span class="fu"><a href="https://generics.r-lib.org/reference/setops.html" class="external-link">intersect</a></span><span class="op">(</span><span class="va">ashm_genes</span>,<span class="va">lyseq_genes</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">silent_show</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"Silent"</span>,<span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">ashm_genes</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">silent_show</span><span class="op">)</span><span class="op">=</span><span class="va">ashm_genes</span></span>
+<span><span class="co"># add hotspot annotation</span></span>
+<span><span class="va">valid_maf_vaf</span><span class="op">$</span><span class="va">hot_spot</span> <span class="op">=</span> <span class="cn">NA</span></span>
+<span><span class="va">valid_maf_vaf</span> <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span><span class="va">valid_maf_vaf</span>,hot_spot<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">Hugo_Symbol</span><span class="op">==</span><span class="st">"MYD88"</span> <span class="op">&amp;</span> <span class="va">HGVSp_Short</span><span class="op">==</span><span class="st">"p.L265P"</span>,<span class="cn">TRUE</span>,<span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://morinlab.github.io/GAMBLR.viz/reference/prettyOncoplot.html" class="external-link">prettyOncoplot</a></span><span class="op">(</span>these_samples_metadata <span class="op">=</span> <span class="va">pred_vs_original</span>, </span>
+<span>  maf_df <span class="op">=</span> <span class="va">valid_maf_vaf</span>,</span>
+<span>  metadataColumns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lymphgen_basic"</span>,<span class="st">"DLBCLone_w"</span>,<span class="st">"DLBCLone_wo"</span><span class="op">)</span>,</span>
+<span>  minMutationPercent <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  cluster_rows <span class="op">=</span> <span class="cn">T</span>,</span>
+<span>  highlightHotspots <span class="op">=</span> <span class="cn">T</span>,</span>
+<span>  genes <span class="op">=</span> <span class="va">lyseq_genes</span>,</span>
+<span>  pctFontSize <span class="op">=</span> <span class="fl">3</span>,</span>
+<span>  fontSizeGene <span class="op">=</span> <span class="fl">3</span>,</span>
+<span>  hideSideBarplot <span class="op">=</span> <span class="cn">T</span>,</span>
+<span>  simplify_annotation <span class="op">=</span> <span class="cn">T</span>,</span>
+<span>  hide_annotations <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DLBCLone_wo"</span>,<span class="st">"DLBCLone_w"</span><span class="op">)</span>,</span>
+<span>  include_noncoding <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">as.list</a></span><span class="op">(</span><span class="va">silent_show</span><span class="op">)</span>,</span>
+<span>  sortByColumns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DLBCLone_wo"</span>,<span class="st">"lymphgen_basic"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure><p><img src="validation_files/figure-html/unnamed-chunk-6-1.png" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section></section><script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
   const toggleBodyColorMode = (bsSheetEl) => {
     const mode = bsSheetEl.getAttribute("data-mode");

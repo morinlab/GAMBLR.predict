@@ -243,6 +243,23 @@ make_alluvial(lyseq_features_optimized,
 
 ```
 
+## Sanity check feature incidence in the *test* data
+
+```{r predict check, message=FALSE, warning=FALSE,results='hide'}
+
+pred_check <- DLBCLone_predict(
+  mutation_status = lyseq_valid,
+  optimized_model = lyseq_features_optimized,
+  check_frequencies = TRUE
+)
+
+```
+
+
+```{r}
+pred_check$plot
+```
+
 ## Apply the model to the *test* data
 
 ```{r predict, message=FALSE, warning=FALSE}
@@ -316,4 +333,38 @@ make_alluvial(list(predictions=pred_vs_original),
   pred_column = "DLBCLone_wo",
   group_order = c("MCD","BN2","ST2","EZB","N1","Other"),
   truth_column = "lymphgen_basic")
+```
+
+### Oncoplot
+
+Another way to visualize the results is via an Oncoplot (using GAMBLR.viz::prettyOncoplot). 
+
+```{r oncoplot prep, message=FALSE,warning=FALSE}
+library(GAMBLR.viz)
+ashm_genes = intersect(ashm_genes,lyseq_genes)
+
+silent_show = rep("Silent",length(ashm_genes))
+names(silent_show)=ashm_genes
+# add hotspot annotation
+valid_maf_vaf$hot_spot = NA
+valid_maf_vaf = mutate(valid_maf_vaf,hot_spot=ifelse(Hugo_Symbol=="MYD88" & HGVSp_Short=="p.L265P",TRUE,FALSE))
+```
+
+```{r, message=FALSE,warning=FALSE}
+prettyOncoplot(these_samples_metadata = pred_vs_original, 
+  maf_df = valid_maf_vaf,
+  metadataColumns = c("lymphgen_basic","DLBCLone_w","DLBCLone_wo"),
+  minMutationPercent = 1,
+  cluster_rows = T,
+  highlightHotspots = T,
+  genes = lyseq_genes,
+  pctFontSize = 3,
+  fontSizeGene = 3,
+  hideSideBarplot = T,
+  simplify_annotation = T,
+  hide_annotations = c("DLBCLone_wo","DLBCLone_w"),
+  include_noncoding = as.list(silent_show),
+  sortByColumns = c("DLBCLone_wo","lymphgen_basic"))
+
+
 ```
