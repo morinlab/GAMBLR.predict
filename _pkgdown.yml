@@ -98,7 +98,6 @@ articles:
       - DLBCLone_optimize_params
       - DLBCLone_stored
       - predict_samples
-      - full_walkthrough
       - validation
       - DLBCLone_KNN
       - DLBCLone_mixture_model

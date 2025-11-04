@@ -41,8 +41,6 @@ all_full_status = readr::read_tsv(system.file("extdata/all_full_status.tsv",pack
   tibble::column_to_rownames("sample_id")
 ```
 
-```
-
 Alternatively, you can load the stored optimized model `best_opt_model.rds` from extdata:
 ```{r, message=FALSE, warning=FALSE, eval = FALSE}
 loaded_model <- DLBCLone_load_optimized(

@@ -42,7 +42,6 @@
     <li><a class="dropdown-item" href="../articles/DLBCLone_optimize_params.html">Training a new DLBCLone model</a></li>
     <li><a class="dropdown-item" href="../articles/DLBCLone_stored.html">DLBCLone Models</a></li>
     <li><a class="dropdown-item" href="../articles/predict_samples.html">Classifying samples with DLBCLone</a></li>
-    <li><a class="dropdown-item" href="../articles/full_walkthrough.html">DLBCLone: Full Walkthrough</a></li>
     <li><a class="dropdown-item" href="../articles/validation.html">Applying a DLBCLone model to new data</a></li>
     <li><a class="dropdown-item" href="../articles/DLBCLone_KNN.html">K-Nearest Neighbors without UMAP</a></li>
     <li><a class="dropdown-item" href="../articles/DLBCLone_mixture_model.html">Gaussian Mixture Model</a></li>
@@ -395,7 +394,7 @@
 <div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">lyseq_valid</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 125</code></pre>
+<pre><code>[1] 117</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lyseq_train</span> <span class="op">&lt;-</span> <span class="va">all_full_status_train</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
@@ -521,41 +520,41 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <div class="cell-output-display">
 <table class="table caption-top" style="width:100%;">
 <colgroup>
+<col style="width: 1%">
+<col style="width: 1%">
 <col style="width: 0%">
 <col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 12%">
-<col style="width: 4%">
+<col style="width: 17%">
 <col style="width: 5%">
-<col style="width: 3%">
-<col style="width: 47%">
+<col style="width: 7%">
+<col style="width: 5%">
+<col style="width: 30%">
 <col style="width: 0%">
 <col style="width: 3%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
+<col style="width: 0%">
 <col style="width: 0%">
 <col style="width: 1%">
 <col style="width: 1%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
-<col style="width: 0%">
+<col style="width: 1%">
 <col style="width: 0%">
 <col style="width: 0%">
 <col style="width: 0%">
@@ -616,20 +615,20 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: right;">1.0000000</td>
 <td style="text-align: right;">0.0000000</td>
-<td style="text-align: left;">00-14595_tumorC,17-33848_tumorB,06-30025T,DLBCL11428T,09-41114T,03-11110T,06-30145T,SP116620,DLBCL-MC_F349_BJJ-Tumor,16-13732T,DLBCL11572T,CAR_154_PreCART,SU-DHL-4,05-25439T,DLBCL11656T,08-13706T,CAR_178_PreCART,05-25674T,06-18449_tumorB</td>
-<td style="text-align: left;">1,354,121,1106,172,47,122,1331,626,321,1218,508,2425,88,1240,140,515,89,109</td>
-<td style="text-align: left;">0.128,0.142,0.145,0.149,0.152,0.156,0.195,0.205,0.212,0.223,0.227,0.244,0.251,0.251,0.251,0.26,0.271,0.274,0.288</td>
+<td style="text-align: left;">05-25439T,17-33848_tumorB,DLBCL-MC_F349_BJJ-Tumor,06-18449_tumorB,05-25674T,CAR_276_PreCART,DLBCL11572T,SP194216,SP193546,DLBCL-MC_F358_WDS-Tumor,DLBCL11666T,02-13135T,CAR_154_PreCART,00-14595_tumorC,Aph_13_PreCART,99-13280T,DLBCL10465T,DLBCL10464T,03-11110T</td>
+<td style="text-align: left;">88,354,626,109,89,526,1218,1301,1297,627,1249,29,508,1,469,447,837,836,47</td>
+<td style="text-align: left;">0.129,0.147,0.171,0.173,0.176,0.181,0.19,0.201,0.202,0.212,0.213,0.22,0.237,0.255,0.259,0.292,0.306,0.32,0.325</td>
 <td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
 <td style="text-align: left;"></td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: left;">95.7664551143418</td>
+<td style="text-align: left;">91.4646166144537</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0.0000000</td>
 <td style="text-align: right;">0.000000</td>
-<td style="text-align: right;">95.76646</td>
-<td style="text-align: right;">95.76646</td>
-<td style="text-align: right;">-0.8899906</td>
-<td style="text-align: right;">4.3290272</td>
+<td style="text-align: right;">91.46462</td>
+<td style="text-align: right;">91.46462</td>
+<td style="text-align: right;">1.964856</td>
+<td style="text-align: right;">4.0599666</td>
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">19</td>
@@ -638,14 +637,14 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">0.000000</td>
-<td style="text-align: right;">95.76646</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">91.464617</td>
 <td style="text-align: right;">0.00000</td>
 <td style="text-align: right;">0.00000</td>
 <td style="text-align: right;">0.000000</td>
 <td style="text-align: right;">0.000000</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">95.76646</td>
+<td style="text-align: right;">91.46462</td>
 <td style="text-align: right;">19</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">19</td>
@@ -661,20 +660,20 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: right;">1.0000000</td>
 <td style="text-align: right;">0.0000000</td>
-<td style="text-align: left;">09-41114T,03-11110T,00-14595_tumorC,17-33848_tumorB,DLBCL11428T,DLBCL-MC_F349_BJJ-Tumor,06-30025T,DLBCL11572T,SU-DHL-4,08-13706T,05-25439T,CAR_178_PreCART,CAR_154_PreCART,DLBCL11656T,SP116620,06-30145T,CAR_177_PreCART,06-18449_tumorB,DLBCL11567T</td>
-<td style="text-align: left;">172,47,1,354,1106,626,121,1218,2425,140,88,515,508,1240,1331,122,514,109,1213</td>
-<td style="text-align: left;">0.113,0.115,0.13,0.141,0.158,0.163,0.181,0.188,0.194,0.207,0.21,0.215,0.219,0.229,0.229,0.247,0.259,0.26,0.263</td>
+<td style="text-align: left;">17-33848_tumorB,02-13135T,CAR_154_PreCART,SP193546,DLBCL-MC_F349_BJJ-Tumor,05-25439T,CAR_276_PreCART,00-14595_tumorC,06-18449_tumorB,05-25674T,DLBCL-MC_F358_WDS-Tumor,DLBCL11572T,SP194216,DLBCL11666T,13-26601T,Aph_13_PreCART,SP116659,06-30145T,SP192993</td>
+<td style="text-align: left;">354,29,508,1297,626,88,526,1,109,89,627,1218,1301,1249,246,469,1339,122,1281</td>
+<td style="text-align: left;">0.141,0.154,0.169,0.174,0.183,0.189,0.199,0.207,0.209,0.246,0.251,0.261,0.267,0.285,0.305,0.328,0.328,0.338,0.346</td>
 <td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
 <td style="text-align: left;"></td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: left;">103.880530854753</td>
+<td style="text-align: left;">84.9552949261059</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0.0000000</td>
 <td style="text-align: right;">0.000000</td>
-<td style="text-align: right;">103.88053</td>
-<td style="text-align: right;">103.88053</td>
-<td style="text-align: right;">-0.8807368</td>
-<td style="text-align: right;">4.2731309</td>
+<td style="text-align: right;">84.95529</td>
+<td style="text-align: right;">84.95529</td>
+<td style="text-align: right;">2.035857</td>
+<td style="text-align: right;">4.0529613</td>
 <td style="text-align: right;">2</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">19</td>
@@ -683,14 +682,14 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">0.000000</td>
-<td style="text-align: right;">103.88053</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">84.955295</td>
 <td style="text-align: right;">0.00000</td>
 <td style="text-align: right;">0.00000</td>
 <td style="text-align: right;">0.000000</td>
 <td style="text-align: right;">0.000000</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">103.88053</td>
+<td style="text-align: right;">84.95529</td>
 <td style="text-align: right;">19</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">19</td>
@@ -706,20 +705,20 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: right;">1.0000000</td>
 <td style="text-align: right;">0.0000000</td>
-<td style="text-align: left;">08-13706T,CAR_177_PreCART,CLC03454,SU-DHL-4,DLBCL11567T,DLBCL11572T,DLBCL-MC_F349_BJJ-Tumor,SP116659,CLC00259,CAR_154_PreCART,06-18449_tumorB,DLBCL-MC_F300_TBF-Tumor,DLBCL10459T,CAR_178_PreCART,02-13135T,05-32762T,FL1002T2,09-41114T,DLBCL10465T</td>
-<td style="text-align: left;">139,513,356,2424,1212,1217,625,1338,188,507,108,621,831,514,28,93,10,171,836</td>
-<td style="text-align: left;">0.132,0.159,0.161,0.163,0.165,0.167,0.172,0.18,0.181,0.192,0.193,0.197,0.197,0.197,0.228,0.229,0.231,0.233,0.235</td>
+<td style="text-align: left;">SP193546,02-13135T,13-26601T,SP116659,CAR_154_PreCART,SP192993,08-13706T,06-18449_tumorB,17-33848_tumorB,05-25439T,CLC03456,CAR_178_PreCART,DLBCL-MC_F300_TBF-Tumor,05-24666T,SU-DHL-6,DLBCL-MC_F349_BJJ-Tumor,DLBCL11532T,CAR_276_PreCART,05-25674T</td>
+<td style="text-align: left;">1296,28,245,1338,507,1280,139,108,353,87,368,514,621,85,2424,625,1194,525,88</td>
+<td style="text-align: left;">0.177,0.179,0.196,0.214,0.239,0.244,0.249,0.255,0.267,0.275,0.295,0.296,0.301,0.308,0.309,0.31,0.322,0.327,0.33</td>
 <td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
 <td style="text-align: left;"></td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: left;">102.42382208477</td>
+<td style="text-align: left;">73.5868644142581</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0.0000000</td>
 <td style="text-align: right;">0.000000</td>
-<td style="text-align: right;">102.42382</td>
-<td style="text-align: right;">102.42382</td>
-<td style="text-align: right;">-0.9343416</td>
-<td style="text-align: right;">4.1505504</td>
+<td style="text-align: right;">73.58686</td>
+<td style="text-align: right;">73.58686</td>
+<td style="text-align: right;">2.094698</td>
+<td style="text-align: right;">3.9400454</td>
 <td style="text-align: right;">3</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">19</td>
@@ -728,14 +727,14 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">0.000000</td>
-<td style="text-align: right;">102.42382</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">73.586864</td>
 <td style="text-align: right;">0.00000</td>
 <td style="text-align: right;">0.00000</td>
 <td style="text-align: right;">0.000000</td>
 <td style="text-align: right;">0.000000</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">102.42382</td>
+<td style="text-align: right;">73.58686</td>
 <td style="text-align: right;">19</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">19</td>
@@ -750,21 +749,21 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <td style="text-align: left;">00-14595_tumorD</td>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: right;">1.0000000</td>
-<td style="text-align: right;">0.0409382</td>
-<td style="text-align: left;">190806-PL01-PL02,DLBCL11666T,DLBCL-MC_F358_WDS-Tumor,DLBCL11573T,05-25674T,10-15025T,Aph_13_PreCART,DLBCL11558T,FL1010T2,SU-DHL-6,SP116620,06-15922T,SP194216,CAR_276_PreCART,DLBCL11575T,SP193957,171290-PL01,170867-PL02,15-11280_CLC02281</td>
-<td style="text-align: left;">450,1249,627,1219,89,177,469,1206,449,2427,1331,105,1301,526,1220,1307,461,460,285</td>
-<td style="text-align: left;">0.118,0.126,0.154,0.157,0.159,0.166,0.173,0.18,0.202,0.204,0.207,0.21,0.21,0.234,0.236,0.252,0.253,0.253,0.255</td>
+<td style="text-align: right;">0.0000000</td>
+<td style="text-align: left;">SP194216,DLBCL-MC_F358_WDS-Tumor,DLBCL11572T,Aph_13_PreCART,DLBCL11666T,CAR_276_PreCART,DLBCL-MC_F349_BJJ-Tumor,05-25674T,DLBCL11573T,SP116620,05-25439T,06-30025T,17-33848_tumorB,190806-PL01-PL02,99-13280T,06-18449_tumorB,16-13732T,DLBCL-DFCI_DLBCL_Goe16-Tumor,06-30145T</td>
+<td style="text-align: left;">1301,627,1218,469,1249,526,626,89,1219,1331,88,121,354,450,447,109,321,612,122</td>
+<td style="text-align: left;">0.137,0.15,0.178,0.178,0.179,0.193,0.205,0.207,0.221,0.223,0.229,0.229,0.234,0.26,0.262,0.273,0.286,0.301,0.301</td>
 <td style="text-align: left;">EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB,EZB</td>
-<td style="text-align: left;">FL1003T2</td>
+<td style="text-align: left;"></td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: left;">101.424039965503</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">0.0526316</td>
-<td style="text-align: right;">4.152118</td>
-<td style="text-align: right;">101.42404</td>
-<td style="text-align: right;">101.42404</td>
-<td style="text-align: right;">-0.6999627</td>
-<td style="text-align: right;">4.4204650</td>
+<td style="text-align: left;">89.1139107432683</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0000000</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">89.11391</td>
+<td style="text-align: right;">89.11391</td>
+<td style="text-align: right;">1.892516</td>
+<td style="text-align: right;">4.1527591</td>
 <td style="text-align: right;">4</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">19</td>
@@ -773,20 +772,20 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">0.000000</td>
-<td style="text-align: right;">101.42404</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">89.113911</td>
 <td style="text-align: right;">0.00000</td>
 <td style="text-align: right;">0.00000</td>
 <td style="text-align: right;">0.000000</td>
-<td style="text-align: right;">4.152118</td>
+<td style="text-align: right;">0.000000</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">101.42404</td>
+<td style="text-align: right;">89.11391</td>
 <td style="text-align: right;">19</td>
-<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
 <td style="text-align: right;">19</td>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: left;">EZB</td>
-<td style="text-align: right;">24.4270604</td>
+<td style="text-align: right;">Inf</td>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: left;">EZB</td>
 <td style="text-align: left;">EZB</td>
@@ -794,89 +793,89 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <tr class="odd">
 <td style="text-align: left;">00-15201_tumorA</td>
 <td style="text-align: left;">BN2</td>
-<td style="text-align: right;">0.4536479</td>
-<td style="text-align: right;">8.6321139</td>
-<td style="text-align: left;">Reddy_3551T,Reddy_2620T,Reddy_2789T,Reddy_3904T,DLBCL11518T,SP116690,DLBCL-c_D_1158-Tumor,Reddy_2650T,1011-2020_FFPE,DLBCL-RICOVER_978-Tumor,Reddy_2603T,Reddy_2534T,Reddy_3616T,QC2-30T,DLBCL10856T,DLBCL10919T,Reddy_705T,Reddy_3849T,H041_T_WGS</td>
-<td style="text-align: left;">2076,1768,1862,2315,1184,1343,813,1788,218,761,1756,1714,2112,1503,941,999,2411,2279,600</td>
-<td style="text-align: left;">0.189,0.233,0.484,0.491,0.569,0.575,0.624,0.679,0.681,0.683,0.722,0.739,0.821,0.857,0.859,0.865,0.888,0.91,0.952</td>
-<td style="text-align: left;">BN2,BN2,ST2,ST2,BN2,ST2,ST2,EZB,EZB,BN2,EZB,BN2,BN2,EZB,EZB,EZB,EZB,EZB,MCD</td>
-<td style="text-align: left;">1102503091T,Reddy_3739T,Reddy_2147T,1102503011T,Reddy_3865T,DFCIDL008-Tumor,DLBCL10977T,1011-2018_FFPE,Reddy_3843T,Reddy_3819T,1011-2018_plasma,Reddy_2634T,DLBCL10933T,DLBCL-c_D_1120-Tumor,00-22011_tumorB,DLBCL11002T,DLBCL11595T,Reddy_2206T,1001-2030_FFPE,Reddy_3845T,1102503013T,Reddy_3733T,DLBCL10955T,OZM073-017_Diagnosis,Reddy_3988T,Reddy_3914T,Reddy_3519T,Reddy_3487T,Reddy_2996T,Reddy_2138T,03-10440_tumorB,03-10440_tumorA,DLBCL11468T,DLBCL-RICOVER_314-Tumor,Reddy_3580T,DLBCL11255T,DLBCL10455T,DLBCL10943T,Reddy_2463T,SP116627,Reddy_3431T,Reddy_2253T,Reddy_702T,Reddy_2123T,Reddy_3943T,Reddy_3556T,Reddy_3412T,Reddy_2714T,Reddy_2479T,Reddy_2719T,Reddy_3981T,02-15630_tumorB,Reddy_3978T,86-30788_tumorA,Reddy_813T,Reddy_2157T,Reddy_2889T,Seq_1_PreCART,94-15772_tumorA,Reddy_2928T,Reddy_2680T,QC2-5T,Reddy_2194T,DLBCL10499T,98-22532T,DLBCL10908T,DLBCL-c_D_1152-Tumor,Reddy_3470T,Reddy_3946T,94-15772_tumorB,DLBCL11180T,DLBCL11681T,Reddy_3654T,Reddy_2688T,1001-2030_plasma</td>
-<td style="text-align: left;">BN2,EZB,MCD,ST2</td>
-<td style="text-align: left;">15.3910313542603,10.0403628209901,1.05047600249142,7.44539197428758</td>
-<td style="text-align: right;">75</td>
-<td style="text-align: right;">3.9473684</td>
-<td style="text-align: right;">132.857136</td>
-<td style="text-align: right;">33.92726</td>
-<td style="text-align: right;">15.39103</td>
-<td style="text-align: right;">-1.2391076</td>
-<td style="text-align: right;">0.3538165</td>
+<td style="text-align: right;">0.7997312</td>
+<td style="text-align: right;">2.2781338</td>
+<td style="text-align: left;">190017-PL01,Reddy_3551T,Reddy_3482T,DLBCL-c_D_1117-Tumor,DLBCL-c_D_1158-Tumor,SP194228,Reddy_2166T,DLBCL10969T,DLBCL10953T,Reddy_2716T,Reddy_689T,EX01025,Reddy_3515T,Reddy_2214T,DLBCL10927T,DLBCL-RICOVER_711-Tumor,Reddy_3873T,DLBCL11677T,EX01023</td>
+<td style="text-align: left;">464,2075,2028,777,813,1301,1599,1045,1029,1831,2404,586,2052,1620,1007,741,2288,1257,584</td>
+<td style="text-align: left;">0.196,0.229,0.38,0.396,0.445,0.496,0.501,0.51,0.515,0.52,0.525,0.546,0.627,0.691,0.697,0.702,0.705,0.817,0.819</td>
+<td style="text-align: left;">BN2,BN2,BN2,ST2,ST2,BN2,BN2,BN2,BN2,BN2,BN2,EZB,BN2,EZB,BN2,BN2,BN2,BN2,BN2</td>
+<td style="text-align: left;">Reddy_2246T,Reddy_3845T,DLBCL10499T,QC2-26T,1102503011T,CAR_109_PreCART,Reddy_3733T,03-10440_tumorB,03-10440_tumorA,Reddy_3461T,Reddy_2634T,DLBCL11486T,Reddy_3503T,Reddy_3843T,Reddy_3566T,Reddy_2919T,DLBCL11504T,Reddy_2206T,DLBCL11002T,DLBCL11681T,Reddy_3612T,SP59400,141900-PL01,1011-2018_FFPE,Reddy_2867T,1011-2018_plasma,Reddy_3418T,1001-2030_FFPE,DLBCL10955T,DLBCL10888T,DLBCL11595T,DLBCL-c_D_1162-Tumor,DLBCL10884T,DLBCL10485T,Reddy_790T,DLBCL11271T</td>
+<td style="text-align: left;">BN2,EZB,ST2</td>
+<td style="text-align: left;">32.1633840869331,3.27813883002644,4.77621933235038</td>
+<td style="text-align: right;">36</td>
+<td style="text-align: right;">1.8947368</td>
+<td style="text-align: right;">73.272493</td>
+<td style="text-align: right;">40.21774</td>
+<td style="text-align: right;">32.16338</td>
+<td style="text-align: right;">1.174061</td>
+<td style="text-align: right;">-0.7965413</td>
 <td style="text-align: right;">5</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">8</td>
-<td style="text-align: right;">6</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">4</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">15</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: left;">EZB</td>
-<td style="text-align: right;">1.050476</td>
-<td style="text-align: right;">10.04036</td>
-<td style="text-align: right;">15.39103</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">BN2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">3.278139</td>
+<td style="text-align: right;">32.16338</td>
 <td style="text-align: right;">0.00000</td>
-<td style="text-align: right;">7.445392</td>
-<td style="text-align: right;">132.857136</td>
+<td style="text-align: right;">4.776219</td>
+<td style="text-align: right;">73.272493</td>
 <td style="text-align: left;">BN2</td>
-<td style="text-align: right;">15.39103</td>
-<td style="text-align: right;">8</td>
-<td style="text-align: right;">75</td>
-<td style="text-align: right;">8</td>
+<td style="text-align: right;">32.16338</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">36</td>
+<td style="text-align: right;">15</td>
 <td style="text-align: left;">Other</td>
 <td style="text-align: left;">BN2</td>
-<td style="text-align: right;">0.1158465</td>
+<td style="text-align: right;">0.4389558</td>
 <td style="text-align: left;">Other</td>
 <td style="text-align: left;">BN2</td>
-<td style="text-align: left;">Other</td>
+<td style="text-align: left;">BN2</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">00-15201_tumorB</td>
 <td style="text-align: left;">N1</td>
-<td style="text-align: right;">0.9709068</td>
-<td style="text-align: right;">0.0466497</td>
-<td style="text-align: left;">DLBCL10973T,DLBCL11648T,10-39294_tumorA,DLBCL10520T,DLBCL11005T,14-33798_tumorB,DLBCL11503T,DLBCL11513T,10-39294_tumorB,DLBCL10844T,CLC00246,DLBCL-MAYO_DLBCL_234-Tumor,1102502995T,Reddy_3982T,DLBCL10915T,c_D_1050_T,DLBCL10952T,Reddy_3997T,DLBCL11439T</td>
-<td style="text-align: left;">1048,1235,186,885,1078,276,1172,1180,187,929,315,1442,1418,2384,995,1433,1028,2399,1115</td>
-<td style="text-align: left;">0.173,0.183,0.224,0.264,0.284,0.288,0.289,0.293,0.389,0.412,0.478,0.486,0.5,0.528,0.529,0.542,0.571,0.613,0.623</td>
-<td style="text-align: left;">N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,N1,ST2</td>
-<td style="text-align: left;">1102503029T</td>
+<td style="text-align: right;">0.9052115</td>
+<td style="text-align: right;">0.1549505</td>
+<td style="text-align: left;">10-39294_tumorB,DLBCL10520T,DLBCL11648T,10-39294_tumorA,DLBCL-MAYO_DLBCL_234-Tumor,DLBCL11005T,DLBCL11439T,DLBCL11513T,14-33798_tumorB,c_D_1050_T,DLBCL11503T,DLBCL10973T,DLBCL11564T,DLBCL11203T,DLBCL10844T,1006-2010_FFPE,Reddy_3997T,04-35039T,DLBCL10952T</td>
+<td style="text-align: left;">187,885,1235,186,1442,1078,1115,1180,276,1433,1172,1048,1209,1088,929,210,2397,70,1028</td>
+<td style="text-align: left;">0.274,0.415,0.447,0.469,0.493,0.56,0.573,0.602,0.659,0.691,0.71,0.719,0.754,0.763,0.772,0.777,0.787,0.795,0.796</td>
+<td style="text-align: left;">N1,N1,N1,N1,N1,N1,ST2,N1,N1,N1,N1,N1,ST2,N1,N1,N1,N1,N1,N1</td>
+<td style="text-align: left;">1102503029T,Reddy_3448T,DLBCL10837T</td>
 <td style="text-align: left;">N1,ST2</td>
-<td style="text-align: left;">53.5304488302436,1.6040359180294</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">0.0526316</td>
-<td style="text-align: right;">2.497182</td>
-<td style="text-align: right;">55.13448</td>
-<td style="text-align: right;">53.53045</td>
-<td style="text-align: right;">0.7030904</td>
-<td style="text-align: right;">-4.2771802</td>
+<td style="text-align: left;">29.3438944567235,3.07272235128703</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.1578947</td>
+<td style="text-align: right;">4.546851</td>
+<td style="text-align: right;">32.41662</td>
+<td style="text-align: right;">29.34389</td>
+<td style="text-align: right;">-1.056905</td>
+<td style="text-align: right;">-3.6693215</td>
 <td style="text-align: right;">6</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">18</td>
-<td style="text-align: right;">1</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">2</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: left;">N1</td>
+<td style="text-align: right;">0</td>
 <td style="text-align: right;">0.000000</td>
 <td style="text-align: right;">0.00000</td>
-<td style="text-align: right;">0.00000</td>
-<td style="text-align: right;">53.53045</td>
-<td style="text-align: right;">1.604036</td>
-<td style="text-align: right;">2.497182</td>
+<td style="text-align: right;">29.34389</td>
+<td style="text-align: right;">3.072722</td>
+<td style="text-align: right;">4.546851</td>
 <td style="text-align: left;">N1</td>
-<td style="text-align: right;">53.53045</td>
-<td style="text-align: right;">18</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">18</td>
+<td style="text-align: right;">29.34389</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">17</td>
 <td style="text-align: left;">N1</td>
 <td style="text-align: left;">N1</td>
-<td style="text-align: right;">21.4363427</td>
+<td style="text-align: right;">6.4536741</td>
 <td style="text-align: left;">N1</td>
 <td style="text-align: left;">N1</td>
 <td style="text-align: left;">N1</td>
@@ -898,13 +897,13 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 <div class="sourceCode cell-code" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">projected_with_meta</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>        sample_id         V1         V2 lymphgen
-1 00-14595_tumorA -0.8899906  4.3290272      EZB
-2 00-14595_tumorB -0.8807368  4.2731309      EZB
-3 00-14595_tumorC -0.9343416  4.1505504      EZB
-4 00-14595_tumorD -0.6999627  4.4204650      EZB
-5 00-15201_tumorA -1.2391076  0.3538165    Other
-6 00-15201_tumorB  0.7030904 -4.2771802       N1</code></pre>
+<pre><code>        sample_id        V1         V2 lymphgen
+1 00-14595_tumorA  1.964856  4.0599666      EZB
+2 00-14595_tumorB  2.035857  4.0529613      EZB
+3 00-14595_tumorC  2.094698  3.9400454      EZB
+4 00-14595_tumorD  1.892516  4.1527591      EZB
+5 00-15201_tumorA  1.174061 -0.7965413    Other
+6 00-15201_tumorB -1.056905 -3.6693215       N1</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">projected_with_meta</span><span class="op">$</span><span class="va">lymphgen</span><span class="op">)</span></span></code></pre></div>
@@ -1025,107 +1024,89 @@ params$discern): Some strata appear at multiple axes.</code></pre>
 </div>
 </div>
 </section></section><script id="quarto-html-after-body" type="application/javascript">
-window.document.addEventListener("DOMContentLoaded", function (event) {
-  const toggleBodyColorMode = (bsSheetEl) => {
-    const mode = bsSheetEl.getAttribute("data-mode");
-    const bodyEl = window.document.querySelector("body");
-    if (mode === "dark") {
-      bodyEl.classList.add("quarto-dark");
-      bodyEl.classList.remove("quarto-light");
-    } else {
-      bodyEl.classList.add("quarto-light");
-      bodyEl.classList.remove("quarto-dark");
-    }
-  }
-  const toggleBodyColorPrimary = () => {
-    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
-    if (bsSheetEl) {
-      toggleBodyColorMode(bsSheetEl);
-    }
-  }
-  toggleBodyColorPrimary();
-    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-    var mailtoRegex = new RegExp(/^mailto:/);
-      var filterRegex = new RegExp('/' + window.location.host + '/');
-    var isInternal = (href) => {
-        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-    }
-    // Inspect non-navigation links and adorn them if external
- 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-    for (var i=0; i<links.length; i++) {
-      const link = links[i];
-      if (!isInternal(link.href)) {
-        // undo the damage that might have been done by quarto-nav.js in the case of
-        // links that we want to consider external
-        if (link.dataset.originalHref !== undefined) {
-          link.href = link.dataset.originalHref;
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
         }
       }
-    }
-  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-    const config = {
-      allowHTML: true,
-      maxWidth: 500,
-      delay: 100,
-      arrow: false,
-      appendTo: function(el) {
-          return el.parentElement;
-      },
-      interactive: true,
-      interactiveBorder: 10,
-      theme: 'light-border',
-      placement: 'bottom-start',
-    };
-    if (contentFn) {
-      config.content = contentFn;
-    }
-    if (onTriggerFn) {
-      config.onTrigger = onTriggerFn;
-    }
-    if (onUntriggerFn) {
-      config.onUntrigger = onUntriggerFn;
-    }
-    window.tippy(el, config);
-  }
-  const findCites = (el) => {
-    const parentEl = el.parentElement;
-    if (parentEl) {
-      const cites = parentEl.dataset.cites;
-      if (cites) {
-        return {
-          el,
-          cites: cites.split(' ')
-        };
-      } else {
-        return findCites(el.parentElement)
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'light-border',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
       }
-    } else {
-      return undefined;
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config);
     }
-  };
-  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-  for (var i=0; i<bibliorefs.length; i++) {
-    const ref = bibliorefs[i];
-    const citeInfo = findCites(ref);
-    if (citeInfo) {
-      tippyHover(citeInfo.el, function() {
-        var popup = window.document.createElement('div');
-        citeInfo.cites.forEach(function(cite) {
-          var citeDiv = window.document.createElement('div');
-          citeDiv.classList.add('hanging-indent');
-          citeDiv.classList.add('csl-entry');
-          var biblioDiv = window.document.getElementById('ref-' + cite);
-          if (biblioDiv) {
-            citeDiv.innerHTML = biblioDiv.innerHTML;
-          }
-          popup.appendChild(citeDiv);
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
         });
-        return popup.innerHTML;
-      });
+      }
     }
-  }
-});
-</script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+  });
+  </script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
 
@@ -1135,7 +1116,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
     </footer>
