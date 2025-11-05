@@ -1079,8 +1079,10 @@ DLBCLone_shiny <- function(...){
             validate(need(!is.null(result), "Waiting for model output..."))
             make_umap_scatterplot(
                     result$predictions,
-                    colour_by = current_truth_column()
-                ) + theme(
+                    colour_by = current_truth_column(),
+                    base_size = 16
+                ) +
+                theme(
                     panel.background = element_rect(fill='white', colour='white')
                 )
         })
@@ -1092,8 +1094,10 @@ DLBCLone_shiny <- function(...){
             validate(need(!is.null(result), "Waiting for model output..."))
             make_umap_scatterplot(
                     result$predictions,
-                    colour_by = "DLBCLone_wo"
-                )  + theme(
+                    colour_by = "DLBCLone_wo",
+                    base_size = 16
+                ) +
+                theme(
                     panel.background = element_rect(fill='white', colour='white')
                 )
         })
@@ -1123,7 +1127,8 @@ DLBCLone_shiny <- function(...){
             # }
             validate(need(!is.null(umap_out), "Waiting for model output..."))
             tc = current_truth_column()
-            make_umap_scatterplot(umap_out$df,  colour_by = tc) + theme(
+            make_umap_scatterplot(umap_out$df,  colour_by = tc, base_size = 16) +
+                theme(
                     panel.background = element_rect(fill='white', colour='white')
                 )
         })
