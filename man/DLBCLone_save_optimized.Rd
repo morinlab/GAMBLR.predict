@@ -67,7 +67,7 @@ DLBCLone_save_optimized(
   include_tests = TRUE,
   overwrite = TRUE
 )
-} 
+}
 }
 \seealso{
 \code{\link[=DLBCLone_load_optimized]{DLBCLone_load_optimized()}}, \code{uwot::save_uwot()}

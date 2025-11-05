@@ -17,6 +17,9 @@
 #'   tolerance). This requires that the saved model list contains
 #'   \code{projection_train}, which is a consequence of activating the model
 #'   with \code{DLBCLone_activate()}.
+#' @param shiny_app_mode Logical. If \code{TRUE}, the function will just load
+#'  as is and trust the existing pre-embeddings to speed up the load of shiny
+#'  application.
 #'
 #' @return A list representing the reconstructed DLBCLone model, suitable for
 #'   downstream use with \code{DLBCLone_predict()} or utilities that expect
@@ -60,10 +63,11 @@
 #' )
 #' }
 
-DLBCLone_load_optimized <- function( 
+DLBCLone_load_optimized <- function(
   path=".",
   name_prefix="DLBCLone",
-  check_integrity = FALSE
+  check_integrity = FALSE,
+  shiny_app_mode = FALSE
 ){
   compare_embeddings = function(df1,df2){
     #match on sample_id
@@ -76,7 +80,7 @@ DLBCLone_load_optimized <- function(
       print(head(bad_rows))
       stop("Consistency issue detected!")
     }
-  
+
   }
   prefix = paste0(path,"/",name_prefix)
   umap_file =  paste0(prefix,"_umap.uwot")
@@ -98,10 +102,12 @@ DLBCLone_load_optimized <- function(
       stop("No training projection found in model. Cannot check integrity.")
     }
   }else{
-    #remove potentially stale embeddings to force the user to re-project
-    #if they want to use them. This ensures that only a model that has been verified
-    #with check_integrity = TRUE will retain the embeddings.
-    DLBCLone_model$projection_train = NULL
+    if (!shiny_app_mode){
+        #remove potentially stale embeddings to force the user to re-project
+        #if they want to use them. This ensures that only a model that has been verified
+        #with check_integrity = TRUE will retain the embeddings.
+        DLBCLone_model$projection_train = NULL
+    }
   }
   return(DLBCLone_model)
 }
@@ -161,8 +167,8 @@ DLBCLone_load_optimized <- function(
 #'   include_tests = TRUE,
 #'   overwrite = TRUE
 #' )
-#' } 
-DLBCLone_save_optimized = function( 
+#' }
+DLBCLone_save_optimized = function(
     DLBCLone_model,
     base_path="./",
     name_prefix="DLBCLone",
@@ -195,11 +201,11 @@ DLBCLone_save_optimized = function(
                                            individually = TRUE)
     DLBCLone_model[["embedding_batch"]] = embedded_batch$df
     DLBCLone_model[["embedding_iterative"]] = embedded_iterative$df
-    
+
   }
   # UMAP model must be saved separately using save_uwot
   umap_model = DLBCLone_model$model
-  
+
   save_uwot(umap_model, umap_file)
   DLBCLone_model$model = NULL
   saveRDS(DLBCLone_model, rds_file)
