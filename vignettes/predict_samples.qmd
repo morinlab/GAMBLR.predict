@@ -23,7 +23,7 @@ The most practical use for a DLBCLone model is to infer the class/subtype of sam
 ```{r, message=FALSE, warning=FALSE, echo = FALSE}
 default_model <- "best_opt_w"
 # Load your stored optimized model from DLBCLone_save_optimized()
-all_features_optimized <- DLBCLone_load_optimized( 
+best_opt_model <- DLBCLone_load_optimized( 
         dirname(
             system.file(
                 "extdata/models",
@@ -37,14 +37,14 @@ all_features_optimized <- DLBCLone_load_optimized(
 
 ## predicting the class of a single sample 
 
-In this demonstration, we'll use our model to predict the class of one of our training samples. This is not the normal, or particularly sensible, application of DLBCLone but it's a convenient way to demonstrate how `DLBCLone_predict` works. Since we're using a sample that was in the training data, we can directly recycle the genetic feature matrix from the model via `all_features_optimized$features`. Because there are meta-features in that data frame, we also need to enable the `drop_extra` feature. 
+In this demonstration, we'll use our model to predict the class of one of our training samples. This is not the normal, or particularly sensible, application of DLBCLone but it's a convenient way to demonstrate how `DLBCLone_predict` works. Since we're using a sample that was in the training data, we can directly recycle the genetic feature matrix from the model via `best_opt_model$features`. Because there are meta-features in that data frame, we also need to enable the `drop_extra` feature. 
 
 ```{r predict single sample, message=FALSE, warning=FALSE}
 test_sample = "00-14595_tumorC"
 
 pred_train <- DLBCLone_predict(
-  mutation_status = all_features_optimized$features[test_sample,],
-  optimized_model = all_features_optimized,
+  mutation_status = best_opt_model$features[test_sample,],
+  optimized_model = best_opt_model,
   drop_extra = TRUE
 )
 

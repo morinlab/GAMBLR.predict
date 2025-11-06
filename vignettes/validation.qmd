@@ -62,7 +62,7 @@ If your MAF file doesn't contain any synonyous mutations, be sure to use a model
 
 
 ## metadata 
-```{r head metadata}
+```{r head metadata, message = FALSE, warning = FALSE}
 
 knitr::kable(head(valid_metadata))
 
@@ -72,7 +72,7 @@ knitr::kable(head(valid_metadata))
 ## lyseq features 
 
 
-```{r load model, echo = FALSE, message = FALSE}
+```{r load model, echo = FALSE, message = FALSE, warning = FALSE}
 lyseq_features_optimized_train <- DLBCLone_load_optimized(
         dirname(
             system.file(
@@ -148,7 +148,7 @@ lyseq_valid = assemble_genetic_features(
 
 ## Load the training data
 
-```{r load mutations and metadata, message=FALSE, warning=FALSE,results='hide'}
+```{r load mutations and metadata, message=FALSE, warning=FALSE, results='hide'}
 
 all_full_status_train <- readr::read_tsv(system.file("extdata/all_full_status.tsv",package = "GAMBLR.predict")) %>%
   tibble::column_to_rownames("sample_id")
@@ -161,7 +161,7 @@ dlbcl_meta_clean <- filter(dlbcl_meta,
 
 Before training, the mutation matrix from the bundled training data must be subset to exclude any features that are not part of your panel. 
 
-```{r subset, warning=FALSE}
+```{r subset, message = FALSE, warning = FALSE}
 ncol(all_full_status_train)
 ncol(lyseq_valid)
 
@@ -190,7 +190,7 @@ mu_lyseq_train = make_and_annotate_umap(
 
 Visually confirm the separation of the training samples based on their LymphGen class labels. 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 make_umap_scatterplot(mu_lyseq_train$df)
 ```
 
@@ -225,7 +225,7 @@ lyseq_features_optimized = DLBCLone_optimize_params(
 )
 ```
 
-```{r optimize activate}
+```{r optimize activate, message = FALSE, warning = FALSE}
 lyseq_features_optimized <- DLBCLone_activate( # Activates optimized model setting the UMAP projection
   lyseq_features_optimized, 
   force = TRUE
@@ -236,7 +236,7 @@ lyseq_features_optimized <- DLBCLone_activate( # Activates optimized model setti
 
 Check the classification accuracy of the optimized classifier (DLBCLone_wo) on the training data set.
 
-```{r alluvial train}
+```{r alluvial train, message = FALSE, warning = FALSE}
 
 make_alluvial(lyseq_features_optimized,
   pred_column="DLBCLone_wo")
@@ -256,7 +256,7 @@ pred_check <- DLBCLone_predict(
 ```
 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 pred_check$plot
 ```
 
@@ -276,7 +276,7 @@ knitr::kable(head(pred_valid_lyseq_all$prediction))
 
 If the UMAP is working as it should be, you should see a similar level of separation of your *test* samples in UMAP space. Since we have LymphGen classifications for our test samples, we can check this. In order to visualize these, the metadata will need to be attached to the UMAP projection of the new samples. What you should hopefully see is roughly the same placement of your samples on this scatterplot relative to the training samples. 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 
 projected_with_meta = left_join(pred_valid_lyseq_all$projection,
 select(valid_metadata,sample_id,lymphgen))
@@ -287,13 +287,13 @@ projected_with_meta = filter(projected_with_meta,!grepl("/",lymphgen))
 
 ```
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 make_umap_scatterplot(projected_with_meta)
 
 ```
 
 ### make_neighborhood_plot 
-```{r neighborhood}
+```{r neighborhood, message = FALSE, warning = FALSE}
 test_sample = "92-38267_tumorB"
 
 make_neighborhood_plot(
@@ -365,6 +365,4 @@ prettyOncoplot(these_samples_metadata = pred_vs_original,
   hide_annotations = c("DLBCLone_wo","DLBCLone_w"),
   include_noncoding = as.list(silent_show),
   sortByColumns = c("DLBCLone_wo","lymphgen_basic"))
-
-
 ```

@@ -14,7 +14,7 @@ library(tidyverse)
 
 default_model <- "best_opt_w"
 
-all_features_optimized <- DLBCLone_load_optimized(
+best_opt_model <- DLBCLone_load_optimized(
         dirname(
             system.file(
                 "extdata/models",
@@ -57,7 +57,6 @@ Confusingly, this argument is no longer required. The mutation status is stored 
 If you're here, then we assume you've run `make_and_annotate_umap` and are generally happy with the separation of samples in this latent representation. We can use `DLBCLone_optimize_params` to automate finding an optimal K value (number of neighbors) and a few thresholds to categorize each sample based on its location and proximity to other points in the UMAP. Here, you provide the original UMAP produced by `make_and_annotate_umap` and *not* the re-projected UMAP, because this function will perform the sample-by-sample projection for us. 
 
 ```{r optimize_params, eval=FALSE}
-
 best_opt_model = DLBCLone_optimize_params(  
   combined_mutation_status_df = mu_everything$features, 
   metadata_df = dlbcl_meta_clean,
@@ -81,13 +80,13 @@ There is a convenience plotting function `make_alluvial` generates alluvial plot
 
 
 ```{r plot_alluvial1, message=FALSE, warning=FALSE,results='hide'}
-make_alluvial(all_features_optimized,
+make_alluvial(best_opt_model,
   pred_column = "DLBCLone_wo",
   pred_name = "DLBCLone Optimized")
 ```
 
 ```{r plot_alluvial2, message=FALSE, warning=FALSE,results='hide'}
-make_alluvial(all_features_optimized,
+make_alluvial(best_opt_model,
   pred_column = "DLBCLone_w",
   pred_name = "DLBCLone Greedy")
 ```
@@ -98,7 +97,7 @@ An overview of the classification result can also be visualized in our UMAP spac
 
 ```{r scatter1, message=FALSE, warning=FALSE,results='hide'}
 make_umap_scatterplot(
-  all_features_optimized$prediction, 
+  best_opt_model$prediction, 
   colour_by = "lymphgen",
   title = "Ground Truth"
 )
@@ -106,7 +105,7 @@ make_umap_scatterplot(
 
 ```{r scatter2, message=FALSE, warning=FALSE,results='hide'}
 make_umap_scatterplot(
-  all_features_optimized$prediction, 
+  best_opt_model$prediction, 
   colour_by = "DLBCLone_wo",
   title = "DLBCLone Optimized"
 )

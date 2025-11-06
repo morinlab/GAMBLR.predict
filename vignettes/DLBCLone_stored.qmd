@@ -43,7 +43,7 @@ loaded_model <- DLBCLone_load_optimized( # loading DLBCLone_optimize_params
 ```{r, message=FALSE, warning=FALSE}
 default_model <- "best_opt_w"
 # Load your stored optimized model from DLBCLone_save_optimized()
-all_features_optimized <- DLBCLone_load_optimized( 
+best_opt_model <- DLBCLone_load_optimized( 
         dirname(
             system.file(
                 "extdata/models",
@@ -67,11 +67,11 @@ DLBCLone models are simply named lists that keep track of all the necessary obje
  Let's take a peek at what's in the `features` for this model. As you will see, this model used 5 meta-features, one for each of ST2, N1, EZB, MCD and BN2.
 
 ```{r}
-colnames(all_features_optimized$features)
+colnames(best_opt_model$features)
 
-head(rownames(all_features_optimized$features))
+head(rownames(best_opt_model$features))
 
-all_features_optimized$features[c(1:10),c(1:10)]
+best_opt_model$features[c(1:10),c(1:10)]
 
 ```
 
@@ -89,7 +89,7 @@ If you plan on classifying more than one sample in a session, an activated model
 ```{r,eval=FALSE}
 # Reactivates stored model setting the UMAP projection
 
-all_features_optimized <- DLBCLone_activate( 
+best_opt_model <- DLBCLone_activate( 
   all_features_optimized, 
   force = TRUE
 )
