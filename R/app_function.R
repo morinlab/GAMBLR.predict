@@ -457,6 +457,38 @@ DLBCLone_shiny <- function(...){
     )
 
     server <- function(input, output, session) {
+
+        # Show the disclaimer modal when the app starts
+        showModal(
+            modalDialog(
+                title = "Disclaimer",
+                easyClose = FALSE,
+                footer = NULL,
+                size = "m",
+                tagList(
+                    div(
+                        style = "max-height: 300px; overflow-y: auto; padding-right: 10px;",
+                        p("By using this application, you acknowledge and agree to the following terms:"),
+                        tags$ul(
+                            tags$li("This software is for research purposes only."),
+                            tags$li("No warranty is provided."),
+                            tags$li("You are responsible for ensuring compliance with relevant laws and regulations."),
+                            tags$li("The developers reserve the right to modify or discontinue the service without notice."),
+                            tags$li("Use of this tool implies acceptance of all the above terms and conditions.")
+                        )
+                    ),
+                    br(),
+                    actionButton("agree_btn", "I Agree", class = "btn-primary")
+                )
+            )
+        )
+
+        # Close the modal when user clicks I Agree
+        observeEvent(input$agree_btn, {
+            removeModal()
+        })
+
+
         `%||%` <- function(x, y) if (is.null(x)) y else x
         dlbclone_result <- reactiveVal(isolate(default_knn))
         dlbclone_pred_result <- reactiveVal()
