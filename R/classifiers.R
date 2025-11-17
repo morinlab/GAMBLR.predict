@@ -758,17 +758,22 @@ classify_bl <- function(
     ashm_matrix <- cool_overlaps(
         maf_data,
         ashm_bed,
-        columns2 = c("chrom", "start", "end")
+        columns2 = c("chrom", "start", "end"),
+        nomatch = TRUE
     ) %>%
-        group_by(Tumor_Sample_Barcode, name) %>%
-        summarize(n = n()) %>%
-        pivot_wider(
-            id_cols = Tumor_Sample_Barcode,
-            names_from = name,
-            values_from = n,
-            values_fill = 0
-        ) %>%
-        ungroup
+    group_by(Tumor_Sample_Barcode, name) %>%
+    summarize(n = sum(!is.na(name))) %>%
+    filter(n == max(n)) %>%
+    mutate(
+        name = ifelse(is.na(name), "LPPTSS1", name)
+    )%>%
+    pivot_wider(
+        id_cols = Tumor_Sample_Barcode,
+        names_from = name,
+        values_from = n,
+        values_fill = 0
+    ) %>%
+    ungroup
     colnames(ashm_matrix) <- c("sample_id", "LPPTSS1")
 
     ashm_matrix <- ashm_matrix %>%

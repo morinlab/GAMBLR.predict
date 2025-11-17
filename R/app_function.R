@@ -214,9 +214,6 @@ DLBCLone_shiny <- function(...){
         )
     ) %>%
         column_to_rownames("sample_id")
-    default_umap <- list(
-        df = default_umap_df
-    )
     k_low <- 10
     k_high <- 10
     default_mode <- "Lenient"
@@ -492,7 +489,35 @@ DLBCLone_shiny <- function(...){
         `%||%` <- function(x, y) if (is.null(x)) y else x
         dlbclone_result <- reactiveVal(isolate(default_knn))
         dlbclone_pred_result <- reactiveVal()
-        umap_result <- reactiveVal(isolate(default_umap))
+        default_umap <- list(
+            df = default_umap_df
+        )
+        umap_base <- reactive({
+            isolate({
+                res <- dlbclone_result()
+
+                res$df <- res$df %>%
+                    column_to_rownames("sample_id") %>%
+                    select(all_of(colnames(default_umap$df)))
+
+                if (!is.null(res$df)) {
+                    print("Nothing loaded")
+                    res
+                } else {
+                    print("something loaded")
+                    default_umap
+                }
+            })
+        })
+        umap_override <- reactiveVal(NULL)
+        umap_result <- reactive({
+            override <- umap_override()
+            if (!is.null(override)) {
+                override
+            } else {
+                umap_base()
+            }
+        })
         run_log <- reactiveVal()
         prediction_store <- reactiveVal(list())
         sample_log <- reactiveVal()
@@ -1070,7 +1095,7 @@ DLBCLone_shiny <- function(...){
             )
 
 
-            umap_result(updated_result)
+            umap_override(updated_result)
         })
         output$run_log_table <- renderDT({
             datatable(run_log(), escape = FALSE, options = list(pageLength = 10))
