@@ -405,7 +405,7 @@ DLBCLone_shiny <- function(...){
                     ),
                     tabPanel(
                         "UMAP (Lymphgen)",
-                        plotOutput(
+                        plotlyOutput(
                             "DLBCLone_KNN_plot_truth",
                             height = "800px",
                             width= "700px"
@@ -413,7 +413,7 @@ DLBCLone_shiny <- function(...){
                     ),
                     tabPanel(
                         "UMAP (DLBCLone)",
-                        plotOutput(
+                        plotlyOutput(
                             "DLBCLone_KNN_plot_prediction",
                             height = "800px",
                             width= "700px"
@@ -1128,35 +1128,70 @@ DLBCLone_shiny <- function(...){
             # }
             nearest_neighbor_heatmap(sid, DLBCLone_KNN_out, truth_column = current_truth_column())
         })
-        output$DLBCLone_KNN_plot_truth <- renderPlot({
+        output$DLBCLone_KNN_plot_truth <- renderPlotly({
             result <- dlbclone_result()
             if (is.null(result)) {
             result <- default_knn
             }
             validate(need(!is.null(result), "Waiting for model output..."))
-            make_umap_scatterplot(
-                    result$predictions,
-                    colour_by = current_truth_column(),
-                    base_size = 16
-                ) +
+
+            p <- ggplot(
+                result$predictions,
+                aes(
+                    x=V1, y=V2,
+                    colour = !!sym(current_truth_column()),
+                    fill = !!sym(current_truth_column()),
+                    text = paste0(
+                        "sample id: ", sample_id, "\n",
+                        "lymphgen: ", lymphgen, "\n",
+                        "predicted cluster: ", PredictedCluster, "\n",
+                        "confidence: ", Confidence, "\n"
+                    )
+                )) +
+                geom_point(alpha=0.75, size=3) +
+                scale_colour_manual(values=get_gambl_colours()) +
+                scale_fill_manual(values=get_gambl_colours()) +
+                theme_Morons(base_size = 16) +
+                guides(colour = guide_legend(nrow = 1)) +
                 theme(
-                    panel.background = element_rect(fill='white', colour='white')
+                    axis.title.x = element_blank(),
+                    axis.title.y = element_blank()
                 )
+
+
+            ggplotly(p)
         })
-        output$DLBCLone_KNN_plot_prediction <- renderPlot({
+        output$DLBCLone_KNN_plot_prediction <- renderPlotly({
             result <- dlbclone_result()
             # if(is.null(result)){
             #  result = default_knn
             # }
             validate(need(!is.null(result), "Waiting for model output..."))
-            make_umap_scatterplot(
-                    result$predictions,
-                    colour_by = "DLBCLone_wo",
-                    base_size = 16
-                ) +
+            p <- ggplot(
+                result$predictions,
+                aes(
+                    x=V1, y=V2,
+                    colour = DLBCLone_wo,
+                    fill = DLBCLone_wo,
+                    text = paste0(
+                        "sample id: ", sample_id, "\n",
+                        "lymphgen: ", lymphgen, "\n",
+                        "predicted cluster: ", PredictedCluster, "\n",
+                        "confidence: ", Confidence, "\n"
+                    )
+                )) +
+                geom_point(alpha=0.75, size=3) +
+                scale_colour_manual(values=get_gambl_colours()) +
+                scale_fill_manual(values=get_gambl_colours()) +
+                theme_Morons(base_size = 16) +
+                guides(colour = guide_legend(nrow = 1)) +
                 theme(
-                    panel.background = element_rect(fill='white', colour='white')
+                    axis.title.x = element_blank(),
+                    axis.title.y = element_blank()
                 )
+
+
+            ggplotly(p)
         })
 
         output$predictions <- renderDT({
