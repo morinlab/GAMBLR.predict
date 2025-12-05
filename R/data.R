@@ -51,3 +51,22 @@
 #' @format ## `lymphgenerator_features`
 #' A named list.
 "lymphgenerator_features"
+
+#' All DLBCLass features.
+#'
+#' The features associated with each DLBCLass class according to the Supplemental
+#'      data from Chapuy et al, 2024.
+#'
+#' @format ## `dlbclass_features_all`
+#' A data frame with 163 rows and 7 columns.
+#' \describe{
+#'   \item{gene}{Gene symbol in Hugo format}
+#'   \item{cluster}{The associated cluster}
+#'   \item{AlterationType}{The type of alteration}
+#'   \item{Marker.Gene.in.Cluster}{TODO}
+#'   \item{Unique}{TODO}
+#'   \item{Rank.within.Cluster}{Rank of feature importance for the class}
+#'   \item{q}{q-value}
+#' }
+#' @keywords internal
+"dlbclass_features_all"

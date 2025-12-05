@@ -296,3 +296,11 @@ dlbclass_features$hotspots = dlbclass_features_all$feature_names$hotspot_feature
 
 usethis::use_data(dlbclass_features, overwrite = TRUE)
 
+dlbclass_features_all <- read_tsv(
+    system.file(
+        "extdata",
+        "Chapuy_feature_cluster_assoc.tsv",
+        package="GAMBLR.predict"
+    )
+)
+usethis::use_data(dlbclass_features_all, overwrite = TRUE)
