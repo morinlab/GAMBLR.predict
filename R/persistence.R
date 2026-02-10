@@ -90,16 +90,35 @@ DLBCLone_load_optimized <- function(
     umap_model = load_uwot(umap_file)
     DLBCLone_model$model = umap_model
     if(check_integrity){
-        if("projection_train" %in% names(DLBCLone_model)){
-        message("confirming integrity of model against existing embeddings using iterative mode")
-        batch_test = make_and_annotate_umap(DLBCLone_model$features,
-                                            DLBCLone_model$df %>% select(sample_id),
-                                            DLBCLone_model,
-                                            individually = TRUE)
-        compare_embeddings(DLBCLone_model$projection_train,batch_test$df)
+        if("embedding_batch" %in% names(DLBCLone_model)){
+            message("confirming integrity of model against existing embeddings using batch mode")
+            embedded_batch <- make_and_annotate_umap(
+                DLBCLone_model$features,
+                DLBCLone_model$df %>% select(sample_id),
+                DLBCLone_model,
+                individually = FALSE
+            )
+            compare_embeddings(
+                DLBCLone_model$embedding_batch,
+                embedded_batch$df
+            )
+        }else if("embedding_iterative" %in% names(DLBCLone_model)){
+            message("confirming integrity of model against existing embeddings using iterative mode")
+            embedded_iterative <- make_and_annotate_umap(
+                DLBCLone_model$features,
+                DLBCLone_model$df %>% select(sample_id),
+                DLBCLone_model,
+                individually = TRUE
+            )
+            compare_embeddings(
+                DLBCLone_model$embedding_iterative,
+                embedded_iterative$df
+            )
         }else{
-        print(names(DLBCLone_model))
-        stop("No training projection found in model. Cannot check integrity.")
+            print(names(DLBCLone_model))
+            stop(
+                "No training projection found in model. Cannot check integrity."
+            )
         }
     }else{
         if (!shiny_app_mode){
