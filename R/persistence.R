@@ -102,7 +102,8 @@ DLBCLone_load_optimized <- function(
                 DLBCLone_model$embedding_batch,
                 embedded_batch$df
             )
-        }else if("embedding_iterative" %in% names(DLBCLone_model)){
+        }
+        if("embedding_iterative" %in% names(DLBCLone_model)){
             message("confirming integrity of model against existing embeddings using iterative mode")
             embedded_iterative <- make_and_annotate_umap(
                 DLBCLone_model$features,
@@ -114,7 +115,8 @@ DLBCLone_load_optimized <- function(
                 DLBCLone_model$embedding_iterative,
                 embedded_iterative$df
             )
-        }else{
+        }
+        if (!any(c("embedding_batch", "embedding_iterative") %in% names(DLBCLone_model))){
             print(names(DLBCLone_model))
             stop(
                 "No training projection found in model. Cannot check integrity."
