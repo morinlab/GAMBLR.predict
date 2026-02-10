@@ -64,52 +64,52 @@
 #' }
 
 DLBCLone_load_optimized <- function(
-  path=".",
-  name_prefix="DLBCLone",
-  check_integrity = FALSE,
-  shiny_app_mode = FALSE
+    path=".",
+    name_prefix="DLBCLone",
+    check_integrity = FALSE,
+    shiny_app_mode = FALSE
 ){
-  compare_embeddings = function(df1,df2){
-    #match on sample_id
-    df_comp = left_join(df1,df2,by="sample_id")
-    df_comp = mutate(df_comp,delta_x = abs(V1.x - V1.y),
-                   delta_y = abs(V2.x-V2.y))
-    bad_rows = filter(df_comp,delta_x>0.01 | delta_y>0.01)
-    if(nrow(bad_rows)){
-      print(paste(nrow(bad_rows),"affected rows"))
-      print(head(bad_rows))
-      stop("Consistency issue detected!")
+    compare_embeddings = function(df1,df2){
+        #match on sample_id
+        df_comp = left_join(df1,df2,by="sample_id")
+        df_comp = mutate(df_comp,delta_x = abs(V1.x - V1.y),
+                    delta_y = abs(V2.x-V2.y))
+        bad_rows = filter(df_comp,delta_x>0.01 | delta_y>0.01)
+        if(nrow(bad_rows)){
+        print(paste(nrow(bad_rows),"affected rows"))
+        print(head(bad_rows))
+        stop("Consistency issue detected!")
+        }
+
     }
+    prefix = paste0(path,"/",name_prefix)
+    umap_file =  paste0(prefix,"_umap.uwot")
 
-  }
-  prefix = paste0(path,"/",name_prefix)
-  umap_file =  paste0(prefix,"_umap.uwot")
-
-  rds_file=paste0(path,"/",name_prefix,"_model.rds")
-  DLBCLone_model = readRDS(rds_file)
-  umap_model = load_uwot(umap_file)
-  DLBCLone_model$model = umap_model
-  if(check_integrity){
-    if("projection_train" %in% names(DLBCLone_model)){
-      message("confirming integrity of model against existing embeddings using iterative mode")
-      batch_test = make_and_annotate_umap(DLBCLone_model$features,
-                                           DLBCLone_model$df %>% select(sample_id),
-                                           DLBCLone_model,
-                                           individually = TRUE)
-      compare_embeddings(DLBCLone_model$projection_train,batch_test$df)
+    rds_file=paste0(path,"/",name_prefix,"_model.rds")
+    DLBCLone_model = readRDS(rds_file)
+    umap_model = load_uwot(umap_file)
+    DLBCLone_model$model = umap_model
+    if(check_integrity){
+        if("projection_train" %in% names(DLBCLone_model)){
+        message("confirming integrity of model against existing embeddings using iterative mode")
+        batch_test = make_and_annotate_umap(DLBCLone_model$features,
+                                            DLBCLone_model$df %>% select(sample_id),
+                                            DLBCLone_model,
+                                            individually = TRUE)
+        compare_embeddings(DLBCLone_model$projection_train,batch_test$df)
+        }else{
+        print(names(DLBCLone_model))
+        stop("No training projection found in model. Cannot check integrity.")
+        }
     }else{
-      print(names(DLBCLone_model))
-      stop("No training projection found in model. Cannot check integrity.")
+        if (!shiny_app_mode){
+            #remove potentially stale embeddings to force the user to re-project
+            #if they want to use them. This ensures that only a model that has been verified
+            #with check_integrity = TRUE will retain the embeddings.
+            DLBCLone_model$projection_train = NULL
+        }
     }
-  }else{
-    if (!shiny_app_mode){
-        #remove potentially stale embeddings to force the user to re-project
-        #if they want to use them. This ensures that only a model that has been verified
-        #with check_integrity = TRUE will retain the embeddings.
-        DLBCLone_model$projection_train = NULL
-    }
-  }
-  return(DLBCLone_model)
+    return(DLBCLone_model)
 }
 
 #' Save a DLBCLone model (and optionally integrity test embeddings)
@@ -176,38 +176,38 @@ DLBCLone_save_optimized = function(
     overwrite = FALSE
 ){
 
-  umap_file =  paste0(base_path,"/",name_prefix,"_umap.uwot")
-  rds_file=paste0(base_path,"/",name_prefix,"_model.rds")
-  if(file.exists(umap_file) || file.exists(rds_file)){
-    if(!overwrite){
-      stop("The expected outputs already exist. Re-run with overwrite = TRUE to replace.")
-    }else{
-      message("Will replace existing files of the same name")
-      unlink(umap_file)
-      unlink(rds_file)
+    umap_file =  paste0(base_path,"/",name_prefix,"_umap.uwot")
+    rds_file=paste0(base_path,"/",name_prefix,"_model.rds")
+    if(file.exists(umap_file) || file.exists(rds_file)){
+        if(!overwrite){
+        stop("The expected outputs already exist. Re-run with overwrite = TRUE to replace.")
+        }else{
+        message("Will replace existing files of the same name")
+        unlink(umap_file)
+        unlink(rds_file)
+        }
     }
-  }
-  if(include_tests){
-    # ensure our model stores an example embedding with its training data so we can test that the same embedding can be recovered
-    message("generating embeddings using batch mode")
-    embedded_batch = make_and_annotate_umap(DLBCLone_model$features,
-                                           DLBCLone_model$df %>% select(sample_id),
-                                           DLBCLone_model,
-                                           individually = FALSE)
-    message("generating embeddings using iterative mode")
-    embedded_iterative = make_and_annotate_umap(DLBCLone_model$features,
-                                           DLBCLone_model$df %>% select(sample_id),
-                                           DLBCLone_model,
-                                           individually = TRUE)
-    DLBCLone_model[["embedding_batch"]] = embedded_batch$df
-    DLBCLone_model[["embedding_iterative"]] = embedded_iterative$df
+    if(include_tests){
+        # ensure our model stores an example embedding with its training data so we can test that the same embedding can be recovered
+        message("generating embeddings using batch mode")
+        embedded_batch = make_and_annotate_umap(DLBCLone_model$features,
+                                            DLBCLone_model$df %>% select(sample_id),
+                                            DLBCLone_model,
+                                            individually = FALSE)
+        message("generating embeddings using iterative mode")
+        embedded_iterative = make_and_annotate_umap(DLBCLone_model$features,
+                                            DLBCLone_model$df %>% select(sample_id),
+                                            DLBCLone_model,
+                                            individually = TRUE)
+        DLBCLone_model[["embedding_batch"]] = embedded_batch$df
+        DLBCLone_model[["embedding_iterative"]] = embedded_iterative$df
 
-  }
-  # UMAP model must be saved separately using save_uwot
-  umap_model = DLBCLone_model$model
+    }
+    # UMAP model must be saved separately using save_uwot
+    umap_model = DLBCLone_model$model
 
-  save_uwot(umap_model, umap_file)
-  DLBCLone_model$model = NULL
-  saveRDS(DLBCLone_model, rds_file)
-  message("Saved model to ",rds_file," and UMAP model to ",umap_file)
+    save_uwot(umap_model, umap_file)
+    DLBCLone_model$model = NULL
+    saveRDS(DLBCLone_model, rds_file)
+    message("Saved model to ",rds_file," and UMAP model to ",umap_file)
 }
