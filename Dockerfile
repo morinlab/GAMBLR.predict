@@ -32,7 +32,7 @@ RUN R -q -e "install.packages('BiocManager', repos='${CRAN_MIRROR}')"
 
 # ---- CRAN packages ----
 RUN R -q -e "pak::pkg_install(c( \
-  'data.table','caret','circlize','dplyr','DT','FNN','ggalluvial','ggrepel','ggside', \
+  'optparse','data.table','caret','circlize','dplyr','DT','FNN','ggalluvial','ggrepel','ggside', \
   'grid','methods','mclust','purrr','randomForest','readr','rtracklayer','shinybusy','shinyjs', \
   'stringr','S4Vectors','tibble','tidyr','tidyselect','plotly','ggpubr','ggplot2','readxl','uwot' \
 ), ask = FALSE)"
