@@ -8,6 +8,7 @@ LABEL description="Docker container for GAMBLR.predict (pinned & low-RAM build)"
 ARG GAMBLR_DATA_REF=v1.3.1
 ARG GAMBLR_HELPERS_REF=v1.3.1
 ARG GAMBLR_PREDICT_REF=v1.2
+ARG GAMBLR_UTILS_REF=v1.3
 
 # ---- Keep RAM use low during installs ----
 ENV PAK_NUM_WORKERS=1 \
@@ -31,13 +32,13 @@ RUN R -q -e "install.packages('BiocManager', repos='${CRAN_MIRROR}')"
 
 # ---- CRAN packages ----
 RUN R -q -e "pak::pkg_install(c( \
-  'caret','circlize','dplyr','DT','FNN','ggalluvial','ggrepel','ggside', \
-  'grid','mclust','purrr','randomForest','readr','shinybusy','shinyjs', \
-  'tibble','tidyr','tidyselect','plotly','ggpubr','readxl','uwot' \
+  'data.table','caret','circlize','dplyr','DT','FNN','ggalluvial','ggrepel','ggside', \
+  'grid','methods','mclust','purrr','randomForest','readr','rtracklayer','shinybusy','shinyjs', \
+  'stringr','S4Vectors','tibble','tidyr','tidyselect','plotly','ggpubr','ggplot2','readxl','uwot' \
 ), ask = FALSE)"
 
 # ---- Bioconductor packages (from Bioc, not GitHub) ----
-RUN R -q -e "BiocManager::install(c('IRanges','ComplexHeatmap'), ask=FALSE, update=FALSE)"
+RUN R -q -e "BiocManager::install(c('IRanges','ComplexHeatmap','GenomicDistributions','GenomicRanges'), ask=FALSE, update=FALSE)"
 
 # Install remotes (small, fast), then install GAMBLR.data with low-memory flags
 RUN R -q -e "install.packages('remotes', repos='https://cran.r-project.org')"
@@ -55,19 +56,19 @@ RUN R -q -e " \
 
 RUN R -q -e "pak::pkg_install(sprintf('morinlab/GAMBLR.helpers@%s', Sys.getenv('GAMBLR_HELPERS_REF', '${GAMBLR_HELPERS_REF}')), ask=FALSE)"
 RUN R -q -e "pak::pkg_install(sprintf('morinlab/GAMBLR.predict@%s', Sys.getenv('GAMBLR_PREDICT_REF', '${GAMBLR_PREDICT_REF}')), ask=FALSE)"
+RUN R -q -e "pak::pkg_install(sprintf('morinlab/GAMBLR.utils@%s', Sys.getenv('GAMBLR_UTILS_REF', '${GAMBLR_UTILS_REF}')), ask=FALSE)"
 
 # ---- Smoke tests: fail early if anything is missing ----
 RUN R -q -e " \
   stopifnot(requireNamespace('GAMBLR.data',     quietly=TRUE)); \
   stopifnot(requireNamespace('GAMBLR.helpers',  quietly=TRUE)); \
   stopifnot(requireNamespace('GAMBLR.predict',  quietly=TRUE)); \
+  stopifnot(requireNamespace('GAMBLR.utils',     quietly=TRUE)); \
   cat('Installed versions:\\n'); \
-  for(p in c('GAMBLR.data','GAMBLR.helpers','GAMBLR.predict')) \
+  for(p in c('GAMBLR.data','GAMBLR.helpers','GAMBLR.predict','GAMBLR.utils')) \
     cat('  ', p, as.character(packageVersion(p)), '\\n') \
 "
 RUN R -q -e "pak::pkg_install('jlmelville/uwot@v0.2.3', ask=FALSE)"
 EXPOSE 8787 3838
 
 HEALTHCHECK CMD R -q -e "cat('ok')" || exit 1
-
-
