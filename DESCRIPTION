@@ -20,7 +20,7 @@ Description: Collection of functions and helpers to classify different B-cell ly
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Depends:
     R (>= 3.5.0)
 LazyData: true
@@ -33,6 +33,7 @@ Imports:
     FNN,
     GAMBLR.data (>= 1.3),
     GAMBLR.helpers (>= 1.3),
+    GAMBLR.utils,
     ggalluvial,
     ggplot2,
     ggpubr,
@@ -57,4 +58,5 @@ Imports:
     uwot
 Remotes:
     morinlab/GAMBLR.data,
-    morinlab/GAMBLR.helpers
+    morinlab/GAMBLR.helpers,
+    morinlab/GAMBLR.utils
