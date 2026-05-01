@@ -1,10 +1,8 @@
 
-#' Assemble genetic features for UMAP input
+#' Deprecated wrapper for `GAMBLR.utils::assemble_genetic_features`
 #'
-#' This function assembles a matrix of genetic features for each sample,
-#' including mutation status, aSHM counts, and structural variant status
-#' for BCL2, BCL6, and MYC. It supports both genome and capture
-#' sequencing (data) types.
+#' `assemble_genetic_features()` is deprecated in `GAMBLR.predict`.
+#' Use [GAMBLR.utils::assemble_genetic_features()] directly.
 #'
 #' @param these_samples_metadata Data frame with sample metadata,
 #' must include seq_type and sample_id.
@@ -50,6 +48,7 @@
 #' @param verbose Defaults to FALSE
 #'
 #' @return Matrix of assembled features for each sample.
+#' @seealso [GAMBLR.utils::assemble_genetic_features()]
 #'
 #'
 #' @examples
@@ -89,173 +88,32 @@ assemble_genetic_features <- function(these_samples_metadata,
                 include_GAMBL_sv= TRUE,
                 review_hotspots = TRUE,
                 verbose = FALSE){
-
-  if(!"maf_data" %in% class(maf_with_synon)){
-    warning(paste("maf_with_synon should be a maf_data object, but is not.",
-                "Proceeding anyway with genome_build = ", genome_build))
-  }else{
-    genome_build = attr(maf_with_synon,"genome_build")
-  }
-  if(include_ashm){
-    stopifnot( genome_build == "grch37",
-      "other genome builds are not yet supported for aSHM")
-    #TODO: consider shifting this function to GAMBLR.results
-    #TODO: ensure this supports both genome builds correctly.
-    # This is currently hard-coded
-    some_regions = GAMBLR.utils::create_bed_data(
-                  GAMBLR.data::grch37_ashm_regions,
-                  fix_names = "concat",
-                  concat_cols = c("gene","region"),
-                  sep="-")
-    #make the aSHM count matrix and combine if necessary
-    if ("genome" %in% these_samples_metadata$seq_type){
-      ashm_matrix_genome <- get_ashm_count_matrix(
-      regions_bed = some_regions,
-      this_seq_type = "genome",
-      these_samples_metadata = these_samples_metadata
-      )
-
-      colnames(ashm_matrix_genome) = gsub("-.+","",colnames(ashm_matrix_genome))
-    }
-
-      if ("capture" %in% these_samples_metadata$seq_type){
-      ashm_matrix_cap <- get_ashm_count_matrix(
-      regions_bed = some_regions,
-      this_seq_type = "capture",
-      these_samples_metadata = these_samples_metadata
-      )
-      colnames(ashm_matrix_cap) = gsub("-.+","",colnames(ashm_matrix_cap))
-      }
-      if ("genome"  %in% these_samples_metadata$seq_type &&
-        "capture" %in% these_samples_metadata$seq_type){
-        ashm_matrix = bind_rows(ashm_matrix_genome, ashm_matrix_cap)
-      }else if("genome" %in% these_samples_metadata$seq_type){
-        ashm_matrix = ashm_matrix_genome
-      }else if("capture" %in% these_samples_metadata$seq_type){
-        ashm_matrix = ashm_matrix_cap
-
-      }else{
-        stop("no eligible seq_type provided in these_samples_metadata")
-      }
-    }
-
-  include_hotspots = ifelse(!missing(hotspot_genes), TRUE, FALSE)
-
-  status_with_silent = get_coding_ssm_status(
-    these_samples_metadata = these_samples_metadata,
-    # drop all coding variants from this one
-    maf_data = maf_with_synon,
-    include_hotspots = include_hotspots,
-    genes_of_interest = hotspot_genes,
-    include_silent_genes = synon_genes[synon_genes %in% genes],
-    gene_symbols = genes
-  )
-  status_with_silent = status_with_silent %>% column_to_rownames("sample_id")
-
-  status_without_silent = get_coding_ssm_status(
-    these_samples_metadata = these_samples_metadata,
-    maf_data = maf_with_synon,
-    include_hotspots = include_hotspots,
-    genes_of_interest = hotspot_genes,
-    include_silent = FALSE,
-    gene_symbols = genes
+  .Deprecated(
+    new = "GAMBLR.utils::assemble_genetic_features",
+    package = "GAMBLR.predict",
+    msg = paste(
+      "GAMBLR.predict::assemble_genetic_features() is deprecated.",
+      "Use GAMBLR.utils::assemble_genetic_features() instead."
+    )
   )
 
-  status_without_silent = status_without_silent %>%
-    column_to_rownames("sample_id")
-
-  if (any(! colnames(status_with_silent) %in% colnames(status_without_silent))){
-    print(colnames(status_with_silent)[!colnames(status_with_silent) %in% colnames(status_without_silent)])
-    missing = setdiff(colnames(status_with_silent), colnames(status_without_silent))
-    for(m in missing){
-      status_without_silent[[m]] = 0
-    }
-  }
-  # Instead of just relying on the MAF(s) supplied by the user
-  if (include_ashm){
-    ashm_matrix = select(ashm_matrix, any_of(colnames(status_with_silent))) %>% select(any_of(synon_genes))
-    ashm_matrix[ashm_matrix>1]= 1
-
-    if(verbose){
-      print(head(colSums(ashm_matrix)))
-      print(head(ashm_matrix[,c(1:10)]))
-    }
-    #fill in gaps from aSHM (other non-coding variants in the genes)
-
-    missing = status_with_silent[rownames(ashm_matrix),
-                 colnames(ashm_matrix)]==0 &
-    ashm_matrix[rownames(ashm_matrix),
-        colnames(ashm_matrix)] > 0
-
-
-    fill = missing
-    fill[]=0
-    fill[missing] = synon_value
-    status_with_silent[rownames(fill),
-           colnames(fill)] = fill
-
-  }
-
-  #ensure all columns in status_with_silent are present in status_without_silent
-  if (any(! colnames(status_without_silent) %in% colnames(status_with_silent))){
-    print(colnames(status_without_silent)[!colnames(status_without_silent) %in% colnames(status_with_silent)])
-    stop("some columns are missing from the status_with_silent matrix")
-  }
-
-  # ensure column order is identical in the two matrices
-
-  status_with_silent = status_with_silent[,colnames(status_without_silent)]
-
-  status_combined = status_with_silent + status_without_silent
-  if(coding_value == 1){
-    status_combined[status_combined > 1] = 1
-  }
-  sv_samples = list()
-  if(!is.null(sv_from_metadata)){
-    for(oncogene in names(sv_from_metadata)){
-      metadata_column = sv_from_metadata[[oncogene]]
-      #assume POS/NEG encoding. Warn if not consistent with this
-      col_vals = unique(these_samples_metadata[[metadata_column]])
-      if(!"POS" %in% col_vals){
-        stop(paste("column",metadata_column, "doesn't have any POS values",
-            "SV encoding is expected to be POS/NEG"))
-      }
-      sv_samples[[oncogene]] = these_samples_metadata[which(these_samples_metadata[[metadata_column]]=="POS"),] %>% pull(sample_id)
-
-    }
-  }
-  #print(sv_samples)
-  for(oncogene in names(sv_from_metadata)){
-    message(paste("SVs in",oncogene,"from metadata:",length(sv_samples[[oncogene]])))
-  }
-
-  # include SV from provided annotated SV data frame
-  if(!missing(annotated_sv) & include_GAMBL_sv){
-    annotated_sv = filter(annotated_sv,tumour_sample_id %in% these_samples_metadata$sample_id)
-    for(oncogene in names(sv_from_metadata)){
-      print(paste("oncogene:",oncogene))
-      sv_id = filter(annotated_sv,!is.na(partner),gene==oncogene) %>% pull(tumour_sample_id)
-      if(oncogene %in% names(sv_samples)){
-         sv_samples[[oncogene]] = union( sv_samples[[oncogene]],sv_id)
-      }
-    }
-    for(oncogene in names(sv_from_metadata)){
-      message(paste("SVs in",oncogene,"after adding annotated SVs:",length(sv_samples[[oncogene]])))
-    }
-  }
-  for(oncogene in names(sv_samples)){
-    onco_column = paste0(oncogene,"_SV")
-    status_combined[[onco_column]] = 0
-    status_combined[sv_samples[[oncogene]],onco_column] = sv_value
-  }
-  #fill in any genes with zero mutations as 0
-  for(g in genes){
-    if(!g %in% colnames(status_combined)){
-      status_combined[[g]] = 0
-    }
-  }
-  return(status_combined)
-
+  GAMBLR.utils::assemble_genetic_features(
+    these_samples_metadata = these_samples_metadata,
+    sv_from_metadata = sv_from_metadata,
+    genes = genes,
+    synon_genes = synon_genes,
+    maf_with_synon = maf_with_synon,
+    hotspot_genes = hotspot_genes,
+    genome_build = genome_build,
+    sv_value = sv_value,
+    synon_value = synon_value,
+    coding_value = coding_value,
+    include_ashm = include_ashm,
+    annotated_sv = annotated_sv,
+    include_GAMBL_sv = include_GAMBL_sv,
+    review_hotspots = review_hotspots,
+    verbose = verbose
+  )
 }
 
 
@@ -351,12 +209,12 @@ make_and_annotate_umap = function(df,
     if(any(sapply(df, is.factor))){
       numeric_cols = names(df)[!sapply(df, is.factor)]
       df <- df[, colSums(is.na(df[,numeric_cols])) == 0]
-        rs = rowSums(df[,numeric_cols],na.rm=TRUE)
+        rs = rowSums(abs(df[,numeric_cols,drop=FALSE]),na.rm=TRUE)
         dropped_rows = df[rs==0,]
         df = df[rs>0,]
     } else{
       df <- df[, colSums(is.na(df)) == 0]
-        rs = rowSums(df,na.rm=TRUE)
+        rs = rowSums(abs(df),na.rm=TRUE)
         dropped_rows = df[rs==0,]
         df = df[rs>0,]
     }
@@ -371,7 +229,7 @@ make_and_annotate_umap = function(df,
     if (is.list(core_features)){
       message("list of core features detected.",
         "Will group features from each class.")
-      df = df %>%
+      df = as.data.frame(df) %>%
         rownames_to_column("sample_id") %>%
         rowwise(sample_id)
       for(group in names(core_features)){
@@ -437,11 +295,14 @@ make_and_annotate_umap = function(df,
     }
 
     keep_rows = rownames(df)[rownames(df) %in% metadata[[join_column]]]
+    not_keep_rows = rownames(df)[!rownames(df) %in% metadata[[join_column]]]
     df= df[keep_rows,]
     no_feat_metadata = filter(metadata,!!sym(join_column) %in% no_feat_samples)
     metadata= filter(metadata,!!sym(join_column) %in% rownames(df))
 
     message(paste("kept",nrow(metadata),"rows of the data that have features and match the metadata provided"))
+    message(paste("dropped",nrow(no_feat_metadata),"rows of the data that have nofeatures"))
+    message(paste("also dropped",length(not_keep_rows),"rows of the data that have features but no matching metadata"))
   }
 
   if(missing(umap_out)){
