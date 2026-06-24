@@ -1,3 +1,262 @@
+features_to_dlbclass_metafeatures <- function(annotated_features){
+
+  mutation_data <- annotated_features
+  mutation_cols <- colnames(mutation_data)
+
+  match_gene_columns <- function(gene, cols) {
+    if (grepl("_", gene, fixed = TRUE)) {
+      if (gene %in% cols) {
+        return(gene)
+      }
+      return(character(0))
+    }
+    prefix <- paste0(gene, "_")
+    matches <- cols[startsWith(cols, prefix)]
+    if (gene %in% cols) {
+      matches <- c(matches, gene)
+    }
+    unique(matches)
+  }
+
+  gene_max <- function(gene) {
+    matched_cols <- match_gene_columns(gene, mutation_cols)
+    if (!length(matched_cols)) {
+      out <- rep(0, nrow(mutation_data))
+      names(out) <- rownames(mutation_data)
+      return(out)
+    }
+    gene_mat <- mutation_data[, matched_cols, drop = FALSE]
+    if (ncol(gene_mat) == 1) {
+      out <- gene_mat[[1]]
+      names(out) <- rownames(gene_mat)
+      return(out)
+    }
+    out <- do.call(pmax, c(as.data.frame(gene_mat), list(na.rm = TRUE)))
+    names(out) <- rownames(gene_mat)
+    out
+  }
+
+  aggregate_gene_set <- function(gene_set) {
+    gene_vals <- lapply(gene_set, gene_max)
+    if (!length(gene_vals)) {
+      out <- rep(0, nrow(mutation_data))
+      names(out) <- rownames(mutation_data)
+      return(out)
+    }
+    out <- rowSums(do.call(cbind, gene_vals), na.rm = TRUE)
+    names(out) <- rownames(mutation_data)
+    out
+  }
+
+  # Aggregate specific features into vectors
+  
+  genes = c("BCL6","BCL2")
+  BCL6_ALT <- aggregate_gene_set(c("BCL6_SV","SV.BCL6", "BCL6"))
+  NOTCH2_genes <- c("NOTCH2","NOTCH2HOTSPOT", "SPEN", "DTX1")
+  genes = c(genes,NOTCH2_genes)
+  NOTCH2_vec <- aggregate_gene_set(NOTCH2_genes)
+  
+  MYD88_genes = c("MYD88","MYD88.OTHER", "TNFAIP3", "TNIP1", "BCL10", "NFKBIE")
+  genes = c(genes,MYD88_genes)
+  M88O_vec <- aggregate_gene_set(MYD88_genes)
+  
+  CD70_genes = c("CD70", "FAS", "CD58", "B2M", "FADD", "HLA.B","HLA-B")
+  CD70_vec <- aggregate_gene_set(CD70_genes)
+  genes = c(genes,CD70_genes)
+
+  
+  
+  # Additional vectors for other clusters
+  #BCL2_combined <- rowSums(mutation_data[, c("BCL2", "SV.BCL2")], na.rm = TRUE)
+  BCL2_combined <- aggregate_gene_set("BCL2")
+  HIST_genes = c("HIST1H2AC","HIST1H2ACHOTSPOT", 
+                 "HIST1H1E", "HIST1H1EHOTSPOT","HIST1H1B",
+                 "HIST1H2AM","HIST1H2AMHOTSPOT", "HIST1H1C",
+                 "HIST1H1CHOTSPOT","HIST1H1D", "HIST1H1DHOTSPOT",
+                 "HIST1H2BC","HIST1H2BCHOTSPOT")
+  genes = c(genes,HIST_genes)
+  SGK1_genes <- c("SGK1", "TET2", "SGK1HOTSPOT","NFKBIA",
+    "STAT3", "PTPN6", "BRAF","BRAFHOTSPOT", "KRAS", "KRASHOTSPOT",
+    "CD83","SF3B1","CD274", "MEF2C","KLHL6","CXCR4", "PTEN", 
+    "RAC2", "SESN3", "SOCS1","METAP1D")
+  
+  DUSP2_genes <- c("DUSP2", "DUSP2HOTSPOT", "ZFP36L1", "CRIP1",
+                   "ACTB", "LTB", "YY1", "PABPC1")
+
+  TBL1XR1_genes <- c("TBL1XR1", "PIM1", 
+                   "PRDM1",
+                   "ETV6","ZC3H12A",
+                   "BTG1", "BTG2", 
+                   "IGLL5", 
+                   "TMSB4X",
+                   "GRHPR","HLA-C",
+                   "MYD88", "TOX", "LYN", 
+                   "POU2F2",
+                   "IKZF3",
+                   "ZFP36L1","HLA-A",
+                   "CARD11", "SF3B1", 
+                   "HLA-B", "IRF2BP2", "OSBPL10", "ATP2A2", "PIM2", "IRF4", "BCL11A", 
+                   "METAP1D", "ETS1", "CCDC27")
+  
+  CREBBP_genes <- c("CREBBP", "EZH2", "KMT2D", "EP300")
+
+  genes = c(genes,SGK1_genes,DUSP2_genes,TBL1XR1_genes,CREBBP_genes)
+  
+  CREBBP_vec <- aggregate_gene_set(CREBBP_genes)
+  PTEN_genes = c("PTEN")
+  C1_genes = c("UBE2A", "TMEM30A", "ZEB2", "GNAI2",
+                "X5P.AMP", "POU2F2", "IKZF3",
+               "EBF1", "LYN", "BCL7A", "CXCR4",
+               "CCDC27", "TUBGCP5", "SMG7", "RHOA", "BTG2")
+  TP53_genes = c("TP53")
+  GNA13_genes = c("GNA13", "TNFRSF14", "MAP2K1", 
+                  "MEF2B", "IRF8", "HVCN1", 
+                  "GNAI2", "MEF2C", "SOCS1",
+                  "EEF1A1", "RAC2", 
+                  "POU2AF1")
+  genes = c(genes,PTEN_genes,C1_genes,TP53_genes,GNA13_genes)
+  if(include_cn){
+    C1_vec4 <- aggregate_gene_set(C1_genes)
+        TP53_biallelic <- aggregate_gene_set(TP53_genes)
+       X21Q_AMP <- mutation_data[, "X21Q.AMP"]
+      GNA13_vec <- aggregate_gene_set(GNA13_genes)
+      Sum_C2_ARM <- rowSums(mutation_data[, c("X17P.DEL", "X21Q.AMP", "X11Q.AMP", "X6P.AMP", "X11P.AMP", "X6Q.DEL", "X7P.AMP", "X13Q.AMP", 
+                                 "X7Q.AMP", "X3Q.AMP", "X5P.AMP", "X18P.AMP", "X3P.AMP", "X19Q.AMP", "X9Q.AMP", "X12P.AMP", "X12Q.AMP")], na.rm = TRUE)
+  
+      Sum_C2_FOCAL <- rowSums(mutation_data[, c("X1P36.11.DEL", "X1P31.1.DEL", "X1P13.1.DEL", "X2Q22.2.DEL", "X16Q12.1.DEL", "X14Q32.31.DEL", 
+                                   "X1P36.32.DEL", "X15Q15.3.DEL", "X4Q21.22.DEL", "X9P21.3.DEL", "X8Q24.22.AMP", "X12P13.2.DEL", 
+                                   "X2P16.1.AMP", "X8Q12.1.DEL", "X19P13.2.DEL", "X17Q25.1.DEL", "X1Q42.12.DEL", "X3P21.31.DEL", 
+                                   "X18Q23.DEL", "X19P13.3.DEL", "X13Q34.DEL", "X7Q22.1.AMP", "X10Q23.31.DEL", "X9P24.1.AMP", 
+                                   "X3Q28.AMP", "X11Q23.3.AMP", "X17Q24.3.AMP", "X3Q28.DEL", "X13Q14.2.DEL", "X18Q21.32.AMP", 
+                                   "X19Q13.32.DEL", "X6P21.1.AMP", "X18Q22.2.AMP", "EP300", "ZNF423", "CD274")], na.rm = TRUE)
+      PTEN <- aggregate_gene_set(PTEN_genes)
+      Sum_C5_CNA <- rowSums(mutation_data[, c("X18Q.AMP", "X3Q.AMP", "X3P.AMP", "X19Q13.42.AMP", "X6Q21.DEL", 
+                                 "X18P.AMP", "X19Q.AMP", "X8Q12.1.DEL", "X6Q14.1.DEL", "X19P13.2.DEL", 
+                                 "X9P21.3.DEL", "X18Q21.32.AMP", "X18Q22.2.AMP", "X1Q42.12.DEL", "X1Q32.1.AMP", "X6P21.33.DEL")], na.rm = TRUE)
+  
+    CN_2P16_1_AMP <- mutation_data[, "X2P16.1.AMP"]
+  
+  }else{
+      C1_vec4 <- aggregate_gene_set(C1_genes)
+      TP53_biallelic <- aggregate_gene_set(TP53_genes)
+
+      PTEN <- aggregate_gene_set(PTEN_genes)
+
+      GNA13_vec <- aggregate_gene_set(c("GNA13", "TNFRSF14","TNFRSF14HOTSPOT",
+                                "MAP2K1", "MEF2B","MEF2BHOTSPOT", "IRF8","IRF8HOTSPOT", "HVCN1", "HVCN1HOTSPOT",
+                                "GNAI2","GNAI2HOTSPOT",
+                                "MEF2C","MEF2CHOTSPOT", 
+                                "SOCS1","SOCS1HOTSPOT",
+                                "EEF1A1","EEF1A1HOTSPOT",
+                                "RAC2", "RAC2HOTSPOT",
+                                "POU2AF1","POU2AF1HOTSPOT"))
+  }
+
+  
+  
+  SV_MYC <- aggregate_gene_set(c("SV.MYC", "MYC","MYC_SV"))
+  
+  Hist_comp <- aggregate_gene_set(HIST_genes)
+
+  SGK1_vec <- aggregate_gene_set(SGK1_genes)
+  DUSP2_vec <- aggregate_gene_set(DUSP2_genes)
+
+
+  TBL1XR1_vec <- aggregate_gene_set(TBL1XR1_genes)
+
+  MYD88_L265P_CD79B <- aggregate_gene_set(c("MYD88.L265P","MYD88HOTSPOT", "CD79B","CD79BHOTSPOT"))
+  genes = c(genes,"MYD88","CD79B")
+  if(include_cn){
+    # Combine all vectors into a data frame
+  reduced_data <- data.frame(
+    BCL6_ALT = BCL6_ALT,
+    NOTCH2_vec = NOTCH2_vec,
+    M88O_vec = M88O_vec,
+    C1_vec4 = C1_vec4,
+    CD70_vec = CD70_vec,
+    TP53_biallelic = TP53_biallelic,
+    X21Q_AMP = X21Q_AMP,
+    Sum_C2_ARM = Sum_C2_ARM,
+    Sum_C2_FOCAL = Sum_C2_FOCAL,
+    BCL2_combined = BCL2_combined,
+    CREBBP_vec = CREBBP_vec,
+    GNA13_vec = GNA13_vec,
+    PTEN = PTEN,
+    SV_MYC = SV_MYC,
+    Hist_comp = Hist_comp,
+    SGK1_vec = SGK1_vec,
+    DUSP2_vec = DUSP2_vec,
+    CN_2P16_1_AMP = CN_2P16_1_AMP,
+    TBL1XR1_vec = TBL1XR1_vec,
+    MYD88_L265P_CD79B = MYD88_L265P_CD79B,
+    Sum_C5_CNA = Sum_C5_CNA
+    )
+  }else{
+    # Combine all vectors into a data frame
+    reduced_data <- data.frame(
+      BCL6_ALT = BCL6_ALT,
+      NOTCH2_vec = NOTCH2_vec,
+      M88O_vec = M88O_vec,
+      C1_vec4 = C1_vec4,
+      CD70_vec = CD70_vec,
+      TP53_biallelic = TP53_biallelic,
+      BCL2_combined = BCL2_combined,
+      CREBBP_vec = CREBBP_vec,
+      GNA13_vec = GNA13_vec,
+      PTEN = PTEN,
+      SV_MYC = SV_MYC,
+      Hist_comp = Hist_comp,
+      SGK1_vec = SGK1_vec,
+      DUSP2_vec = DUSP2_vec,
+      TBL1XR1_vec = TBL1XR1_vec,
+      MYD88_L265P_CD79B = MYD88_L265P_CD79B
+    )
+  }
+
+  rownames(reduced_data) <- rownames(mutation_data)
+  
+  
+  ssm = gsub("\\.","-",colnames(full_data))
+  ssm = ssm[!grepl("-DEL|-AMP|SV-|MYD88",ssm)]
+  hotspot = "MYD88"
+  sv = c("BCL2","BCL6","MYC")
+  cnv = grep("\\.AMP|\\.DEL",colnames(full_data),value=T)
+  cnv = gsub("^X","",cnv)
+  cnv = gsub("\\.AMP","-amp",cnv)
+  cnv = gsub("\\.DEL","-del",cnv)
+  cnv = gsub("P","p",cnv)
+  cnv = gsub("Q","q",cnv)
+  
+  genes_mutated = genes[genes %in% colnames(full_data)]
+  genes = unique(unname(unlist(sapply(genes, function(x){gsub("HOTSPOT","",x)}))))
+  genes = unique(unname(unlist(sapply(genes, function(x){gsub(".OTHER","",x)}))))
+  genes = unique(unname(unlist(sapply(genes, function(x){gsub("\\.","-",x)}))))
+ genes = genes[!grepl("AMP",genes)]
+  scaled_data <- reduced_data
+  for (col_name in names(scaled_data)) {
+    col_vals <- scaled_data[[col_name]]
+    col_min <- min(col_vals, na.rm = TRUE)
+    col_max <- max(col_vals, na.rm = TRUE)
+    if (is.finite(col_min) && is.finite(col_max) && col_max > col_min) {
+      scaled_data[[col_name]] <- (col_vals - col_min) / (col_max - col_min)
+    } else {
+      scaled_data[[col_name]] <- 0
+    }
+  }
+  return(list(reduced=reduced_data,
+              scaled=scaled_data,
+              full=full_data,
+              no_cn=data_no_cn,
+              ssm_genes = genes_mutated,
+              all_ssm_genes = genes,
+              feature_names=list(ssm_features=ssm,
+                                 hotspot_features=hotspot,
+                                 cnv_features=cnv,
+                                 sv_features=sv
+                                 )))
+}
+
+
 
 #' Construct reduced 21-dimension feature vector for DLBCLass
 #'
@@ -76,24 +335,24 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
   # Aggregate specific features into vectors
   
   genes = c("BCL6","BCL2")
-  BCL6_ALT <- rowSums(select(mutation_data, any_of(c("BCL6_SV","SV.BCL6", "BCL6"))), na.rm = TRUE)
+  BCL6_ALT <- aggregate_gene_set(c("BCL6_SV","SV.BCL6", "BCL6"))
   NOTCH2_genes <- c("NOTCH2","NOTCH2HOTSPOT", "SPEN", "DTX1")
   genes = c(genes,NOTCH2_genes)
-  NOTCH2_vec <- rowSums(select(mutation_data, any_of(NOTCH2_genes)), na.rm = TRUE)
+  NOTCH2_vec <- aggregate_gene_set(NOTCH2_genes)
   
   MYD88_genes = c("MYD88","MYD88.OTHER", "TNFAIP3", "TNIP1", "BCL10", "NFKBIE")
   genes = c(genes,MYD88_genes)
-  M88O_vec <- rowSums(select(mutation_data, any_of(MYD88_genes)), na.rm = TRUE)
+  M88O_vec <- aggregate_gene_set(MYD88_genes)
   
   CD70_genes = c("CD70", "FAS", "CD58", "B2M", "FADD", "HLA.B","HLA-B")
-  CD70_vec <- rowSums(select(mutation_data, any_of(CD70_genes)), na.rm = TRUE)
+  CD70_vec <- aggregate_gene_set(CD70_genes)
   genes = c(genes,CD70_genes)
 
   
   
   # Additional vectors for other clusters
   #BCL2_combined <- rowSums(mutation_data[, c("BCL2", "SV.BCL2")], na.rm = TRUE)
-  BCL2_combined <- rowSums(select(mutation_data, (starts_with("BCL2"))), na.rm = TRUE)
+  BCL2_combined <- aggregate_gene_set("BCL2")
   HIST_genes = c("HIST1H2AC","HIST1H2ACHOTSPOT", 
                  "HIST1H1E", "HIST1H1EHOTSPOT","HIST1H1B",
                  "HIST1H2AM","HIST1H2AMHOTSPOT", "HIST1H1C",
@@ -125,10 +384,7 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
 
   genes = c(genes,SGK1_genes,DUSP2_genes,TBL1XR1_genes,CREBBP_genes)
   
-  CREBBP_vec <- rowSums(select(mutation_data, starts_with("CREBBP"),
-                                                   starts_with("EZH2"),
-                                                   starts_with("KMT2D"),
-                                                   starts_with("EP300")), na.rm = TRUE)
+  CREBBP_vec <- aggregate_gene_set(CREBBP_genes)
   PTEN_genes = c("PTEN")
   C1_genes = c("UBE2A", "TMEM30A", "ZEB2", "GNAI2",
                 "X5P.AMP", "POU2F2", "IKZF3",
@@ -142,10 +398,10 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
                   "POU2AF1")
   genes = c(genes,PTEN_genes,C1_genes,TP53_genes,GNA13_genes)
   if(include_cn){
-    C1_vec4 <- rowSums(select(mutation_data, any_of(C1_genes)), na.rm = TRUE)
-        TP53_biallelic <- rowSums(mutation_data[, TP53_genes,drop=FALSE], na.rm = TRUE)
+    C1_vec4 <- aggregate_gene_set(C1_genes)
+        TP53_biallelic <- aggregate_gene_set(TP53_genes)
        X21Q_AMP <- mutation_data[, "X21Q.AMP"]
-      GNA13_vec <- rowSums(mutation_data[, GNA13_genes], na.rm = TRUE)
+      GNA13_vec <- aggregate_gene_set(GNA13_genes)
       Sum_C2_ARM <- rowSums(mutation_data[, c("X17P.DEL", "X21Q.AMP", "X11Q.AMP", "X6P.AMP", "X11P.AMP", "X6Q.DEL", "X7P.AMP", "X13Q.AMP", 
                                  "X7Q.AMP", "X3Q.AMP", "X5P.AMP", "X18P.AMP", "X3P.AMP", "X19Q.AMP", "X9Q.AMP", "X12P.AMP", "X12Q.AMP")], na.rm = TRUE)
   
@@ -155,7 +411,7 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
                                    "X18Q23.DEL", "X19P13.3.DEL", "X13Q34.DEL", "X7Q22.1.AMP", "X10Q23.31.DEL", "X9P24.1.AMP", 
                                    "X3Q28.AMP", "X11Q23.3.AMP", "X17Q24.3.AMP", "X3Q28.DEL", "X13Q14.2.DEL", "X18Q21.32.AMP", 
                                    "X19Q13.32.DEL", "X6P21.1.AMP", "X18Q22.2.AMP", "EP300", "ZNF423", "CD274")], na.rm = TRUE)
-      PTEN <- rowSums(mutation_data[, PTEN_genes, drop=FALSE], na.rm = TRUE)
+      PTEN <- aggregate_gene_set(PTEN_genes)
       Sum_C5_CNA <- rowSums(mutation_data[, c("X18Q.AMP", "X3Q.AMP", "X3P.AMP", "X19Q13.42.AMP", "X6Q21.DEL", 
                                  "X18P.AMP", "X19Q.AMP", "X8Q12.1.DEL", "X6Q14.1.DEL", "X19P13.2.DEL", 
                                  "X9P21.3.DEL", "X18Q21.32.AMP", "X18Q22.2.AMP", "X1Q42.12.DEL", "X1Q32.1.AMP", "X6P21.33.DEL")], na.rm = TRUE)
@@ -163,45 +419,34 @@ construct_reduced_winning_version <- function(mutations_file = "inst/extdata/DLB
     CN_2P16_1_AMP <- mutation_data[, "X2P16.1.AMP"]
   
   }else{
-      C1_vec4 <- rowSums(select(mutation_data,
-                          starts_with("UBE2A"), 
-                          starts_with("TMEM30A"),
-                          starts_with("ZEB2"), starts_with("GNAI2"),
-                          starts_with("POU2F2"), starts_with("IKZF3"), 
-                          starts_with("EBF1"), starts_with("LYN"), 
-                          starts_with("BCL7A"), 
-                          starts_with("CXCR4"), starts_with("CCDC27"), 
-                          starts_with("TUBGCP5"), 
-                              starts_with("SMG7"), 
-                              starts_with("RHOA"), 
-                              starts_with("BTG2")), na.rm = TRUE)
-      TP53_biallelic <- rowSums(mutation_data[, c("TP53"),drop=FALSE], na.rm = TRUE)
+      C1_vec4 <- aggregate_gene_set(C1_genes)
+      TP53_biallelic <- aggregate_gene_set(TP53_genes)
 
-      PTEN <- rowSums(select(mutation_data,any_of(PTEN_genes)))
+      PTEN <- aggregate_gene_set(PTEN_genes)
 
-      GNA13_vec <- rowSums(select(mutation_data, any_of(c("GNA13", "TNFRSF14","TNFRSF14HOTSPOT",
+      GNA13_vec <- aggregate_gene_set(c("GNA13", "TNFRSF14","TNFRSF14HOTSPOT",
                                 "MAP2K1", "MEF2B","MEF2BHOTSPOT", "IRF8","IRF8HOTSPOT", "HVCN1", "HVCN1HOTSPOT",
                                 "GNAI2","GNAI2HOTSPOT",
                                 "MEF2C","MEF2CHOTSPOT", 
                                 "SOCS1","SOCS1HOTSPOT",
                                 "EEF1A1","EEF1A1HOTSPOT",
                                 "RAC2", "RAC2HOTSPOT",
-                                "POU2AF1","POU2AF1HOTSPOT"))), na.rm = TRUE)
+                                "POU2AF1","POU2AF1HOTSPOT"))
   }
 
   
   
-  SV_MYC <- select(mutation_data, any_of(c("SV.MYC", "MYC","MYC_SV"))) %>% rowSums(na.rm = TRUE)
+  SV_MYC <- aggregate_gene_set(c("SV.MYC", "MYC","MYC_SV"))
   
-  Hist_comp <- rowSums(select(mutation_data, any_of(HIST_genes)), na.rm = TRUE)
+  Hist_comp <- aggregate_gene_set(HIST_genes)
 
-  SGK1_vec <- rowSums(select(mutation_data, any_of(SGK1_genes)), na.rm = TRUE)
-  DUSP2_vec <- rowSums(select(mutation_data, any_of(DUSP2_genes)), na.rm = TRUE)
+  SGK1_vec <- aggregate_gene_set(SGK1_genes)
+  DUSP2_vec <- aggregate_gene_set(DUSP2_genes)
 
 
-  TBL1XR1_vec <- rowSums(select(mutation_data, any_of(TBL1XR1_genes)), na.rm = TRUE)
+  TBL1XR1_vec <- aggregate_gene_set(TBL1XR1_genes)
 
-  MYD88_L265P_CD79B <- rowSums(select(mutation_data, any_of(c("MYD88.L265P","MYD88HOTSPOT", "CD79B","CD79BHOTSPOT"))), na.rm = TRUE)
+  MYD88_L265P_CD79B <- aggregate_gene_set(c("MYD88.L265P","MYD88HOTSPOT", "CD79B","CD79BHOTSPOT"))
   genes = c(genes,"MYD88","CD79B")
   if(include_cn){
     # Combine all vectors into a data frame

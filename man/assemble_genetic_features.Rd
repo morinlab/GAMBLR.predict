@@ -2,7 +2,7 @@
 % Please edit documentation in R/umap.R
 \name{assemble_genetic_features}
 \alias{assemble_genetic_features}
-\title{Assemble genetic features for UMAP input}
+\title{Deprecated wrapper for \code{GAMBLR.utils::assemble_genetic_features}}
 \usage{
 assemble_genetic_features(
   these_samples_metadata,
@@ -83,10 +83,8 @@ annotated. For more information, see GAMBLR.helpers::review_hotspots}
 Matrix of assembled features for each sample.
 }
 \description{
-This function assembles a matrix of genetic features for each sample,
-including mutation status, aSHM counts, and structural variant status
-for BCL2, BCL6, and MYC. It supports both genome and capture
-sequencing (data) types.
+\code{assemble_genetic_features()} is deprecated in \code{GAMBLR.predict}.
+Use \code{\link[GAMBLR.utils:assemble_genetic_features]{GAMBLR.utils::assemble_genetic_features()}} directly.
 }
 \examples{
 \dontrun{
@@ -107,4 +105,7 @@ feat_mat = assemble_genetic_features(all_meta,
                                     annotated_sv = anno_sv,
                                     synon_genes=c("PIM1","SOCS1"))
 }
+}
+\seealso{
+\code{\link[GAMBLR.utils:assemble_genetic_features]{GAMBLR.utils::assemble_genetic_features()}}
 }
