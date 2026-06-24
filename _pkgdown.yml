@@ -25,6 +25,8 @@ reference:
     contents:
       - make_and_annotate_umap
       - make_umap_scatterplot
+      - make_interactive_umap_scatterplot
+      - umap_feature_plot
     examples: true
   - title: "DLBCLone Functions - Optimizing Parameters"
     desc: >
@@ -88,6 +90,8 @@ reference:
       - complete_missing_from_matrix
       - construct_reduced_winning_version
       - flatten_feature
+      - gene_feat_heatmap
+      - genetic_feature_oncoplot
       - handle_genome_build
       - lacy_features
       - lymphgenerator_features
