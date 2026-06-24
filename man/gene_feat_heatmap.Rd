@@ -16,9 +16,18 @@ gene_feat_heatmap(
   sort_features_by = NULL,
   column_split_genes = NULL,
   show_annotation_legend = TRUE,
-  show_row_names = FALSE,
+  show_heatmap_legend = FALSE,
+  heatmap_title = NULL,
+  annotation_bar_height = 3,
+  annotation_name_fontsize = 8,
+  rotate = FALSE,
+  hide_sample_id = TRUE,
+  show_feature_names = TRUE,
+  feature_order = NULL,
+  gene_order = NULL,
   cluster_columns = TRUE,
   cluster_rows = TRUE,
+  order_by_metadata = FALSE,
   ...
 )
 }
@@ -46,17 +55,21 @@ show as row annotations. Colours are assigned automatically via
 \code{\link[GAMBLR.viz:map_metadata_to_colours]{GAMBLR.viz::map_metadata_to_colours()}}. Default \code{"pathology"}.}
 
 \item{sort_by_columns}{Optional character vector of names to sort heatmap
-rows by, in priority order. Each name is resolved in turn: (1) as a
-feature matrix column (after prefix stripping) — sorted descending so
-mutated samples appear first; (2) as a \code{metadata} column name — sorted
-ascending; (3) as a value present in any metadata column (e.g. \code{"FL"}
-found in \code{pathology}) — sorted so matching samples appear first. Any mix
-is valid. Overrides \code{cluster_rows}. Default \code{NULL} (use clustering).}
+rows (samples) by, in priority order — later entries break ties within
+earlier ones. Each name is resolved in order: (1) as a feature matrix
+column name — either the full \code{GENE_suffix} form (e.g. \code{"EZH2_Y641"})
+or the stripped suffix alone (e.g. \code{"Y641"}); mutated samples sort first
+(descending); (2) as a \code{metadata} column name (e.g. \code{"pathology"},
+\code{"lymphgen"}) — sorted ascending; to control the categorical order
+convert the column to an ordered factor with the desired levels before
+calling; (3) as a single value present in any metadata column (e.g.
+\code{"FL"}) — samples with that value sort first. Any mix of the three forms
+is valid, e.g. \code{c("pathology", "lymphgen", "EZH2_Y641", "MYD88_L265P")}.
+Overrides \code{cluster_rows}. Default \code{NULL} (use clustering).}
 
-\item{strip_gene_prefix}{Logical. If \code{TRUE}, removes the leading \code{GENE_}
-prefix from column labels. Defaults to \code{TRUE} for a single gene and
-\code{FALSE} for multiple genes (where full names are needed to distinguish
-features with the same suffix across genes).}
+\item{strip_gene_prefix}{Logical. If \code{TRUE} (default), removes the leading
+\code{GENE_} prefix from column labels. Gene identity is still conveyed via
+the per-block titles when \code{column_split_genes = TRUE}.}
 
 \item{drop_uninformative}{Logical. If \code{TRUE} (default), features with a
 zero coefficient in every comparison are dropped and a warning is issued.
@@ -77,15 +90,58 @@ by gene. Defaults to \code{TRUE} for multiple genes, \code{FALSE} for one.}
 legend for the coefficient scale is shown (attached to the first
 comparison track). Set to \code{FALSE} to suppress it entirely.}
 
-\item{show_row_names}{Logical. Show sample (row) names. Default \code{FALSE}.}
+\item{show_heatmap_legend}{Logical. Whether to show the body colour scale
+legend. Default \code{FALSE} — suppressed because values are typically binary
+and the scale adds little information.}
+
+\item{heatmap_title}{Optional character string used as the heatmap column
+title. Defaults to the gene name(s) joined by \code{"/"}, which provides a
+label when the body legend is suppressed and \code{strip_gene_prefix = TRUE}
+would otherwise leave the genes unidentified.}
+
+\item{annotation_bar_height}{Height of each annotation track in millimetres,
+applied to both the coefficient tracks and the metadata tracks via
+\code{simple_anno_size}. Default \code{3}.}
+
+\item{annotation_name_fontsize}{Font size (pt) for annotation track name
+labels. Default \code{8}.}
+
+\item{rotate}{Logical. If \code{TRUE}, transposes the heatmap so features are
+rows and samples are columns. The coefficient annotation moves to the
+right side and the metadata annotation moves to the bottom. Default
+\code{FALSE}.}
+
+\item{hide_sample_id}{Logical. If \code{TRUE} (default), sample identifiers are
+not printed on the heatmap. When \code{rotate = FALSE} this suppresses row
+names; when \code{rotate = TRUE} it suppresses column names.}
+
+\item{show_feature_names}{Logical. Whether to display feature names on the
+heatmap. When \code{rotate = FALSE} features are columns (\code{show_column_names});
+when \code{rotate = TRUE} features are rows (\code{show_row_names}). Default \code{TRUE}.}
+
+\item{feature_order}{Optional character vector of feature names (using the
+full \code{GENE_suffix} form, before any prefix stripping) specifying the exact
+column order. Features absent from the vector are dropped. Overrides both
+\code{sort_features_by} and \code{cluster_columns}. Default \code{NULL}.}
+
+\item{gene_order}{Optional character vector of gene names controlling the
+left-to-right order of gene blocks when \code{column_split_genes = TRUE}.
+Must be a permutation of the supplied \code{gene} vector. Defaults to the
+order genes are supplied in \code{gene}.}
 
 \item{cluster_columns}{Logical. Cluster heatmap columns. Default \code{TRUE}.}
 
 \item{cluster_rows}{Logical. Cluster heatmap rows. Default \code{TRUE}.}
 
+\item{order_by_metadata}{Logical. When \code{TRUE} and \code{metadata} is supplied,
+rows (samples) are ordered to match the row order of \code{metadata} rather
+than being clustered or sorted via \code{sort_by_columns}. Row clustering is
+disabled automatically; \code{sort_by_columns} is ignored. Feature ordering
+(\code{sort_features_by}, \code{feature_order}, \code{cluster_columns}) is unaffected.
+Default \code{FALSE}.}
+
 \item{...}{Additional arguments passed directly to
-\code{\link[ComplexHeatmap:Heatmap]{ComplexHeatmap::Heatmap()}}, e.g. \code{column_title}, \code{row_split},
-\code{rect_gp}.}
+\code{\link[ComplexHeatmap:Heatmap]{ComplexHeatmap::Heatmap()}}, e.g. \code{rect_gp}.}
 }
 \value{
 A \link[ComplexHeatmap:Heatmap-class]{ComplexHeatmap::Heatmap} object.
