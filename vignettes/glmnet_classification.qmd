@@ -1,0 +1,411 @@
+---
+title: "Feature selection and classification with GLMnet"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+```{r preamble}
+library(GAMBLR.data) 
+library(GAMBLR.results)
+library(GAMBLR.utils)   # requires rmorin-dev branch
+library(GAMBLR.viz)     # requires rmorin-dev branch
+library(GAMBLR.predict) # requires rdmorin branch
+library(tidyverse)
+library(glmnet) # just in case it's not set up as a dependency in GAMBLR.predict (yet)
+```
+
+This tutorial demonstrates how elastic-net logistic regression models can be trained to differentiate lymphoma entities and subtypes based on hundreds of mutation features. It also covers some advanced visualisations for evaluating  associations. Finally, it illustrates how to apply the models to new samples.
+
+The workflow uses four major subtypes as an example — BL, DLBCL, FL, and HGBL-DH-BCL2 — but generalises to any grouping variable in your metadata.
+
+# Prepare metadata
+
+We restrict to one sample per patient (slice_head after grouping by patient_id) and exclude patients whose diagnostic history spans more than one pathology, to reduce the chance that histologic transformations will confound the subtype-specific features we're looking for.
+
+```{r metadata}
+all_gambl_meta <- get_gambl_metadata() %>%
+  filter(seq_type != "mrna")
+
+core_meta <- all_gambl_meta %>%
+  group_by(patient_id) %>%
+  filter(n_distinct(pathology, na.rm = TRUE) == 1) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  filter(pathology %in% c("BL", "DLBCL", "FL", "HGBL-DH-BCL2")) %>%
+  mutate(
+    pathology = case_when(
+      pathology == "DLBCL" & bcl2_ba == "POS" & myc_ba == "POS" ~ "HGBL-DH-BCL2",
+      TRUE ~ pathology
+    )
+  )
+
+count(core_meta, pathology)
+```
+
+# Retrieve and annotate mutations
+
+`get_all_coding_ssm` fetches coding SSMs for genome and capture samples simultaneously. `annotate_curated_drivers` adds per-feature columns (e.g. `CARD11_Linker`, `CREBBP_KAT`) based on a curated set of hotspot regions and functional domains. The resource used for these annotations is bundled with GAMBLR.utils and developers are able to add to this if they find that relevant hotspots or driver categories are missing.
+
+```{r coding_maf}
+# get the master lymphoma gene list by pooling all Tier 1 genes from Coyle et al
+lymphoma_g <- lymphoma_genes %>%
+  filter(DLBCL_Tier == 1 | FL_Tier == 1 | BL_Tier == 1) %>%
+  pull(Gene)
+
+driver_g <- unique(get_driver_coordinates("grch37")$Hugo_Symbol)
+
+coding_maf <- get_all_coding_ssm(
+  these_samples_metadata = core_meta,
+  basic_columns           = FALSE # ensures you get the columns needed for domain annotations in lollipop plots
+) %>%
+  filter(Hugo_Symbol %in% lymphoma_g) %>%
+  select(1:45,Transcript_ID, RefSeq) #Keep just the columns needed
+
+annotated_maf <- annotate_curated_drivers(
+  coding_maf,
+  genes_of_interest = lymphoma_g
+)
+
+# The new columns:
+filter(annotated_maf,driver==TRUE) %>% 
+  select(hot_spot:driver_alias) %>% 
+  group_by(mutation_alias) %>%
+  unique() %>%
+  slice_head(n=10)
+
+```
+
+Aberrant somatic hypermutation (aSHM) at regulatory regions can provide additional subtype-discriminating features in many cases. It's more efficient to retrieve these as a separate non-coding MAF so they can be encoded independently of the coding mutations. Notably, you could also use `get_ssm_by_regions` or the newer `get_ssm_by_genes` to get all the mutations in the genes and aSHM regions and supply a single MAF in the next step. 
+
+```{r noncoding_maf}
+# setup bed data format needed by get_ssm_by_regions
+ashm_regions_bed <- create_bed_data(
+  grch37_ashm_regions,
+  fix_names   = "concat",
+  concat_cols = c("gene", "region"),
+  sep         = "-"
+)
+
+noncoding_maf <- get_ssm_by_regions(
+  regions_bed            = ashm_regions_bed,
+  these_samples_metadata = core_meta,
+  streamlined            = FALSE
+)
+
+# check if there are any BCL2-translocated cases supported by mutations but not FISH
+
+bcl2_mutants = filter(noncoding_maf,Hugo_Symbol=="BCL2") %>%
+  pull(Tumor_Sample_Barcode) %>% 
+  unique()
+
+filter(core_meta,pathology=="DLBCL",myc_ba == "POS", sample_id %in% bcl2_mutants) %>%
+  select(cohort,seq_type,bcl2_ba,myc_ba)
+
+#update these to HGBL-DH-BCL2 also
+core_meta = mutate(core_meta,pathology = case_when(
+  pathology=="DLBCL" & myc_ba == "POS" & sample_id %in% bcl2_mutants ~ "HGBL-DH-BCL2",
+  TRUE ~ pathology)
+  )
+count(core_meta, pathology)
+
+```
+
+
+# Build the binary feature matrix
+
+`summarise_mutation_status` converts annotated mutations into a binary sample × feature matrix. The `maximal` reporting policy produces the most comprehensive set of columns tabulating mutations in lymphoma genes (e.g. `CREBBP_KAT`, `CREBBP_other`) and a single `_coding` column for genes with no specific driver mutations annotated in the reference. `encoding_policy` caps values at 1 so each cell is a presence/absence flag rather than a raw count. Depending on your needs, you may want different values for each mutation type (e.g. when training/running DLBCLone).
+
+```{r feature_matrix}
+feat_mat <- summarise_mutation_status(
+  annotated_maf          = annotated_maf,
+  noncoding_maf          = noncoding_maf,
+  genes_coding           = lymphoma_g,
+  gene_reporting_policy  = list(maximal = driver_g),
+  genes_noncoding        = unique(grch37_ashm_regions$gene),
+  encoding_policy        = list(coding = 1, noncoding = 1, driver = 1),
+  these_samples_metadata = core_meta
+)
+
+dim(feat_mat)
+select(feat_mat,starts_with("MYD88"),starts_with("CREBBP"),starts_with("TP53")) %>% head()
+```
+
+
+# Feature selection with elastic-net regression
+
+The `select_informative_features` function fits one penalised logistic regression per class (one-vs-rest by default) using cross-validated elastic-net (`cv.glmnet`). Three options used here address common practical issues:
+
+- `return_models = TRUE` — stores the fitted model objects so predictions can be made on new data later. Often this is not necessary since you only care about the features (not the models themselves).
+- `balance_classes = TRUE` — applies inverse-frequency observation weights, which prevents the dominant DLBCL class from suppressing signals specific to smaller groups.
+- `priority_features` — features given `penalty.factor = 0`, meaning lambda never shrinks their coefficients to zero regardless of effect size. Use this to ensure features you consider biologically essential are not shrunk to zero and thus dropped from your model.
+
+```{r glmnet}
+# known to distinguish cFL from dFL (and FL from DLBCL)
+priority_features <- c(
+  "CREBBP_KAT", "ATP6V1B2_coding", "RRAGC_coding",
+  "POU2AF1_trunc", "ATP6AP1_coding", "VMA21_coding",
+  "CTSS_coding", "IRF8_trunc", "HVCN1_hotspot", "UBE2A_coding"
+)
+
+fourway_models <- select_informative_features(
+  feature_matrix    = feat_mat,
+  metadata          = core_meta,
+  sample_id_column  = NULL,
+  comparison_column = "pathology",
+  return_models     = TRUE, #we will use the models in this example so we want to keep them instead of re-running
+  balance_classes   = TRUE, # Due to massive imbalance, especially DLBCL vs HGBL-DH-BCL2
+  run_fisher = TRUE, # this runs good old Fisher's exact test for each contrast also
+  priority_features = priority_features
+)
+
+# fourway_models$results  — coefficient / Fisher table
+# fourway_models$models   — named list of cv.glmnet objects
+# fourway_models$contrast — "one_vs_rest"
+names(fourway_models)
+```
+
+# Visualise feature associations
+
+`plot_feature_associations` displays which features are enriched per class. With `use_glmnet = TRUE`, point size and colour encode the GLM coefficient rather than the Fisher p-value. `sort_by` controls the left-to-right panel order.
+
+```{r feature_plot}
+feature_plot <- plot_feature_associations(
+  fourway_models$results,
+  metadata          = core_meta,
+  comparison_column = "pathology",
+  use_glmnet        = TRUE,
+  mode              = "split",
+  sort_by           = c("HGBL-DH-BCL2", "DLBCL", "FL", "BL"),
+  base_size         = 5
+)
+
+feature_plot$combined
+
+```
+
+## Tweaking the plots
+
+Typically, the GLMnet will select some features with negative coefficients for all models. These are essentially depleted in all your individual groups vs the rest. To focus in on just the features that support a class, you can specify `positive_only = TRUE`. You can also use `coef_limits` to specify values to cap coeficients in case some extreme points cause the scale to be compressed. 
+
+```{r}
+
+feature_plot <- plot_feature_associations(
+  fourway_models$results,
+  metadata          = core_meta,
+  comparison_column = "pathology",
+  use_glmnet        = TRUE,
+  mode              = "split",
+  sort_by           = c("HGBL-DH-BCL2", "DLBCL", "FL", "BL"),
+  base_size         = 5,
+  positive_only=TRUE, 
+  coef_limits = c(-1,3)
+)
+
+feature_plot$combined
+
+```
+
+# Predict class labels
+
+The models produced by `select_informative_features` can be used for class prediction. `predict_from_glmnet_models` applies the stored models to a feature matrix. It aligns columns by name and fills any features absent from the new data with 0 (wild-type). With `type = "all"` it returns both the predicted class label and the per-class probability for each sample.
+
+Here we predict on the training data as a sanity check: a well-trained model should misclassify very few of its own training samples. Of course, evaluating a model on its training data is not the right way to go about this, but we're doing it for convenience in this tutorial. 
+
+```{r predict}
+preds <- predict_from_glmnet_models(
+  new_data         = feat_mat,
+  glmnet_output    = fourway_models,
+  type             = "all",
+  sample_id_column = NULL
+)
+
+head(preds)
+```
+
+```{r confusion_matrix}
+core_meta_pred <- left_join(core_meta, preds, by = "sample_id")
+
+table(
+  predicted = core_meta_pred$predicted_class,
+  actual    = core_meta_pred$pathology
+)
+```
+
+## Probability distributions
+
+The per-class probability columns can be used to set custom classification thresholds. For example, samples where `FL > 0.8` can be considered high-confidence FL regardless of which class has the overall maximum probability.
+
+```{r prob_plot}
+ggplot(core_meta_pred, aes(x = pathology, y = FL, colour = predicted_class)) +
+  geom_boxplot(outlier.shape = NA, colour = "grey60") +
+  ggbeeswarm::geom_quasirandom(size = 0.6) +
+  labs(x = "True pathology", y = "P(FL)", colour = "Predicted") +
+  theme_bw()
+```
+
+# Stacked lollipop plots
+
+`stacked_lollipop_plot` overlays mutation loci from multiple groups on a single protein schematic. When `glm_results` is supplied, driver regions are shaded by their GLM association coefficient.
+
+```{r group_mafs}
+sample_ids <- list(
+  FL              = filter(core_meta, pathology == "FL")             %>% pull(sample_id),
+  BL              = filter(core_meta, pathology == "BL")             %>% pull(sample_id),
+  DLBCL           = filter(core_meta, pathology == "DLBCL")          %>% pull(sample_id),
+  `HGBL-DH-BCL2`  = filter(core_meta, pathology == "HGBL-DH-BCL2")  %>% pull(sample_id)
+)
+
+maf_by_group <- lapply(sample_ids, function(ids) {
+  filter(annotated_maf, Tumor_Sample_Barcode %in% ids)
+})
+```
+
+CREBBP KAT-domain mutations are a hallmark of FL and HGBL-DH-BCL2.
+
+```{r lollipop_crebbp}
+stacked_lollipop_plot(
+  maf_list                 = maf_by_group,
+  gene                     = "CREBBP",
+  glm_results              = fourway_models$results,
+  highlight_driver_regions = TRUE,
+  label_threshold          = 2,
+  point_size_range = c(0.1,4)
+)$plot
+```
+
+CARD11 Linker-domain mutations activate NF-κB and are strongly enriched in DLBCL.
+
+```{r lollipop_card11}
+stacked_lollipop_plot(
+  maf_list                 = maf_by_group,
+  gene                     = "CARD11",
+  glm_results              = fourway_models$results,
+  highlight_driver_regions = TRUE,
+  label_threshold          = 2,
+  coef_scale_limits        = c(-0.5, 0.5),
+   point_size_range = c(0.1,4)
+)$plot
+```
+
+GNA13 loss-of-function mutations are distributed across all four subtypes but show distinct positional patterns.
+
+```{r lollipop_gna13}
+stacked_lollipop_plot(
+  maf_list                 = maf_by_group,
+  gene                     = "GNA13",
+  glm_results              = fourway_models$results,
+  highlight_driver_regions = TRUE,
+  label_threshold          = 2,
+   point_size_range = c(0.1,4)
+)$plot
+```
+
+# Pairwise comparative lollipop plots
+
+`pretty_colollipop_plot` mirrors two groups above and below the protein schematic. The GLM coefficient for the top group's class is used to shade driver regions when `glm_results` is provided (`glm_comparison` defaults to `name_top`).
+
+```{r colollipop_crebbp}
+pretty_colollipop_plot(
+  maf_top                  = maf_by_group$FL,
+  name_top                 = "FL",
+  maf_bottom               = maf_by_group$DLBCL,
+  name_bottom              = "DLBCL",
+  these_samples_metadata   = core_meta,
+  gene                     = "CREBBP",
+  glm_results              = fourway_models$results,
+  highlight_driver_regions = TRUE,
+  label_threshold          = 3,
+  point_size_range = c(0.5,5)
+)$plot
+```
+
+```{r colollipop_gna13}
+pretty_colollipop_plot(
+  maf_top                  = maf_by_group$BL,
+  name_top                 = "BL",
+  maf_bottom               = maf_by_group$DLBCL,
+  name_bottom              = "DLBCL",
+  these_samples_metadata   = core_meta,
+  gene                     = "GNA13",
+  glm_results              = fourway_models$results,
+  highlight_driver_regions = TRUE,
+  limit_driver_regions     = c("G1motif", "G2motif", "G3motif", "G4motif"),
+  label_threshold          = 2,
+  point_size_range = c(0.5,5)
+)$plot
+```
+
+# Focused pairwise model: FL vs DLBCL
+
+For a targeted binary comparison, use `contrast = "pairwise"`. Here we lump HGBL-DH-BCL2 with DLBCL (both are aggressive GCB lymphomas) to obtain a clean FL vs non-FL model. The `priority_features` ensure FL-relevant markers such as `CREBBP_KAT` and `RRAGC_coding` are always retained.
+
+```{r fl_dlbcl_prep}
+fl_dlbcl_meta <- filter(
+  core_meta,
+  pathology %in% c("FL", "DLBCL", "HGBL-DH-BCL2")
+) %>%
+  mutate(group = if_else(pathology == "FL", "FL", "DLBCL"))
+
+fl_dlbcl_features <- summarise_mutation_status(
+  annotated_maf          = filter(annotated_maf,
+                                  Tumor_Sample_Barcode %in% fl_dlbcl_meta$sample_id),
+  noncoding_maf          = filter(noncoding_maf,
+                                  Tumor_Sample_Barcode %in% fl_dlbcl_meta$sample_id),
+  genes_coding           = lymphoma_g,
+  gene_reporting_policy  = list(maximal = driver_g),
+  genes_noncoding        = unique(grch37_ashm_regions$gene),
+  encoding_policy        = list(coding = 1, noncoding = 1, driver = 1),
+  these_samples_metadata = fl_dlbcl_meta
+)
+```
+
+```{r fl_dlbcl_models}
+fl_dlbcl_models <- select_informative_features(
+  feature_matrix    = fl_dlbcl_features,
+  metadata          = fl_dlbcl_meta,
+  sample_id_column  = NULL,
+  contrast          = "pairwise",
+  comparison_column = "group",
+  return_models     = TRUE,
+  balance_classes   = TRUE,
+  priority_features = priority_features
+)
+
+plot_feature_associations(
+  fl_dlbcl_models$results,
+  metadata          = fl_dlbcl_meta,
+  comparison_column = "group",
+  use_glmnet        = TRUE,
+  mode              = "split",
+  sort_by           = c("DLBCL", "FL"),
+  base_size         = 6
+)$combined
+```
+
+```{r fl_dlbcl_predict}
+fl_dlbcl_preds <- predict_from_glmnet_models(
+  new_data         = fl_dlbcl_features,
+  glmnet_output    = fl_dlbcl_models,
+  type             = "all",
+  sample_id_column = NULL
+)
+
+fl_dlbcl_meta <- left_join(fl_dlbcl_meta, fl_dlbcl_preds, by = "sample_id")
+
+table(
+  predicted = fl_dlbcl_meta$predicted_class,
+  actual    = fl_dlbcl_meta$pathology
+)
+```
+
+Plotting the FL probability by true pathology shows how cleanly the model separates FL from the other groups and helps calibrate a threshold for downstream use.
+
+```{r fl_dlbcl_prob_plot}
+ggplot(fl_dlbcl_meta, aes(x = pathology, y = FL, colour = predicted_class)) +
+  geom_boxplot(outlier.shape = NA, colour = "grey60") +
+  ggbeeswarm::geom_quasirandom(size = 0.6) +
+  labs(x = "True pathology", y = "P(FL)", colour = "Predicted") +
+  theme_bw()
+```
