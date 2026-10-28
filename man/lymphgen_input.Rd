@@ -30,8 +30,9 @@ in \code{seg_data} have copy number) and those named in \code{sv_from_metadata}.
 
 \item{noncoding_maf}{Optional MAF data frame of non-coding mutations
 (e.g. 5' UTR and intronic, from \code{get_ssm_by_regions}) for the Synon
-feature. Without non-coding mutations, Synon counts silent mutations
-only.}
+feature. Without it, the non-coding mutations in \code{maf_data} are used (e.g.
+the silent, splice region and targeted region rows of
+\code{get_all_coding_ssm(include_silent = TRUE)}).}
 
 \item{seg_data}{Optional segmented copy number data (columns ID, chrom,
 start, end, log.ratio) for the copy number features.}

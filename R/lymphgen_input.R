@@ -52,8 +52,9 @@
 #' in `seg_data` have copy number) and those named in `sv_from_metadata`.
 #' @param noncoding_maf Optional MAF data frame of non-coding mutations
 #' (e.g. 5' UTR and intronic, from `get_ssm_by_regions`) for the Synon
-#' feature. Without non-coding mutations, Synon counts silent mutations
-#' only.
+#' feature. Without it, the non-coding mutations in `maf_data` are used (e.g.
+#' the silent, splice region and targeted region rows of
+#' `get_all_coding_ssm(include_silent = TRUE)`).
 #' @param seg_data Optional segmented copy number data (columns ID, chrom,
 #' start, end, log.ratio) for the copy number features.
 #' @param sv_data Optional structural variants (as for
@@ -229,18 +230,15 @@ lymphgen_input = function(maf_data,
                                     single_thresh = 0.5, high_thresh = 1.5),
                                cnv_args)
   wanted = registry[!duplicated(registry$feature), , drop = FALSE]
-  # non-coding Synon features are assessed only when there are non-coding
-  # mutations (e.g. not from a coding-only MAF)
-  has_noncoding = !is.null(noncoding_maf) ||
-    any(all_maf$mutation_class %in% c("utr5", "noncoding"))
   feature_table = suppressMessages(GAMBLR.utils::assemble_classifier_features(
     these_samples_metadata,
     features = wanted[, setdiff(colnames(wanted),
                                 c("classifier", "classifier_feature", "group",
                                   "feature_order", "value", "min_level",
                                   "submodels")), drop = FALSE],
+    # all_maf has noncoding_maf's mutations too, and without noncoding_maf
+    # the non-coding features use its non-coding rows
     maf_data = all_maf,
-    noncoding_maf = if(has_noncoding) all_maf,
     seg_data = seg_data,
     sv_data = sv_data,
     sv_from_metadata = sv_from_metadata,
