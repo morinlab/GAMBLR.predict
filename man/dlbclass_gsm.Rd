@@ -21,7 +21,8 @@ dlbclass_gsm(
 samples, e.g. from \code{get_coding_ssm(..., include_silent = TRUE)}.}
 
 \item{these_samples_metadata}{Metadata with one row per sample_id; defines
-the samples and supplies the SV status columns.}
+the samples (mRNA-seq samples are dropped, with a warning) and supplies the
+SV status columns.}
 
 \item{seg_data}{Optional segmented copy number data (columns ID, chrom,
 start, end, log.ratio) for the copy number features.}

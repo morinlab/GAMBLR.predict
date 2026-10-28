@@ -32,7 +32,8 @@
 #' @param maf_data MAF data frame of coding (and silent) mutations for the
 #' samples, e.g. from `get_coding_ssm(..., include_silent = TRUE)`.
 #' @param these_samples_metadata Metadata with one row per sample_id; defines
-#' the samples and supplies the SV status columns.
+#' the samples (mRNA-seq samples are dropped, with a warning) and supplies the
+#' SV status columns.
 #' @param seg_data Optional segmented copy number data (columns ID, chrom,
 #' start, end, log.ratio) for the copy number features.
 #' @param genome_build Genome build of `seg_data`. Default "grch37" (the only
@@ -86,6 +87,8 @@ dlbclass_gsm = function(maf_data,
   }
   feature_order = readLines(system.file("extdata", "dlbclass_feature_order.txt",
                                         package = "GAMBLR.predict"))
+  these_samples_metadata = GAMBLR.utils::drop_mrna_samples(these_samples_metadata,
+                                                           "dlbclass_gsm")
   samples = unique(as.character(these_samples_metadata$sample_id))
   # DLBClass gene names, in GAMBLR's spelling (HLA-A rather than HLA.A)
   ssm_features = feature_order[!grepl("^X|^SV[.]", feature_order)]

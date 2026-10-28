@@ -14,7 +14,7 @@
 #'     its own position rules (NOTCH1/NOTCH2 PEST, CD79B and the Synon
 #'     windows). Types: TRUNC (truncating classes, as in
 #'     [GAMBLR.utils::classify_mutations]), L265P (MYD88 p.L265P), MUTATION
-#'     (other coding mutations) and Synon (silent and non-coding mutations,
+#'     (missense, in-frame and nonstop mutations) and Synon (silent and non-coding mutations,
 #'     e.g. 5' UTR, intron, splice region and flanking, in a Synon window).
 #'     LymphGen counts TRUNC as MUTATION and both as Synon, so each mutation
 #'     has one row with its most specific type.
@@ -42,7 +42,7 @@
 #' including silent ones, e.g. from `get_coding_ssm(..., include_silent =
 #' TRUE)`. Non-coding mutations can be in here or in `noncoding_maf`.
 #' @param these_samples_metadata Metadata with one row per sample_id; defines
-#' the samples. Optional columns `cn_available` (logical; otherwise samples
+#' the samples (mRNA-seq samples are dropped, with a warning). Optional columns `cn_available` (logical; otherwise samples
 #' in `seg_data` have copy number) and those named in `sv_from_metadata`.
 #' @param noncoding_maf Optional MAF data frame of non-coding mutations
 #' (e.g. 5' UTR and intronic, from `get_ssm_by_regions`) for the Synon
@@ -121,7 +121,8 @@ lymphgen_input = function(maf_data,
   if(!"sample_id" %in% colnames(these_samples_metadata)){
     stop("these_samples_metadata needs a sample_id column")
   }
-  these_samples_metadata = as.data.frame(these_samples_metadata)
+  these_samples_metadata = GAMBLR.utils::drop_mrna_samples(
+    as.data.frame(these_samples_metadata), "lymphgen_input")
   samples = unique(as.character(these_samples_metadata$sample_id))
   registry = GAMBLR.utils::get_classifier_features("LymphGen")
 
@@ -163,10 +164,10 @@ lymphgen_input = function(maf_data,
   maf = GAMBLR.utils::classify_mutations(maf, protein_change_column)
   maf$entrez = to_entrez(maf$Hugo_Symbol)
   maf = maf[!is.na(maf$entrez) & maf$entrez %in% gene_ids, , drop = FALSE]
-  # everything else (silent, UTR, intron, splice region, flanking, including
-  # 5' UTR start gains) is non-coding and can count as Synon
-  coding = maf$Variant_Classification %in% c(GAMBLR.helpers::vc_nonSynonymous,
-                                             "Start_Codon_Del")
+  # coding classes as in the registry's LymphGen MUTATION features; everything
+  # else (silent, UTR, intron, splice region, flanking, including 5' UTR start
+  # gains) is non-coding and can count as Synon
+  coding = maf$mutation_class %in% c("trunc", "missense", "inframe", "nonstop")
   l265p = maf$Hugo_Symbol == "MYD88" &
     (maf$protein_change %in% "p.L265P" | maf$Start_Position == 38182641)
   type = ifelse(l265p, "L265P",

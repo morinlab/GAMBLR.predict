@@ -25,7 +25,7 @@ lymphgen_input(
 including silent ones, e.g. from \code{get_coding_ssm(..., include_silent = TRUE)}. Non-coding mutations can be in here or in \code{noncoding_maf}.}
 
 \item{these_samples_metadata}{Metadata with one row per sample_id; defines
-the samples. Optional columns \code{cn_available} (logical; otherwise samples
+the samples (mRNA-seq samples are dropped, with a warning). Optional columns \code{cn_available} (logical; otherwise samples
 in \code{seg_data} have copy number) and those named in \code{sv_from_metadata}.}
 
 \item{noncoding_maf}{Optional MAF data frame of non-coding mutations
@@ -92,7 +92,7 @@ per mutation, with its grch37 start as Location, so LymphGen applies
 its own position rules (NOTCH1/NOTCH2 PEST, CD79B and the Synon
 windows). Types: TRUNC (truncating classes, as in
 \link[GAMBLR.utils:classify_mutations]{GAMBLR.utils::classify_mutations}), L265P (MYD88 p.L265P), MUTATION
-(other coding mutations) and Synon (silent and non-coding mutations,
+(missense, in-frame and nonstop mutations) and Synon (silent and non-coding mutations,
 e.g. 5' UTR, intron, splice region and flanking, in a Synon window).
 LymphGen counts TRUNC as MUTATION and both as Synon, so each mutation
 has one row with its most specific type.
