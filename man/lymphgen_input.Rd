@@ -74,8 +74,12 @@ override the LymphGen defaults (\code{value_scale}, \code{centering},
 }
 \value{
 A list of data frames: mutation_flat, gene_list, copy_flat and
-arm (NULL without \code{seg_data}) and sample_annotation. With \code{output_dir},
-returned invisibly, with the file paths as attribute "files".
+arm (NULL without \code{seg_data}), sample_annotation, and feature_matrix
+(samples as rows, the LymphGen features of every submodel as columns, as
+from \link[GAMBLR.utils:classifier_feature_matrix]{GAMBLR.utils::classifier_feature_matrix}: 1 or 0, NA where not
+assessed, e.g. copy number features without \code{seg_data}; not written to
+\code{output_dir}). With \code{output_dir}, returned invisibly, with the file paths
+as attribute "files".
 }
 \description{
 Build the inputs for LymphGen 2 (Run_Lymphgen.R: the mutation
@@ -110,6 +114,12 @@ baseline of 2). As in LymphGen's array training data, changes are
 relative to the sample: log ratios centred on the sample's median
 and converted to copies of a diploid genome, so in a tetraploid
 tumour two copies is a HETLOSS rather than a HOMDEL.
+\item Feature matrix: the same mutations, copy number and
+translocations called as the registry's LymphGen features, applying
+the position rules LymphGen applies (see
+\link[GAMBLR.utils:assemble_classifier_features]{GAMBLR.utils::assemble_classifier_features}); for use in R, e.g. for
+DLBCLone. Use \link[GAMBLR.utils:get_classifier_features]{GAMBLR.utils::get_classifier_features} with
+\code{submodel} to select one submodel's features.
 \item Sample annotation (Sample.ID, Copy.Number, BCL2.transloc,
 BCL6.transloc): Copy.Number is 1 for samples with copy number;
 translocations are 1, 0, or NA when unknown, from \code{sv_data} and/or

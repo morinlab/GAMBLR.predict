@@ -32,6 +32,12 @@
 #'     relative to the sample: log ratios centred on the sample's median
 #'     and converted to copies of a diploid genome, so in a tetraploid
 #'     tumour two copies is a HETLOSS rather than a HOMDEL.
+#'   \item Feature matrix: the same mutations, copy number and
+#'     translocations called as the registry's LymphGen features, applying
+#'     the position rules LymphGen applies (see
+#'     [GAMBLR.utils::assemble_classifier_features]); for use in R, e.g. for
+#'     DLBCLone. Use [GAMBLR.utils::get_classifier_features] with
+#'     `submodel` to select one submodel's features.
 #'   \item Sample annotation (Sample.ID, Copy.Number, BCL2.transloc,
 #'     BCL6.transloc): Copy.Number is 1 for samples with copy number;
 #'     translocations are 1, 0, or NA when unknown, from `sv_data` and/or
@@ -80,8 +86,12 @@
 #' @param prefix File name prefix for `output_dir`. Default "lymphgen".
 #'
 #' @return A list of data frames: mutation_flat, gene_list, copy_flat and
-#' arm (NULL without `seg_data`) and sample_annotation. With `output_dir`,
-#' returned invisibly, with the file paths as attribute "files".
+#' arm (NULL without `seg_data`), sample_annotation, and feature_matrix
+#' (samples as rows, the LymphGen features of every submodel as columns, as
+#' from [GAMBLR.utils::classifier_feature_matrix]: 1 or 0, NA where not
+#' assessed, e.g. copy number features without `seg_data`; not written to
+#' `output_dir`). With `output_dir`, returned invisibly, with the file paths
+#' as attribute "files".
 #'
 #' @export
 #'
@@ -162,6 +172,8 @@ lymphgen_input = function(maf_data,
                          "Reference_Allele", "Tumor_Seq_Allele2"), colnames(maf))
   maf = maf[!duplicated(maf[, key_cols]), , drop = FALSE]
   maf = GAMBLR.utils::classify_mutations(maf, protein_change_column)
+  # every sample's mutations, for the feature matrix
+  all_maf = maf
   maf$entrez = to_entrez(maf$Hugo_Symbol)
   maf = maf[!is.na(maf$entrez) & maf$entrez %in% gene_ids, , drop = FALSE]
   # coding classes as in the registry's LymphGen MUTATION features; everything
@@ -208,7 +220,7 @@ lymphgen_input = function(maf_data,
                                       mutation_flat$Location), , drop = FALSE]
   rownames(mutation_flat) = NULL
 
-  # copy number and translocations, from the registry ----------------------
+  # registry features: copy number, translocations and the feature matrix --
   cn_features = registry[registry$data_type == "cnv", , drop = FALSE]
   sv_features = registry[registry$data_type == "sv" &
                            registry$gene %in% c("BCL2", "BCL6"), , drop = FALSE]
@@ -216,14 +228,19 @@ lymphgen_input = function(maf_data,
   cnv_args = utils::modifyList(list(value_scale = "log_ratio", centering = "median",
                                     single_thresh = 0.5, high_thresh = 1.5),
                                cnv_args)
-  wanted = rbind(sv_features, if(!is.null(seg_data)) cn_features)
-  wanted = wanted[!duplicated(wanted$feature), , drop = FALSE]
+  wanted = registry[!duplicated(registry$feature), , drop = FALSE]
+  # non-coding Synon features are assessed only when there are non-coding
+  # mutations (e.g. not from a coding-only MAF)
+  has_noncoding = !is.null(noncoding_maf) ||
+    any(all_maf$mutation_class %in% c("utr5", "noncoding"))
   feature_table = suppressMessages(GAMBLR.utils::assemble_classifier_features(
     these_samples_metadata,
     features = wanted[, setdiff(colnames(wanted),
                                 c("classifier", "classifier_feature", "group",
                                   "feature_order", "value", "min_level",
                                   "submodels")), drop = FALSE],
+    maf_data = all_maf,
+    noncoding_maf = if(has_noncoding) all_maf,
     seg_data = seg_data,
     sv_data = sv_data,
     sv_from_metadata = sv_from_metadata,
@@ -278,11 +295,15 @@ lymphgen_input = function(maf_data,
                                  BCL6.transloc = status(bcl6),
                                  stringsAsFactors = FALSE)
 
+  feature_matrix = suppressMessages(GAMBLR.utils::classifier_feature_matrix(
+    feature_table, "LymphGen", unassessed_value = NA))
+
   out = list(mutation_flat = mutation_flat,
              gene_list = data.frame(ENTREZ.ID = gene_ids),
              copy_flat = copy_flat,
              arm = arm,
-             sample_annotation = sample_annotation)
+             sample_annotation = sample_annotation,
+             feature_matrix = feature_matrix)
   if(is.null(output_dir)) return(out)
 
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
