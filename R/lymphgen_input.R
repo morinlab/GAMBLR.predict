@@ -28,10 +28,10 @@
 #'     LymphGen's copy number categories: a change of at least half a copy
 #'     is HETLOSS or GAIN, and of at least 1.5 copies HOMDEL or AMP (so
 #'     HOMDEL is copy number 0.5 or less and AMP more than 3.5, from a
-#'     baseline of 2). As in LymphGen's array training data, changes are
-#'     relative to the sample: log ratios centred on the sample's median
-#'     and converted to copies of a diploid genome, so in a tetraploid
-#'     tumour two copies is a HETLOSS rather than a HOMDEL.
+#'     baseline of 2). With a CN column in `seg_data`, changes are in
+#'     absolute copies from each sample's dominant copy number (`value_scale
+#'     = "CN"`, `centering = "mode"`); otherwise log ratios centred on the
+#'     sample's median and converted to copies of a diploid genome.
 #'   \item Feature matrix: the same mutations, copy number and
 #'     translocations called as the registry's LymphGen features, applying
 #'     the position rules LymphGen applies (see
@@ -226,7 +226,9 @@ lymphgen_input = function(maf_data,
   sv_features = registry[registry$data_type == "sv" &
                            registry$gene %in% c("BCL2", "BCL6"), , drop = FALSE]
   # LymphGen's copy number categories (see details)
-  cnv_args = utils::modifyList(list(value_scale = "log_ratio", centering = "median",
+  has_cn_column = !is.null(seg_data) && "CN" %in% colnames(seg_data)
+  cnv_args = utils::modifyList(list(value_scale = if(has_cn_column) "CN" else "log_ratio",
+                                    centering = if(has_cn_column) "mode" else "median",
                                     single_thresh = 0.5, high_thresh = 1.5),
                                cnv_args)
   wanted = registry[!duplicated(registry$feature), , drop = FALSE]

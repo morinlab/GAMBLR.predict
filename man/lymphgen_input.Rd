@@ -111,10 +111,9 @@ and AMP as GAIN. Only for samples with copy number. The levels follow
 LymphGen's copy number categories: a change of at least half a copy
 is HETLOSS or GAIN, and of at least 1.5 copies HOMDEL or AMP (so
 HOMDEL is copy number 0.5 or less and AMP more than 3.5, from a
-baseline of 2). As in LymphGen's array training data, changes are
-relative to the sample: log ratios centred on the sample's median
-and converted to copies of a diploid genome, so in a tetraploid
-tumour two copies is a HETLOSS rather than a HOMDEL.
+baseline of 2). With a CN column in \code{seg_data}, changes are in
+absolute copies from each sample's dominant copy number (\code{value_scale = "CN"}, \code{centering = "mode"}); otherwise log ratios centred on the
+sample's median and converted to copies of a diploid genome.
 \item Feature matrix: the same mutations, copy number and
 translocations called as the registry's LymphGen features, applying
 the position rules LymphGen applies (see
