@@ -14,7 +14,9 @@ lymphgen_input(
   sv_positive_values = "POS",
   genes = NULL,
   synon_regions = "registry",
+  synon_classes = c("Silent", "5'UTR"),
   protein_change_column = NULL,
+  cd79b_location_unknown = FALSE,
   cnv_args = list(),
   output_dir = NULL,
   prefix = "lymphgen"
@@ -58,8 +60,34 @@ features, which are those LymphGen 2 uses with every gene sequenced; or
 list (see \link[GAMBLR.utils:subset_ssm_by_tss]{GAMBLR.utils::subset_ssm_by_tss}), for panels, where LymphGen
 can select other Synon features, and then applies its own windows.}
 
+\item{synon_classes}{Variant_Classification values of the silent and
+non-coding mutations that count as Synon (inside the Synon windows); other
+non-coding mutations are left out of the flat file and the feature matrix.
+Default \code{c("Silent", "5'UTR")}, which best matches LymphGen's training
+data: for the Schmitz exomes linked to it, our in-window Synon calls from
+these two classes recover 164 of its 199 non-coding Synon features with 99
+extra, against 170 with 396 extra when intronic, 3' UTR and 5' flank
+calls also count (most extras are intronic, e.g. in CD83, PIM2, BTG2,
+PIM1). \code{c("Silent", "5'UTR", "5'Flank", "Intron", "3'UTR")} reproduces
+LGenIC's definition.}
+
 \item{protein_change_column}{Column of the MAFs with the protein change.
 Default NULL uses Protein_Change, or HGVSp_Short if there is none.}
+
+\item{cd79b_location_unknown}{Set to TRUE to write CD79B's coding
+mutations (MUTATION and TRUNC rows) with Location -1 ("unknown") in the
+mutation flat file, so that LymphGen 2 doesn't apply its CD79B position
+rules to them. Default FALSE. LymphGen 2 drops, in new samples, CD79B
+mutations past 62007172 and truncations past 62006800 (e.g. the splice
+site variants beside the ITAM, which are common in MCD). Its training data
+never had these rules applied: in the first LymphGen release the CD79B
+threshold was 63007172 (beyond the gene) and the truncation rule compared
+the wrong column, so neither ever took effect, and LymphGen 2 fixed the
+rules but kept the same training matrix. In the Schmitz exomes linked to
+it, the training data have CD79B TRUNC and MUTATION for every such splice
+site truncation. With TRUE, these mutations count as they did when the
+model was trained; LymphGen itself is unchanged. Only the mutation flat
+file is affected, not the feature matrix.}
 
 \item{cnv_args}{Optional named list of further arguments for
 \link[GAMBLR.utils:segmented_data_to_cnv_status]{GAMBLR.utils::segmented_data_to_cnv_status}, e.g. \code{blacklist}, or to
@@ -97,23 +125,42 @@ per mutation, with its grch37 start as Location, so LymphGen applies
 its own position rules (NOTCH1/NOTCH2 PEST, CD79B and the Synon
 windows). Types: TRUNC (truncating classes, as in
 \link[GAMBLR.utils:classify_mutations]{GAMBLR.utils::classify_mutations}), L265P (MYD88 p.L265P), MUTATION
-(missense, in-frame and nonstop mutations) and Synon (silent and non-coding mutations,
-e.g. 5' UTR, intron, splice region and flanking, in a Synon window).
+(missense, in-frame and nonstop mutations) and Synon (silent and
+non-coding mutations of the classes in \code{synon_classes}, by default
+silent and 5' UTR, in a Synon window).
 LymphGen counts TRUNC as MUTATION and both as Synon, so each mutation
 has one row with its most specific type.
 \item Gene list: the Entrez IDs of the genes sequenced. LymphGen refits
 its model to these genes, so they must include the unmutated genes.
 \item Copy number flat file (Sample, ENTREZ.ID, Type) and arm file
 (Sample, Arm, Type): the LymphGen gene and arm copy number features
-of the registry (gene features count changes of 30 Mb or less), as
+of the registry, as
 HETLOSS or HOMDEL and GAIN or AMP; LymphGen counts HOMDEL as HETLOSS
 and AMP as GAIN. Only for samples with copy number. The levels follow
 LymphGen's copy number categories: a change of at least half a copy
-is HETLOSS or GAIN, and of at least 1.5 copies HOMDEL or AMP (so
-HOMDEL is copy number 0.5 or less and AMP more than 3.5, from a
-baseline of 2). With a CN column in \code{seg_data}, changes are in
-absolute copies from each sample's dominant copy number (\code{value_scale = "CN"}, \code{centering = "mode"}); otherwise log ratios centred on the
-sample's median and converted to copies of a diploid genome.
+is HETLOSS or GAIN, and of at least 1.5 copies HOMDEL or AMP, from
+the sample's own baseline (from a baseline of 2, HOMDEL is copy
+number 0.5 or less and AMP more than 3.5; in a tetraploid tumour a
+loss to 2 copies is a HOMDEL), as in LymphGen's training data. Each sample is called on the scale its segments
+support (\link[GAMBLR.utils:cnv_calling_settings]{GAMBLR.utils::cnv_calling_settings}): in absolute copies from
+its dominant copy number (\code{value_scale = "CN"}, \code{centering = "mode"})
+when they are purity-corrected (a \code{cn_type} of "absolute", e.g. from
+\link[GAMBLR.utils:calibrate_relative_cn]{GAMBLR.utils::calibrate_relative_cn}, or else a pipeline such as
+battenberg or PureCN in the \code{pipeline} column), and otherwise as log
+ratios centred on the sample's median and converted to copies of a
+diploid genome (e.g. gatk_cnv and CNVkit, whose CN is only a rescaled
+log ratio). Without those columns, every sample uses CN if
+\code{seg_data} has a CN column, and log ratios otherwise. \code{cnv_args} overrides the
+settings for every sample. Gene features count changes of 30 Mb or
+less. For array segments (pipeline "schmitz_array") they are called
+as in LymphGen's training data (\code{gene_rule = "lymphgen"} of
+\link[GAMBLR.utils:segmented_data_to_cnv_status]{GAMBLR.utils::segmented_data_to_cnv_status}: one segment of 30 Mb or
+less, on its own length, decides each gene); for sequencing (and
+segments without a pipeline) a change's length is measured over its
+run of neighbouring segments at the same level (\code{gene_rule = "fraction"}), since exome segmentation splits broad changes into
+pieces under 30 Mb. On the Schmitz exomes linked to LymphGen's
+training data, this agrees best with LymphGen's classifications from
+the training copy number.
 \item Feature matrix: the same mutations, copy number and
 translocations called as the registry's LymphGen features, applying
 the position rules LymphGen applies (see

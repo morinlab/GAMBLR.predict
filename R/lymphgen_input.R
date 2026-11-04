@@ -14,24 +14,43 @@
 #'     its own position rules (NOTCH1/NOTCH2 PEST, CD79B and the Synon
 #'     windows). Types: TRUNC (truncating classes, as in
 #'     [GAMBLR.utils::classify_mutations]), L265P (MYD88 p.L265P), MUTATION
-#'     (missense, in-frame and nonstop mutations) and Synon (silent and non-coding mutations,
-#'     e.g. 5' UTR, intron, splice region and flanking, in a Synon window).
+#'     (missense, in-frame and nonstop mutations) and Synon (silent and
+#'     non-coding mutations of the classes in `synon_classes`, by default
+#'     silent and 5' UTR, in a Synon window).
 #'     LymphGen counts TRUNC as MUTATION and both as Synon, so each mutation
 #'     has one row with its most specific type.
 #'   \item Gene list: the Entrez IDs of the genes sequenced. LymphGen refits
 #'     its model to these genes, so they must include the unmutated genes.
 #'   \item Copy number flat file (Sample, ENTREZ.ID, Type) and arm file
 #'     (Sample, Arm, Type): the LymphGen gene and arm copy number features
-#'     of the registry (gene features count changes of 30 Mb or less), as
+#'     of the registry, as
 #'     HETLOSS or HOMDEL and GAIN or AMP; LymphGen counts HOMDEL as HETLOSS
 #'     and AMP as GAIN. Only for samples with copy number. The levels follow
 #'     LymphGen's copy number categories: a change of at least half a copy
-#'     is HETLOSS or GAIN, and of at least 1.5 copies HOMDEL or AMP (so
-#'     HOMDEL is copy number 0.5 or less and AMP more than 3.5, from a
-#'     baseline of 2). With a CN column in `seg_data`, changes are in
-#'     absolute copies from each sample's dominant copy number (`value_scale
-#'     = "CN"`, `centering = "mode"`); otherwise log ratios centred on the
-#'     sample's median and converted to copies of a diploid genome.
+#'     is HETLOSS or GAIN, and of at least 1.5 copies HOMDEL or AMP, from
+#'     the sample's own baseline (from a baseline of 2, HOMDEL is copy
+#'     number 0.5 or less and AMP more than 3.5; in a tetraploid tumour a
+#'     loss to 2 copies is a HOMDEL), as in LymphGen's training data. Each sample is called on the scale its segments
+#'     support ([GAMBLR.utils::cnv_calling_settings]): in absolute copies from
+#'     its dominant copy number (`value_scale = "CN"`, `centering = "mode"`)
+#'     when they are purity-corrected (a `cn_type` of "absolute", e.g. from
+#'     [GAMBLR.utils::calibrate_relative_cn], or else a pipeline such as
+#'     battenberg or PureCN in the `pipeline` column), and otherwise as log
+#'     ratios centred on the sample's median and converted to copies of a
+#'     diploid genome (e.g. gatk_cnv and CNVkit, whose CN is only a rescaled
+#'     log ratio). Without those columns, every sample uses CN if
+#'     `seg_data` has a CN column, and log ratios otherwise. `cnv_args` overrides the
+#'     settings for every sample. Gene features count changes of 30 Mb or
+#'     less. For array segments (pipeline "schmitz_array") they are called
+#'     as in LymphGen's training data (`gene_rule = "lymphgen"` of
+#'     [GAMBLR.utils::segmented_data_to_cnv_status]: one segment of 30 Mb or
+#'     less, on its own length, decides each gene); for sequencing (and
+#'     segments without a pipeline) a change's length is measured over its
+#'     run of neighbouring segments at the same level (`gene_rule =
+#'     "fraction"`), since exome segmentation splits broad changes into
+#'     pieces under 30 Mb. On the Schmitz exomes linked to LymphGen's
+#'     training data, this agrees best with LymphGen's classifications from
+#'     the training copy number.
 #'   \item Feature matrix: the same mutations, copy number and
 #'     translocations called as the registry's LymphGen features, applying
 #'     the position rules LymphGen applies (see
@@ -68,6 +87,16 @@
 #' @param genes Genes sequenced (symbols or Entrez IDs) for the gene list,
 #' e.g. a panel's genes. Default NULL lists every gene, as for genomes and
 #' exomes.
+#' @param synon_classes Variant_Classification values of the silent and
+#' non-coding mutations that count as Synon (inside the Synon windows); other
+#' non-coding mutations are left out of the flat file and the feature matrix.
+#' Default `c("Silent", "5'UTR")`, which best matches LymphGen's training
+#' data: for the Schmitz exomes linked to it, our in-window Synon calls from
+#' these two classes recover 164 of its 199 non-coding Synon features with 99
+#' extra, against 170 with 396 extra when intronic, 3' UTR and 5' flank
+#' calls also count (most extras are intronic, e.g. in CD83, PIM2, BTG2,
+#' PIM1). `c("Silent", "5'UTR", "5'Flank", "Intron", "3'UTR")` reproduces
+#' LGenIC's definition.
 #' @param synon_regions Where silent and non-coding mutations count as
 #' Synon: "registry" (default), the Synon windows of the registry's LymphGen
 #' features, which are those LymphGen 2 uses with every gene sequenced; or
@@ -76,6 +105,20 @@
 #' can select other Synon features, and then applies its own windows.
 #' @param protein_change_column Column of the MAFs with the protein change.
 #' Default NULL uses Protein_Change, or HGVSp_Short if there is none.
+#' @param cd79b_location_unknown Set to TRUE to write CD79B's coding
+#' mutations (MUTATION and TRUNC rows) with Location -1 ("unknown") in the
+#' mutation flat file, so that LymphGen 2 doesn't apply its CD79B position
+#' rules to them. Default FALSE. LymphGen 2 drops, in new samples, CD79B
+#' mutations past 62007172 and truncations past 62006800 (e.g. the splice
+#' site variants beside the ITAM, which are common in MCD). Its training data
+#' never had these rules applied: in the first LymphGen release the CD79B
+#' threshold was 63007172 (beyond the gene) and the truncation rule compared
+#' the wrong column, so neither ever took effect, and LymphGen 2 fixed the
+#' rules but kept the same training matrix. In the Schmitz exomes linked to
+#' it, the training data have CD79B TRUNC and MUTATION for every such splice
+#' site truncation. With TRUE, these mutations count as they did when the
+#' model was trained; LymphGen itself is unchanged. Only the mutation flat
+#' file is affected, not the feature matrix.
 #' @param cnv_args Optional named list of further arguments for
 #' [GAMBLR.utils::segmented_data_to_cnv_status], e.g. `blacklist`, or to
 #' override the LymphGen defaults (`value_scale`, `centering`,
@@ -122,7 +165,9 @@ lymphgen_input = function(maf_data,
                           sv_positive_values = "POS",
                           genes = NULL,
                           synon_regions = "registry",
+                          synon_classes = c("Silent", "5'UTR"),
                           protein_change_column = NULL,
+                          cd79b_location_unknown = FALSE,
                           cnv_args = list(),
                           output_dir = NULL,
                           prefix = "lymphgen"){
@@ -173,14 +218,20 @@ lymphgen_input = function(maf_data,
                          "Reference_Allele", "Tumor_Seq_Allele2"), colnames(maf))
   maf = maf[!duplicated(maf[, key_cols]), , drop = FALSE]
   maf = GAMBLR.utils::classify_mutations(maf, protein_change_column)
+  # silent and non-coding mutations count as Synon only in synon_classes; the
+  # others are left out of the flat file and the feature matrix
+  coding_classes = c("trunc", "missense", "inframe", "nonstop")
+  dropped = !maf$mutation_class %in% coding_classes &
+    !maf$Variant_Classification %in% synon_classes &
+    !(maf$Hugo_Symbol == "MYD88" & maf$Start_Position %in% 38182641)
+  maf = maf[!dropped, , drop = FALSE]
   # every sample's mutations, for the feature matrix
   all_maf = maf
   maf$entrez = to_entrez(maf$Hugo_Symbol)
   maf = maf[!is.na(maf$entrez) & maf$entrez %in% gene_ids, , drop = FALSE]
-  # coding classes as in the registry's LymphGen MUTATION features; everything
-  # else (silent, UTR, intron, splice region, flanking, including 5' UTR start
-  # gains) is non-coding and can count as Synon
-  coding = maf$mutation_class %in% c("trunc", "missense", "inframe", "nonstop")
+  # coding classes as in the registry's LymphGen MUTATION features; the rest
+  # (silent and non-coding mutations of synon_classes) can count as Synon
+  coding = maf$mutation_class %in% coding_classes
   l265p = maf$Hugo_Symbol == "MYD88" &
     (maf$protein_change %in% "p.L265P" | maf$Start_Position == 38182641)
   type = ifelse(l265p, "L265P",
@@ -220,16 +271,26 @@ lymphgen_input = function(maf_data,
                                       mutation_flat$ENTREZ.ID,
                                       mutation_flat$Location), , drop = FALSE]
   rownames(mutation_flat) = NULL
+  # CD79B coding mutations without their position, so LymphGen 2's CD79B
+  # position rules (which its training data never had) don't drop them
+  if(cd79b_location_unknown){
+    cd79b = mutation_flat$ENTREZ.ID %in% 974 & mutation_flat$Type %in% c("MUTATION", "TRUNC")
+    mutation_flat$Location[cd79b] = -1L
+  }
 
   # registry features: copy number, translocations and the feature matrix --
   cn_features = registry[registry$data_type == "cnv", , drop = FALSE]
   sv_features = registry[registry$data_type == "sv" &
                            registry$gene %in% c("BCL2", "BCL6"), , drop = FALSE]
   # LymphGen's copy number categories (see details)
+  # homdel_max_cn = NULL (relative level 2) as NA, which modifyList keeps
+  if("homdel_max_cn" %in% names(cnv_args) && is.null(cnv_args$homdel_max_cn)) cnv_args["homdel_max_cn"] = list(NA_real_)
+  user_cnv_args = cnv_args
   has_cn_column = !is.null(seg_data) && "CN" %in% colnames(seg_data)
   cnv_args = utils::modifyList(list(value_scale = if(has_cn_column) "CN" else "log_ratio",
                                     centering = if(has_cn_column) "mode" else "median",
-                                    single_thresh = 0.5, high_thresh = 1.5),
+                                    single_thresh = 0.5, high_thresh = 1.5,
+                                    gene_rule = "fraction", homdel_max_cn = NA),
                                cnv_args)
   wanted = registry[!duplicated(registry$feature), , drop = FALSE]
   feature_table = suppressMessages(GAMBLR.utils::assemble_classifier_features(
@@ -248,6 +309,32 @@ lymphgen_input = function(maf_data,
     genome_build = "grch37",
     cnv_args = cnv_args
   ))
+  # each sample's copy number features with its own settings, when its
+  # segments say what kind of copy number they have (see details)
+  groups = .lymphgen_cn_groups(seg_data, samples, user_cnv_args)
+  if(!is.null(groups)){
+    cn_wanted = wanted[wanted$data_type == "cnv", setdiff(colnames(wanted),
+                                                          c("classifier", "classifier_feature", "group",
+                                                            "feature_order", "value", "min_level",
+                                                            "submodels")), drop = FALSE]
+    setting_cols = c("value_scale", "centering", "single_thresh", "high_thresh", "gene_rule", "homdel_max_cn")
+    # one key per combination of settings (homdel_max_cn can be NA)
+    group_key = do.call(paste, c(groups[, setting_cols], sep = "|"))
+    keys = groups[!duplicated(group_key), setting_cols, drop = FALSE]
+    for(k in seq_len(nrow(keys))){
+      in_group = groups$sample_id[group_key == do.call(paste, c(keys[k, , drop = FALSE], sep = "|"))]
+      group_args = utils::modifyList(cnv_args, as.list(keys[k, , drop = FALSE]))
+      group_table = suppressMessages(GAMBLR.utils::assemble_classifier_features(
+        these_samples_metadata[these_samples_metadata$sample_id %in% in_group, , drop = FALSE],
+        features = cn_wanted,
+        seg_data = seg_data[seg_data$ID %in% in_group, , drop = FALSE],
+        genome_build = "grch37",
+        cnv_args = group_args))
+      replace = feature_table$feature %in% cn_wanted$feature & feature_table$sample_id %in% in_group
+      feature_table = rbind(feature_table[!replace, , drop = FALSE],
+                            group_table[, colnames(feature_table), drop = FALSE])
+    }
+  }
   status = function(feature){
     calls = feature_table[feature_table$feature == feature, , drop = FALSE]
     calls = calls[match(samples, calls$sample_id), , drop = FALSE]
@@ -320,4 +407,40 @@ lymphgen_input = function(maf_data,
   }
   attr(out, "files") = files
   invisible(out)
+}
+
+# Copy number calling settings per sample, from its segments: their cn_type
+# column (e.g. from GAMBLR.utils::calibrate_relative_cn) or else their
+# pipeline (GAMBLR.utils::cn_pipeline_types), with LymphGen's thresholds;
+# a CN-scale sample without CN uses log ratios. NULL when seg_data has
+# neither column (every sample then uses the same settings).
+.lymphgen_cn_groups = function(seg_data, samples, cnv_args){
+  if(is.null(seg_data)) return(NULL)
+  segs = as.data.frame(seg_data)
+  segs = segs[segs$ID %in% samples, , drop = FALSE]
+  if(nrow(segs) == 0 || !any(c("cn_type", "pipeline") %in% colnames(segs))) return(NULL)
+  ids = unique(segs$ID)
+  pipeline = if("pipeline" %in% colnames(segs)){
+    p = tapply(as.character(segs$pipeline), segs$ID, function(x) unique(stats::na.omit(x)))
+    several = ids[lengths(p[ids]) > 1]
+    if(length(several) > 0){
+      stop(length(several), " sample(s) have segments from several pipelines (e.g. ", several[1],
+           "); give one segmentation per sample, e.g. from get_cn_segments(source_rule = ...)")
+    }
+    vapply(p[ids], function(x) if(length(x) == 0) NA_character_ else x, "")
+  } else rep(NA_character_, length(ids))
+  cn_type = if("cn_type" %in% colnames(segs)){
+    t = tapply(as.character(segs$cn_type), segs$ID, function(x) unique(stats::na.omit(x)))
+    vapply(t[ids], function(x) if(length(x) == 1) x else NA_character_, "")
+  } else rep(NA_character_, length(ids))
+  settings = GAMBLR.utils::cnv_calling_settings(ifelse(is.na(pipeline), "unknown", pipeline), "LymphGen",
+                                                cnv_args, cn_type = cn_type)
+  has_cn = "CN" %in% colnames(segs) &
+    ids %in% segs$ID[!is.na(segs$CN)]
+  no_cn = settings$value_scale == "CN" & !has_cn
+  settings$value_scale[no_cn] = "log_ratio"
+  settings$centering[no_cn] = "median"
+  data.frame(sample_id = ids, settings[, c("cn_type", "value_scale", "centering", "single_thresh", "high_thresh", "gene_rule",
+                                           "homdel_max_cn")],
+             stringsAsFactors = FALSE)
 }

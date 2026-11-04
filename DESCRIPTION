@@ -18,6 +18,8 @@ Description: Collection of functions and helpers to classify different B-cell ly
     This is part of the Genomic Analysis of Mature B-cell Lymphomas (GAMBL) project of the
     Morin Lab and is closely related to R packages GAMBLR and GAMBLR.data.
 License: MIT + file LICENSE
+SystemRequirements: run_dlbclass() needs DLBclass-tool (https://github.com/getzlab/DLBclass-tool) and a
+    Python with its requirements (pandas, torch), installed separately.
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

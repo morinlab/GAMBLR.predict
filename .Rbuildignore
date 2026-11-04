@@ -1,3 +1,5 @@
 ^GAMBLR\.predict\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
+^data-raw$
+^docs$

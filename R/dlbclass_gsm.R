@@ -194,7 +194,9 @@ dlbclass_gsm = function(maf_data,
 
   # copy number features
   if(!is.null(seg_data)){
-    cnv_call = utils::modifyList(cnv_args, list(
+    # DLBClass features are called as DLBClass defines them: no gap bridging
+    # or spike removal unless cnv_args asks for them
+    cnv_call = utils::modifyList(utils::modifyList(list(bridge_gaps = 0, min_gain_spike = 0), cnv_args), list(
       seg_data = seg_data,
       cnv_features = GAMBLR.utils::get_cnv_features(genome_build,
                                                     feature_set = "DLBClass"),
