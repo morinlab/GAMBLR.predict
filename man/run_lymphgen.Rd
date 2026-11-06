@@ -7,6 +7,7 @@
 run_lymphgen(
   lymphgen_input,
   lymphgen_dir = NULL,
+  model = NULL,
   version = 2,
   a53 = TRUE,
   cnv_mode = NULL,
@@ -21,6 +22,14 @@ a list of them (unnamed ones are named input1, input2, ...).}
 
 \item{lymphgen_dir}{Directory of the LymphGen distribution. Default: the
 \code{GAMBLR.predict.lymphgen_dir} option, else \code{LYMPHGEN_DIR}.}
+
+\item{model}{LymphGen model: "original" (LymphGen 2 as released) or
+"gambl_v2", the GAMBL-derived model (no copy number, no A53, composite
+calls at 0.40; \verb{Run_Lymphgen.R --model gambl_v2}), which needs the GAMBL
+LymphGen repository (with \verb{models/gambl_v2/}) as \code{lymphgen_dir}. Default
+NULL: the model the inputs were built for (attribute "lymphgen_model" of
+\link{lymphgen_input}'s output), else "original". For gambl_v2 the result also
+has LymphGen.Default.Prediction, LymphGen's own call.}
 
 \item{version}{LymphGen algorithm version: 2 (default; improved for
 incomplete data) or 1 (the original).}
@@ -80,6 +89,10 @@ table(calls$LymphGen)
 # with and without copy number
 no_cn = lymphgen_input(maf, meta)
 calls = run_lymphgen(list(with_cn = inputs, no_cn = no_cn))
+
+# the GAMBL-derived model (see ?lymphgen_input for its inputs)
+v2 = lymphgen_input(maf, meta, noncoding_maf = noncoding, model = "gambl_v2")
+calls_v2 = run_lymphgen(v2)
 plot_classification_alluvial(calls, class_column = "LymphGen")  # GAMBLR.viz
 }
 }

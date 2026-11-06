@@ -18,6 +18,7 @@ lymphgen_input(
   protein_change_column = NULL,
   cd79b_location_unknown = FALSE,
   cnv_args = list(),
+  model = "original",
   output_dir = NULL,
   prefix = "lymphgen"
 )
@@ -94,6 +95,27 @@ file is affected, not the feature matrix.}
 override the LymphGen defaults (\code{value_scale}, \code{centering},
 \code{single_thresh = 0.5}, \code{high_thresh = 1.5}).}
 
+\item{model}{The LymphGen model the inputs are for: "original" (default;
+LymphGen 2 as released) or "gambl_v2" (the GAMBL-derived model, run with
+\verb{Run_Lymphgen.R --model gambl_v2}, see \link{run_lymphgen}). "gambl_v2" adds
+two pseudo-gene features to the mutation flat file, as they were built for
+its training data:
+\itemize{
+\item NFKBIZ 3' UTR (ENTREZ.ID 1000000006, Type MUTATION): any mutation
+in grch37 3:101578215-101578462, whatever its Variant_Classification.
+Most coding MAFs leave out 3' UTR mutations, so give them in
+\code{noncoding_maf} (e.g. from \code{get_ssm_by_region(chromosome = "3", qstart = 101578215, qend = 101578462)}); without them the feature
+counts as unmutated. Exome captures that don't target the UTR still
+detect some of these mutations.
+\item MYD88 non-L265P (ENTREZ.ID 1000000005, Type MUTATION): MYD88
+missense mutations other than L265P.
+}
+Both are added to the gene list when their gene (NFKBIZ, MYD88) is in it.
+\code{Run_Lymphgen.R} drops the model's excluded Synon sub-regions itself. The
+model has no copy number training data, so \code{seg_data} is ignored (no
+copy_flat or arm, Copy.Number 0). The feature matrix is unchanged (the
+registry's LymphGen features).}
+
 \item{output_dir}{Optional directory to write the files to, as
 \verb{<prefix>_mutation_flat.tsv}, \verb{_gene_list.txt}, \verb{_copy_flat.tsv},
 \verb{_arm.tsv} and \verb{_sample_annotation.tsv} (copy number files only with
@@ -102,7 +124,7 @@ override the LymphGen defaults (\code{value_scale}, \code{centering},
 \item{prefix}{File name prefix for \code{output_dir}. Default "lymphgen".}
 }
 \value{
-A list of data frames: mutation_flat, gene_list, copy_flat and
+A list of data frames, with the model as attribute "lymphgen_model": mutation_flat, gene_list, copy_flat and
 arm (NULL without \code{seg_data}), sample_annotation, and feature_matrix
 (samples as rows, the LymphGen features of every submodel as columns, as
 from \link[GAMBLR.utils:classifier_feature_matrix]{GAMBLR.utils::classifier_feature_matrix}: 1 or 0, NA where not
@@ -189,5 +211,11 @@ lymphgen_input(maf, meta, noncoding_maf = noncoding, seg_data = segs,
 # then: Rscript Run_Lymphgen.R -m lymphgen_run/dlbcl_mutation_flat.tsv \
 #   -g lymphgen_run/dlbcl_gene_list.txt -s lymphgen_run/dlbcl_sample_annotation.tsv \
 #   -c lymphgen_run/dlbcl_copy_flat.tsv -a lymphgen_run/dlbcl_arm.tsv -o result.tsv
+
+# for the GAMBL-derived model: add the NFKBIZ 3' UTR mutations
+nfkbiz_utr = get_ssm_by_region(chromosome = "3", qstart = 101578215, qend = 101578462,
+                               these_samples_metadata = meta, streamlined = FALSE)
+v2 = lymphgen_input(maf, meta, noncoding_maf = rbind(noncoding, nfkbiz_utr), model = "gambl_v2")
+run_lymphgen(v2)   # runs Run_Lymphgen.R --model gambl_v2
 }
 }

@@ -26,6 +26,13 @@
 #' a list of them (unnamed ones are named input1, input2, ...).
 #' @param lymphgen_dir Directory of the LymphGen distribution. Default: the
 #' `GAMBLR.predict.lymphgen_dir` option, else `LYMPHGEN_DIR`.
+#' @param model LymphGen model: "original" (LymphGen 2 as released) or
+#' "gambl_v2", the GAMBL-derived model (no copy number, no A53, composite
+#' calls at 0.40; `Run_Lymphgen.R --model gambl_v2`), which needs the GAMBL
+#' LymphGen repository (with `models/gambl_v2/`) as `lymphgen_dir`. Default
+#' NULL: the model the inputs were built for (attribute "lymphgen_model" of
+#' [lymphgen_input]'s output), else "original". For gambl_v2 the result also
+#' has LymphGen.Default.Prediction, LymphGen's own call.
 #' @param version LymphGen algorithm version: 2 (default; improved for
 #' incomplete data) or 1 (the original).
 #' @param a53 Classify cases into A53. Default TRUE.
@@ -58,10 +65,15 @@
 #' # with and without copy number
 #' no_cn = lymphgen_input(maf, meta)
 #' calls = run_lymphgen(list(with_cn = inputs, no_cn = no_cn))
+#'
+#' # the GAMBL-derived model (see ?lymphgen_input for its inputs)
+#' v2 = lymphgen_input(maf, meta, noncoding_maf = noncoding, model = "gambl_v2")
+#' calls_v2 = run_lymphgen(v2)
 #' plot_classification_alluvial(calls, class_column = "LymphGen")  # GAMBLR.viz
 #' }
 run_lymphgen = function(lymphgen_input,
                         lymphgen_dir = NULL,
+                        model = NULL,
                         version = 2,
                         a53 = TRUE,
                         cnv_mode = NULL,
@@ -86,9 +98,27 @@ run_lymphgen = function(lymphgen_input,
     stop("LymphGen directory not found", if(!identical(lymphgen_dir, "")) paste0(": ", lymphgen_dir) else "",
          "; give lymphgen_dir (or set options(GAMBLR.predict.lymphgen_dir = ...)); see ?run_lymphgen")
   }
+  # the model: given, else the inputs', else the original
+  single = is.list(lymphgen_input) &&
+    any(names(lymphgen_input) %in% c("mutation_flat", "gene_list", "sample_annotation", "copy_flat"))
+  input_models = unique(unlist(lapply(if(single) list(lymphgen_input) else lymphgen_input,
+                                      function(x) attr(x, "lymphgen_model"))))
+  if(is.null(model)){
+    if(length(input_models) > 1) stop("the inputs were built for different models (", paste(input_models, collapse = ", "), "): give model")
+    model = if(length(input_models) == 1) input_models else "original"
+  }
+  model = match.arg(model, c("original", "gambl_v2"))
+  if(length(input_models) > 0 && !all(input_models == model)){
+    warning("inputs built for model ", paste(input_models, collapse = ", "), " are run with model ", model, call. = FALSE)
+  }
+  if(model != "original"){
+    needed = c(needed, file.path("models", model, "config.txt"))
+    if(version != 2) stop("model ", model, " supports version 2 only")
+  }
   absent = needed[!file.exists(file.path(lymphgen_dir, needed))]
   if(length(absent) > 0){
-    stop(lymphgen_dir, " lacks LymphGen file(s): ", paste(absent, collapse = ", "), "; see ?run_lymphgen")
+    stop(lymphgen_dir, " lacks LymphGen file(s): ", paste(absent, collapse = ", "),
+         if(model != "original") " (models other than the original need the GAMBL LymphGen repository)" else "", "; see ?run_lymphgen")
   }
   has_optparse = suppressWarnings(system2(rscript, c("-e", shQuote("cat(requireNamespace('optparse', quietly = TRUE))")),
                                           stdout = TRUE, stderr = TRUE))
@@ -97,8 +127,6 @@ run_lymphgen = function(lymphgen_input,
   }
 
   # one input (lymphgen_input()'s list of data frames) or a named list of them
-  single = is.list(lymphgen_input) &&
-    any(names(lymphgen_input) %in% c("mutation_flat", "gene_list", "sample_annotation", "copy_flat"))
   inputs = if(single) list(lymphgen = lymphgen_input) else lymphgen_input
   # unnamed ones are named input1, input2, ...
   if(is.null(names(inputs))) names(inputs) = rep("", length(inputs))
@@ -136,6 +164,7 @@ run_lymphgen = function(lymphgen_input,
              if(!is.null(files$copy_flat)) c("-c", shQuote(files$copy_flat)),
              if(!is.null(files$copy_flat) && !is.null(files$arm)) c("-a", shQuote(files$arm)),
              "-o", shQuote(out_file), "-v", version,
+             if(model != "original") c("--model", model),
              if(!a53) "--no_A53",
              if(!is.null(cnv_mode)) c("--cnv_mode", cnv_mode),
              if(compare) c("--compareout", shQuote(compare_file)))
@@ -149,7 +178,7 @@ run_lymphgen = function(lymphgen_input,
                         result[, setdiff(colnames(result), "Sample.Name"), drop = FALSE],
                         check.names = FALSE, stringsAsFactors = FALSE)
     attr(result, "lymphgen_run") = list(lymphgen_dir = lymphgen_dir, source_md5 = source_md5,
-                                        version = version, a53 = a53,
+                                        model = model, version = version, a53 = a53 && model == "original",
                                         cnv_mode = if(is.null(cnv_mode)) {
                                           if(is.null(files$copy_flat)) "None" else "Full"
                                         } else cnv_mode,

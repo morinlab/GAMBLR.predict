@@ -119,6 +119,27 @@
 #' site truncation. With TRUE, these mutations count as they did when the
 #' model was trained; LymphGen itself is unchanged. Only the mutation flat
 #' file is affected, not the feature matrix.
+#' @param model The LymphGen model the inputs are for: "original" (default;
+#' LymphGen 2 as released) or "gambl_v2" (the GAMBL-derived model, run with
+#' `Run_Lymphgen.R --model gambl_v2`, see [run_lymphgen]). "gambl_v2" adds
+#' two pseudo-gene features to the mutation flat file, as they were built for
+#' its training data:
+#' \itemize{
+#'   \item NFKBIZ 3' UTR (ENTREZ.ID 1000000006, Type MUTATION): any mutation
+#'     in grch37 3:101578215-101578462, whatever its Variant_Classification.
+#'     Most coding MAFs leave out 3' UTR mutations, so give them in
+#'     `noncoding_maf` (e.g. from `get_ssm_by_region(chromosome = "3",
+#'     qstart = 101578215, qend = 101578462)`); without them the feature
+#'     counts as unmutated. Exome captures that don't target the UTR still
+#'     detect some of these mutations.
+#'   \item MYD88 non-L265P (ENTREZ.ID 1000000005, Type MUTATION): MYD88
+#'     missense mutations other than L265P.
+#' }
+#' Both are added to the gene list when their gene (NFKBIZ, MYD88) is in it.
+#' `Run_Lymphgen.R` drops the model's excluded Synon sub-regions itself. The
+#' model has no copy number training data, so `seg_data` is ignored (no
+#' copy_flat or arm, Copy.Number 0). The feature matrix is unchanged (the
+#' registry's LymphGen features).
 #' @param cnv_args Optional named list of further arguments for
 #' [GAMBLR.utils::segmented_data_to_cnv_status], e.g. `blacklist`, or to
 #' override the LymphGen defaults (`value_scale`, `centering`,
@@ -129,7 +150,7 @@
 #' `seg_data`).
 #' @param prefix File name prefix for `output_dir`. Default "lymphgen".
 #'
-#' @return A list of data frames: mutation_flat, gene_list, copy_flat and
+#' @return A list of data frames, with the model as attribute "lymphgen_model": mutation_flat, gene_list, copy_flat and
 #' arm (NULL without `seg_data`), sample_annotation, and feature_matrix
 #' (samples as rows, the LymphGen features of every submodel as columns, as
 #' from [GAMBLR.utils::classifier_feature_matrix]: 1 or 0, NA where not
@@ -155,6 +176,12 @@
 #' # then: Rscript Run_Lymphgen.R -m lymphgen_run/dlbcl_mutation_flat.tsv \
 #' #   -g lymphgen_run/dlbcl_gene_list.txt -s lymphgen_run/dlbcl_sample_annotation.tsv \
 #' #   -c lymphgen_run/dlbcl_copy_flat.tsv -a lymphgen_run/dlbcl_arm.tsv -o result.tsv
+#'
+#' # for the GAMBL-derived model: add the NFKBIZ 3' UTR mutations
+#' nfkbiz_utr = get_ssm_by_region(chromosome = "3", qstart = 101578215, qend = 101578462,
+#'                                these_samples_metadata = meta, streamlined = FALSE)
+#' v2 = lymphgen_input(maf, meta, noncoding_maf = rbind(noncoding, nfkbiz_utr), model = "gambl_v2")
+#' run_lymphgen(v2)   # runs Run_Lymphgen.R --model gambl_v2
 #' }
 lymphgen_input = function(maf_data,
                           these_samples_metadata,
@@ -169,8 +196,14 @@ lymphgen_input = function(maf_data,
                           protein_change_column = NULL,
                           cd79b_location_unknown = FALSE,
                           cnv_args = list(),
+                          model = "original",
                           output_dir = NULL,
                           prefix = "lymphgen"){
+  model = match.arg(model, c("original", "gambl_v2"))
+  if(model == "gambl_v2" && !is.null(seg_data)){
+    message("the gambl_v2 model has no copy number training data: seg_data is ignored")
+    seg_data = NULL
+  }
   if(!synon_regions %in% c("registry", "gene_tss")){
     stop("synon_regions must be \"registry\" or \"gene_tss\"")
   }
@@ -205,6 +238,11 @@ lymphgen_input = function(maf_data,
     }
   }
   gene_ids = sort(unique(gene_ids[!is.na(gene_ids)]))
+  # gambl_v2 pseudo-genes count as sequenced when their gene is
+  if(model == "gambl_v2"){
+    if(4615 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$myd88_nonL265P)
+    if(9640 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$nfkbiz_3utr)
+  }
 
   # mutations -------------------------------------------------------------
   maf = as.data.frame(maf_data)
@@ -214,10 +252,24 @@ lymphgen_input = function(maf_data,
     maf = rbind(maf[, shared, drop = FALSE], noncoding_maf[, shared, drop = FALSE])
   }
   maf = maf[maf$Tumor_Sample_Barcode %in% samples, , drop = FALSE]
-  key_cols = intersect(c("Tumor_Sample_Barcode", "Chromosome", "Start_Position",
+  # no mutations means LymphGen calls every sample Other: say so
+  n_mutated = length(unique(maf$Tumor_Sample_Barcode))
+  if(n_mutated == 0){
+    warning("none of the ", length(samples), " samples has a mutation in maf_data",
+            if(!is.null(noncoding_maf)) " or noncoding_maf" else "",
+            ", so LymphGen will call them all Other. Check that the MAF's Tumor_Sample_Barcode ",
+            "values match these_samples_metadata$sample_id and that its seq_type matches ",
+            "(e.g. GAMBLR.open::get_coding_ssm() returns genome samples unless this_seq_type is given)",
+            call. = FALSE)
+  }else if(n_mutated < length(samples)){
+    message(length(samples) - n_mutated, " of ", length(samples), " samples have no mutation in the MAF(s)")
+  }
+  key_cols =intersect(c("Tumor_Sample_Barcode", "Chromosome", "Start_Position",
                          "Reference_Allele", "Tumor_Seq_Allele2"), colnames(maf))
   maf = maf[!duplicated(maf[, key_cols]), , drop = FALSE]
   maf = GAMBLR.utils::classify_mutations(maf, protein_change_column)
+  # gambl_v2 pseudo-gene rows, before non-coding classes are filtered
+  extra_flat = if(model == "gambl_v2") .gambl_v2_rows(maf, gene_ids) else NULL
   # silent and non-coding mutations count as Synon only in synon_classes; the
   # others are left out of the flat file and the feature matrix
   coding_classes = c("trunc", "missense", "inframe", "nonstop")
@@ -267,6 +319,7 @@ lymphgen_input = function(maf_data,
                              Type = type[keep],
                              Location = maf$Start_Position[keep],
                              stringsAsFactors = FALSE)
+  mutation_flat = rbind(mutation_flat, extra_flat)
   mutation_flat = mutation_flat[order(match(mutation_flat$Sample, samples),
                                       mutation_flat$ENTREZ.ID,
                                       mutation_flat$Location), , drop = FALSE]
@@ -391,6 +444,7 @@ lymphgen_input = function(maf_data,
              arm = arm,
              sample_annotation = sample_annotation,
              feature_matrix = feature_matrix)
+  attr(out, "lymphgen_model") = model
   if(is.null(output_dir)) return(out)
 
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
@@ -407,6 +461,34 @@ lymphgen_input = function(maf_data,
   }
   attr(out, "files") = files
   invisible(out)
+}
+
+# The gambl_v2 model's pseudo-genes (as in its training data; see
+# README_models.md of the LymphGen repository)
+.gambl_v2 = list(nfkbiz_3utr = 1000000006L, nfkbiz_chrom = "3", nfkbiz_start = 101578215, nfkbiz_end = 101578462,
+                 myd88_nonL265P = 1000000005L, myd88_l265p_position = 38182641)
+
+# Mutation flat rows of the gambl_v2 pseudo-genes from a classified grch37 MAF:
+# NFKBIZ 3' UTR (any mutation in the region) and MYD88 missense other than
+# L265P. Only for genes in the gene list.
+.gambl_v2_rows = function(maf, gene_ids){
+  v = .gambl_v2
+  chrom = sub("^chr", "", as.character(maf$Chromosome))
+  nfkbiz = chrom == v$nfkbiz_chrom & maf$Start_Position >= v$nfkbiz_start & maf$Start_Position <= v$nfkbiz_end
+  myd88 = maf$Hugo_Symbol %in% "MYD88" & maf$Variant_Classification %in% "Missense_Mutation" &
+    !(maf$Start_Position %in% v$myd88_l265p_position | maf$protein_change %in% "p.L265P")
+  if(!v$nfkbiz_3utr %in% gene_ids) nfkbiz[] = FALSE
+  if(!v$myd88_nonL265P %in% gene_ids) myd88[] = FALSE
+  message("gambl_v2: NFKBIZ 3' UTR mutations in ", length(unique(maf$Tumor_Sample_Barcode[nfkbiz])),
+          " samples; MYD88 non-L265P missense in ", length(unique(maf$Tumor_Sample_Barcode[myd88])), " samples",
+          if(!any(nfkbiz)) paste0(". No NFKBIZ 3' UTR mutations: do the MAFs cover grch37 3:", v$nfkbiz_start, "-",
+                                  v$nfkbiz_end, "? (see ?lymphgen_input)") else "")
+  rows = c(which(nfkbiz), which(myd88))
+  data.frame(Sample = maf$Tumor_Sample_Barcode[rows],
+             ENTREZ.ID = c(rep(v$nfkbiz_3utr, sum(nfkbiz)), rep(v$myd88_nonL265P, sum(myd88))),
+             Type = "MUTATION",
+             Location = maf$Start_Position[rows],
+             stringsAsFactors = FALSE)
 }
 
 # Copy number calling settings per sample, from its segments: their cn_type
