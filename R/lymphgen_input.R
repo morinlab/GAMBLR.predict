@@ -136,8 +136,9 @@
 #'     missense mutations other than L265P.
 #' }
 #' Both are added to the gene list when their gene (NFKBIZ, MYD88) is in it.
-#' "gambl_v3" (`Run_Lymphgen.R --model gambl_v3`) adds one more (the
-#' model has no gene-level FOXO1 features; keep FOXO1 in the gene list):
+#' "gambl_v3" and "gambl_v4" (`Run_Lymphgen.R --model gambl_v3`/`gambl_v4`) add
+#' one more (the models have no gene-level FOXO1 features; keep FOXO1 in the
+#' gene list):
 #' \itemize{
 #'   \item FOXO1 N-terminal (ENTREZ.ID 1000000007, Type MUTATION): a FOXO1
 #'     coding mutation (truncating, missense, in-frame or nonstop class) in
@@ -209,8 +210,8 @@ lymphgen_input = function(maf_data,
                           model = "original",
                           output_dir = NULL,
                           prefix = "lymphgen"){
-  model = match.arg(model, c("original", "gambl_v2", "gambl_v3"))
-  gambl = model %in% c("gambl_v2", "gambl_v3")
+  model = match.arg(model, c("original", "gambl_v2", "gambl_v3", "gambl_v4"))
+  gambl = model %in% c("gambl_v2", "gambl_v3", "gambl_v4")
   if(gambl && !is.null(seg_data)){
     message("the ", model, " model has no copy number training data: seg_data is ignored")
     seg_data = NULL
@@ -254,7 +255,7 @@ lymphgen_input = function(maf_data,
     if(4615 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$myd88_nonL265P)
     if(64332 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$nfkbiz_3utr)   # NFKBIZ is Entrez 64332 (9640, used before, is ZNF592)
   }
-  if(model == "gambl_v3" && 2308 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v3$foxo1_nterm)
+  if(model %in% c("gambl_v3", "gambl_v4") && 2308 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v3$foxo1_nterm)
 
   # mutations -------------------------------------------------------------
   maf = as.data.frame(maf_data)
@@ -282,7 +283,7 @@ lymphgen_input = function(maf_data,
   maf = GAMBLR.utils::classify_mutations(maf, protein_change_column)
   # gambl_v2 pseudo-gene rows, before non-coding classes are filtered
   extra_flat = if(gambl) .gambl_v2_rows(maf, gene_ids) else NULL
-  if(model == "gambl_v3") extra_flat = rbind(extra_flat, .gambl_v3_rows(maf, gene_ids))
+  if(model %in% c("gambl_v3", "gambl_v4")) extra_flat = rbind(extra_flat, .gambl_v3_rows(maf, gene_ids))
   # silent and non-coding mutations count as Synon only in synon_classes; the
   # others are left out of the flat file and the feature matrix
   coding_classes = c("trunc", "missense", "inframe", "nonstop")

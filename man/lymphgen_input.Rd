@@ -111,8 +111,9 @@ detect some of these mutations.
 missense mutations other than L265P.
 }
 Both are added to the gene list when their gene (NFKBIZ, MYD88) is in it.
-"gambl_v3" (\verb{Run_Lymphgen.R --model gambl_v3}) adds one more (the
-model has no gene-level FOXO1 features; keep FOXO1 in the gene list):
+"gambl_v3" and "gambl_v4" (\verb{Run_Lymphgen.R --model gambl_v3}/\code{gambl_v4}) add
+one more (the models have no gene-level FOXO1 features; keep FOXO1 in the
+gene list):
 \itemize{
 \item FOXO1 N-terminal (ENTREZ.ID 1000000007, Type MUTATION): a FOXO1
 coding mutation (truncating, missense, in-frame or nonstop class) in
