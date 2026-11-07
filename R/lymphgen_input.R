@@ -252,7 +252,7 @@ lymphgen_input = function(maf_data,
   # gambl_v2 pseudo-genes count as sequenced when their gene is
   if(gambl){
     if(4615 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$myd88_nonL265P)
-    if(9640 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$nfkbiz_3utr)
+    if(64332 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$nfkbiz_3utr)   # NFKBIZ is Entrez 64332 (9640, used before, is ZNF592)
   }
   if(model == "gambl_v3" && 2308 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v3$foxo1_nterm)
 
