@@ -111,6 +111,16 @@ detect some of these mutations.
 missense mutations other than L265P.
 }
 Both are added to the gene list when their gene (NFKBIZ, MYD88) is in it.
+"gambl_v3" (\verb{Run_Lymphgen.R --model gambl_v3}) adds one more (the
+model has no gene-level FOXO1 features; keep FOXO1 in the gene list):
+\itemize{
+\item FOXO1 N-terminal (ENTREZ.ID 1000000007, Type MUTATION): a FOXO1
+coding mutation (truncating, missense, in-frame or nonstop class) in
+grch37 13:41240271-41240351, the FOXO1_Nterm region of
+GAMBLR.utils' curated hotspot regions (the AKT phosphorylation sites,
+e.g. R21, S22, T24, and the start codon). Added to the gene list when
+FOXO1 is in it.
+}
 \code{Run_Lymphgen.R} drops the model's excluded Synon sub-regions itself. The
 model has no copy number training data, so \code{seg_data} is ignored (no
 copy_flat or arm, Copy.Number 0). The feature matrix is unchanged (the

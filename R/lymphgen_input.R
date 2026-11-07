@@ -136,6 +136,16 @@
 #'     missense mutations other than L265P.
 #' }
 #' Both are added to the gene list when their gene (NFKBIZ, MYD88) is in it.
+#' "gambl_v3" (`Run_Lymphgen.R --model gambl_v3`) adds one more (the
+#' model has no gene-level FOXO1 features; keep FOXO1 in the gene list):
+#' \itemize{
+#'   \item FOXO1 N-terminal (ENTREZ.ID 1000000007, Type MUTATION): a FOXO1
+#'     coding mutation (truncating, missense, in-frame or nonstop class) in
+#'     grch37 13:41240271-41240351, the FOXO1_Nterm region of
+#'     GAMBLR.utils' curated hotspot regions (the AKT phosphorylation sites,
+#'     e.g. R21, S22, T24, and the start codon). Added to the gene list when
+#'     FOXO1 is in it.
+#' }
 #' `Run_Lymphgen.R` drops the model's excluded Synon sub-regions itself. The
 #' model has no copy number training data, so `seg_data` is ignored (no
 #' copy_flat or arm, Copy.Number 0). The feature matrix is unchanged (the
@@ -199,9 +209,10 @@ lymphgen_input = function(maf_data,
                           model = "original",
                           output_dir = NULL,
                           prefix = "lymphgen"){
-  model = match.arg(model, c("original", "gambl_v2"))
-  if(model == "gambl_v2" && !is.null(seg_data)){
-    message("the gambl_v2 model has no copy number training data: seg_data is ignored")
+  model = match.arg(model, c("original", "gambl_v2", "gambl_v3"))
+  gambl = model %in% c("gambl_v2", "gambl_v3")
+  if(gambl && !is.null(seg_data)){
+    message("the ", model, " model has no copy number training data: seg_data is ignored")
     seg_data = NULL
   }
   if(!synon_regions %in% c("registry", "gene_tss")){
@@ -239,10 +250,11 @@ lymphgen_input = function(maf_data,
   }
   gene_ids = sort(unique(gene_ids[!is.na(gene_ids)]))
   # gambl_v2 pseudo-genes count as sequenced when their gene is
-  if(model == "gambl_v2"){
+  if(gambl){
     if(4615 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$myd88_nonL265P)
     if(9640 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$nfkbiz_3utr)
   }
+  if(model == "gambl_v3" && 2308 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v3$foxo1_nterm)
 
   # mutations -------------------------------------------------------------
   maf = as.data.frame(maf_data)
@@ -269,7 +281,8 @@ lymphgen_input = function(maf_data,
   maf = maf[!duplicated(maf[, key_cols]), , drop = FALSE]
   maf = GAMBLR.utils::classify_mutations(maf, protein_change_column)
   # gambl_v2 pseudo-gene rows, before non-coding classes are filtered
-  extra_flat = if(model == "gambl_v2") .gambl_v2_rows(maf, gene_ids) else NULL
+  extra_flat = if(gambl) .gambl_v2_rows(maf, gene_ids) else NULL
+  if(model == "gambl_v3") extra_flat = rbind(extra_flat, .gambl_v3_rows(maf, gene_ids))
   # silent and non-coding mutations count as Synon only in synon_classes; the
   # others are left out of the flat file and the feature matrix
   coding_classes = c("trunc", "missense", "inframe", "nonstop")
@@ -486,9 +499,28 @@ lymphgen_input = function(maf_data,
   rows = c(which(nfkbiz), which(myd88))
   data.frame(Sample = maf$Tumor_Sample_Barcode[rows],
              ENTREZ.ID = c(rep(v$nfkbiz_3utr, sum(nfkbiz)), rep(v$myd88_nonL265P, sum(myd88))),
-             Type = "MUTATION",
+             Type = rep("MUTATION", length(rows)),
              Location = maf$Start_Position[rows],
              stringsAsFactors = FALSE)
+}
+
+# The gambl_v3 model's further pseudo-gene: FOXO1 N-terminal, the FOXO1_Nterm
+# region of GAMBLR.utils' hotspot_regions.grch37.tsv as used in its training
+# data (lymphgen_validation foxo1_nterm_flats.R)
+.gambl_v3 = list(foxo1_nterm = 1000000007L, foxo1_chrom = "13", foxo1_start = 41240271, foxo1_end = 41240351)
+
+# Mutation flat rows of FOXO1 N-terminal from a classified grch37 MAF: FOXO1
+# coding mutations (trunc, missense, inframe, nonstop classes; i.e. the FOXO1
+# MUTATION/TRUNC rows) in the region. Only when the pseudo-gene is in the gene list.
+.gambl_v3_rows = function(maf, gene_ids){
+  v = .gambl_v3
+  chrom = sub("^chr", "", as.character(maf$Chromosome))
+  foxo1 = maf$Hugo_Symbol %in% "FOXO1" & chrom == v$foxo1_chrom & maf$Start_Position >= v$foxo1_start &
+    maf$Start_Position <= v$foxo1_end & maf$mutation_class %in% c("trunc", "missense", "inframe", "nonstop")
+  if(!v$foxo1_nterm %in% gene_ids) foxo1[] = FALSE
+  message("gambl_v3: FOXO1 N-terminal mutations in ", length(unique(maf$Tumor_Sample_Barcode[foxo1])), " samples")
+  data.frame(Sample = maf$Tumor_Sample_Barcode[foxo1], ENTREZ.ID = rep(v$foxo1_nterm, sum(foxo1)), Type = rep("MUTATION", sum(foxo1)),
+             Location = maf$Start_Position[foxo1], stringsAsFactors = FALSE)
 }
 
 # Copy number calling settings per sample, from its segments: their cn_type

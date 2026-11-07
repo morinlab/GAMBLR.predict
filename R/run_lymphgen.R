@@ -32,7 +32,16 @@
 #' LymphGen repository (with `models/gambl_v2/`) as `lymphgen_dir`. Default
 #' NULL: the model the inputs were built for (attribute "lymphgen_model" of
 #' [lymphgen_input]'s output), else "original". For gambl_v2 the result also
-#' has LymphGen.Default.Prediction, LymphGen's own call.
+#' has LymphGen.Default.Prediction, LymphGen's own call. "gambl_v3" extends
+#' gambl_v2 (more training samples, new genes, FOXO1 N-terminal feature; see
+#' README_models.md of the GAMBL LymphGen repository).
+#' @param not_assessed Optional gene symbols (or Entrez IDs) the samples were
+#' not assessed for, e.g. not covered by their capture
+#' (`Run_Lymphgen.R --not_assessed`, GAMBL LymphGen repository): left out of
+#' the gene list so their features count as unknown rather than unmutated.
+#' It applies to every sample of the run, so run cohorts with different
+#' captures separately. For the Reddy et al. exomes:
+#' `c("LTB", "HLA-A", "HLA-B", "P2RY8", "PRRC2A")`.
 #' @param version LymphGen algorithm version: 2 (default; improved for
 #' incomplete data) or 1 (the original).
 #' @param a53 Classify cases into A53. Default TRUE.
@@ -77,6 +86,7 @@ run_lymphgen = function(lymphgen_input,
                         version = 2,
                         a53 = TRUE,
                         cnv_mode = NULL,
+                        not_assessed = NULL,
                         compare = FALSE,
                         rscript = NULL){
   if(is.null(lymphgen_dir)){
@@ -107,7 +117,7 @@ run_lymphgen = function(lymphgen_input,
     if(length(input_models) > 1) stop("the inputs were built for different models (", paste(input_models, collapse = ", "), "): give model")
     model = if(length(input_models) == 1) input_models else "original"
   }
-  model = match.arg(model, c("original", "gambl_v2"))
+  model = match.arg(model, c("original", "gambl_v2", "gambl_v3"))
   if(length(input_models) > 0 && !all(input_models == model)){
     warning("inputs built for model ", paste(input_models, collapse = ", "), " are run with model ", model, call. = FALSE)
   }
@@ -167,6 +177,7 @@ run_lymphgen = function(lymphgen_input,
              if(model != "original") c("--model", model),
              if(!a53) "--no_A53",
              if(!is.null(cnv_mode)) c("--cnv_mode", cnv_mode),
+             if(length(not_assessed) > 0) c("--not_assessed", shQuote(paste(not_assessed, collapse = ","))),
              if(compare) c("--compareout", shQuote(compare_file)))
     log = suppressWarnings(system2(rscript, args, stdout = TRUE, stderr = TRUE))
     if(!is.null(attr(log, "status")) || !file.exists(out_file)){

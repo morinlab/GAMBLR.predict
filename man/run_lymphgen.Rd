@@ -11,6 +11,7 @@ run_lymphgen(
   version = 2,
   a53 = TRUE,
   cnv_mode = NULL,
+  not_assessed = NULL,
   compare = FALSE,
   rscript = NULL
 )
@@ -29,7 +30,9 @@ calls at 0.40; \verb{Run_Lymphgen.R --model gambl_v2}), which needs the GAMBL
 LymphGen repository (with \verb{models/gambl_v2/}) as \code{lymphgen_dir}. Default
 NULL: the model the inputs were built for (attribute "lymphgen_model" of
 \link{lymphgen_input}'s output), else "original". For gambl_v2 the result also
-has LymphGen.Default.Prediction, LymphGen's own call.}
+has LymphGen.Default.Prediction, LymphGen's own call. "gambl_v3" extends
+gambl_v2 (more training samples, new genes, FOXO1 N-terminal feature; see
+README_models.md of the GAMBL LymphGen repository).}
 
 \item{version}{LymphGen algorithm version: 2 (default; improved for
 incomplete data) or 1 (the original).}
@@ -39,6 +42,14 @@ incomplete data) or 1 (the original).}
 \item{cnv_mode}{Optional \code{Run_Lymphgen.R} copy number mode: "Full",
 "None", "Only_AMP_HOMDEL" or "Only_Gain_Loss". Default NULL: "Full" with
 copy number, "None" without.}
+
+\item{not_assessed}{Optional gene symbols (or Entrez IDs) the samples were
+not assessed for, e.g. not covered by their capture
+(\code{Run_Lymphgen.R --not_assessed}, GAMBL LymphGen repository): left out of
+the gene list so their features count as unknown rather than unmutated.
+It applies to every sample of the run, so run cohorts with different
+captures separately. For the Reddy et al. exomes:
+\code{c("LTB", "HLA-A", "HLA-B", "P2RY8", "PRRC2A")}.}
 
 \item{compare}{Also return LymphGen's per-class precision and recall for
 the features provided (\code{--compareout}), as \code{attr(result, "compare")}.
