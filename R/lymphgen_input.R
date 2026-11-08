@@ -155,6 +155,32 @@
 #' [GAMBLR.utils::segmented_data_to_cnv_status], e.g. `blacklist`, or to
 #' override the LymphGen defaults (`value_scale`, `centering`,
 #' `single_thresh = 0.5`, `high_thresh = 1.5`).
+#' @param cn_scope Which copy number features to write (with `seg_data`):
+#' "selected" (default) only those the model uses (for the original model, the
+#' 51 genes and 8 arms its feature selection picks; LymphGen ignores the
+#' rest), or "candidates" every copy number feature in the model's training
+#' feature annotation (`Full.Uber.2020.txt`; for the original model about
+#' 2,100 genes and its arm features), for building or checking training
+#' data. Candidates are called with the same settings as the selected
+#' features (`cnv_args`, per-pipeline defaults), on the annotation's
+#' coordinates: genes (every gene with a copy number feature, including those
+#' only in composites such as AMP/MUTATION) counting changes of 30 Mb or less,
+#' arms needing at least 75% of the covered arm; whole-chromosome events
+#' follow from p and q (LymphGen joins them). With
+#' "candidates", the gambl models also accept `seg_data` (their copy number
+#' files are for building training data; they can't classify with them).
+#' @param cn_background With `cn_scope = "candidates"`: what each gene's
+#' copy number change is measured against. "genome" (default, as LymphGen's
+#' training data): the sample's baseline. "arm": the sample's level on the
+#' arm containing the gene, when the candidate table has an arm feature in
+#' the same direction (the DLBClass rule, [GAMBLR.utils::segmented_data_to_cnv_status]
+#' `background = "auto"`), so a whole-arm change is called as the arm
+#' feature only and a gene event means a change beyond its arm's level.
+#' Arm features are always measured against the genome baseline.
+#' @param lymphgen_dir With `cn_scope = "candidates"`: the LymphGen
+#' repository holding the model's `Full.Uber.2020.txt` (the original model's
+#' at its top level, the gambl models' in `models/<model>/`). Default: the
+#' `GAMBLR.predict.lymphgen_dir` option, else `LYMPHGEN_DIR`.
 #' @param output_dir Optional directory to write the files to, as
 #' `<prefix>_mutation_flat.tsv`, `_gene_list.txt`, `_copy_flat.tsv`,
 #' `_arm.tsv` and `_sample_annotation.tsv` (copy number files only with
@@ -207,12 +233,21 @@ lymphgen_input = function(maf_data,
                           protein_change_column = NULL,
                           cd79b_location_unknown = FALSE,
                           cnv_args = list(),
+                          cn_scope = "selected",
+                          cn_background = "genome",
+                          lymphgen_dir = NULL,
                           model = "original",
                           output_dir = NULL,
                           prefix = "lymphgen"){
   model = match.arg(model, c("original", "gambl_v2", "gambl_v3", "gambl_v4"))
   gambl = model %in% c("gambl_v2", "gambl_v3", "gambl_v4")
-  if(gambl && !is.null(seg_data)){
+  cn_scope = match.arg(cn_scope, c("selected", "candidates"))
+  cn_background = match.arg(cn_background, c("genome", "arm"))
+  if(cn_background == "arm" && cn_scope != "candidates") stop("cn_background = \"arm\" is only implemented for cn_scope = \"candidates\"")
+  if(gambl && !is.null(seg_data) && cn_scope == "candidates"){
+    message("the ", model, " model has no copy number training data: the copy number files (cn_scope = \"candidates\") ",
+            "are for building training data, not for classifying with this model")
+  }else if(gambl && !is.null(seg_data)){
     message("the ", model, " model has no copy number training data: seg_data is ignored")
     seg_data = NULL
   }
@@ -443,6 +478,43 @@ lymphgen_input = function(maf_data,
     rownames(arm) = NULL
   }
 
+  # every copy number feature in the model's training annotation
+  if(!is.null(seg_data) && cn_scope == "candidates"){
+    candidates = .lymphgen_candidate_cnv_features(.lymphgen_uber_path(model, lymphgen_dir), background = cn_background)
+    cn_samples = intersect(samples, unique(seg_data$ID))
+    key = if(is.null(groups)) rep("all", length(cn_samples)) else
+      do.call(paste, c(groups[match(cn_samples, groups$sample_id), setting_cols], sep = "|"))
+    key[is.na(key)] = "all"
+    level = NULL
+    for(k in unique(key)){
+      in_group = cn_samples[key == k]
+      group_args = if(k == "all" || is.null(groups)) cnv_args else
+        utils::modifyList(cnv_args, as.list(groups[match(in_group[1], groups$sample_id), setting_cols, drop = FALSE]))
+      call = utils::modifyList(group_args, list(seg_data = seg_data[seg_data$ID %in% in_group, , drop = FALSE],
+                                                cnv_features = candidates,
+                                                these_samples_metadata = these_samples_metadata[these_samples_metadata$sample_id %in% in_group, , drop = FALSE],
+                                                genome_build = "grch37", output_format = "matrix"))
+      m = as.matrix(suppressMessages(do.call(GAMBLR.utils::segmented_data_to_cnv_status, call)))
+      level = rbind(level, m[intersect(in_group, rownames(m)), candidates$name, drop = FALSE])
+    }
+    hit = which(level > 0, arr.ind = TRUE)
+    f = candidates[hit[, 2], , drop = FALSE]
+    v = level[hit]
+    type = ifelse(f$direction == "loss", ifelse(v >= 2, "HOMDEL", "HETLOSS"), ifelse(v >= 2, "AMP", "GAIN"))
+    genes = f$type == "gene"
+    copy_flat = data.frame(Sample = rownames(level)[hit[genes, 1]], ENTREZ.ID = as.integer(f$entrez[genes]),
+                           Type = type[genes], stringsAsFactors = FALSE)
+    arm = data.frame(Sample = rownames(level)[hit[!genes, 1]], Arm = f$region_name[!genes],
+                     Type = type[!genes], stringsAsFactors = FALSE)
+    copy_flat = copy_flat[order(match(copy_flat$Sample, samples), copy_flat$ENTREZ.ID), , drop = FALSE]
+    arm = arm[order(match(arm$Sample, samples), arm$Arm), , drop = FALSE]
+    rownames(copy_flat) = NULL
+    rownames(arm) = NULL
+    has_cn = samples %in% rownames(level)
+    message("cn_scope = \"candidates\": ", sum(genes), " gene and ", sum(!genes), " arm events over ",
+            sum(candidates$type == "gene"), " gene and ", sum(candidates$type == "arm"), " arm candidate features")
+  }
+
   sample_annotation = data.frame(Sample.ID = samples,
                                  Copy.Number = as.integer(has_cn),
                                  BCL2.transloc = status(bcl2),
@@ -558,4 +630,64 @@ lymphgen_input = function(maf_data,
   data.frame(sample_id = ids, settings[, c("cn_type", "value_scale", "centering", "single_thresh", "high_thresh", "gene_rule",
                                            "homdel_max_cn")],
              stringsAsFactors = FALSE)
+}
+
+# The model's training feature annotation (Full.Uber.2020.txt)
+.lymphgen_uber_path = function(model, lymphgen_dir){
+  if(is.null(lymphgen_dir)){
+    lymphgen_dir = getOption("GAMBLR.predict.lymphgen_dir", Sys.getenv("LYMPHGEN_DIR"))
+  }
+  if(identical(lymphgen_dir, "")){
+    stop("cn_scope = \"candidates\" needs the LymphGen repository: give lymphgen_dir or set ",
+         "options(GAMBLR.predict.lymphgen_dir = ...)")
+  }
+  lymphgen_dir = path.expand(lymphgen_dir)
+  path = if(model == "original") file.path(lymphgen_dir, "Full.Uber.2020.txt") else
+    file.path(lymphgen_dir, "models", model, "Full.Uber.2020.txt")
+  if(!file.exists(path)) stop("no training feature annotation for model ", model, " at ", path)
+  path
+}
+
+# Every copy number feature in a LymphGen training annotation, as a
+# cnv_features table: one row per gene (Entrez ID) and direction, from the
+# gene's coordinates (max_event_length 30 Mb, as LymphGen's gene features);
+# one row per arm and direction with the annotation's arm bounds (q to
+# the chromosome end) and 75% of the covered arm. Whole-chromosome features
+# are left to LymphGen, which derives them from p and q.
+# background "arm": gene rows take the DLBClass rule (background_arm NA, so
+# segmented_data_to_cnv_status measures them against a containing same-direction arm row).
+.lymphgen_candidate_cnv_features = function(uber_path, background = "genome"){
+  u = utils::read.delim(uber_path, check.names = FALSE, stringsAsFactors = FALSE)
+  # every row that uses copy number, plain (AMP) or composite (AMP/MUTATION):
+  # the copy number part gives the direction
+  cn_types = c(AMP = "gain", GAIN = "gain", HOMDEL = "loss", HETLOSS = "loss")
+  u$cn_part = sub("/.*$", "", u$Feature.type)
+  u = u[u$cn_part %in% names(cn_types), , drop = FALSE]
+  u$direction = unname(cn_types[u$cn_part])
+  u$chrom = as.character(u$Chrom.2018)
+  u$chrom[u$chrom == "23"] = "X"
+  u$chrom[u$chrom == "24"] = "Y"
+  chrom_len = c(249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022,
+                141213431, 135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753,
+                81195210, 78077248, 59128983, 63025520, 48129895, 51304566, 155270560, 59373566)
+  names(chrom_len) = c(1:22, "X", "Y")
+  gene = u[u$ENTREZ.ID > 0 & u$ENTREZ.ID < 1e9, , drop = FALSE]
+  gene = gene[!duplicated(paste(gene$ENTREZ.ID, gene$direction)), , drop = FALSE]
+  genes = data.frame(name = paste0(gene$Gene.Symbol, "_", gene$ENTREZ.ID, "_", gene$direction), type = "gene",
+                     region_name = gene$Gene.Symbol, chrom = gene$chrom,
+                     start = as.integer(gene$Gene.start), end = as.integer(gene$Gene.end),
+                     direction = gene$direction, min_fraction = 0.01, min_coverage = 0.5,
+                     background_arm = if(background == "arm") NA_character_ else "none", max_event_length = 3e7, entrez = gene$ENTREZ.ID,
+                     stringsAsFactors = FALSE)
+  arm = u[u$ENTREZ.ID < 0 & !grepl("Chrom$", u$Gene.Symbol), , drop = FALSE]
+  arm = arm[!duplicated(paste(arm$Gene.Symbol, arm$direction)), , drop = FALSE]
+  arm_end = pmin(as.numeric(arm$Gene.end), chrom_len[arm$chrom])
+  arms = data.frame(name = paste0(arm$Gene.Symbol, "_", arm$direction, "_arm"), type = "arm",
+                    region_name = arm$Gene.Symbol, chrom = arm$chrom,
+                    start = as.integer(pmax(1, as.numeric(arm$Gene.start))), end = as.integer(arm_end),
+                    direction = arm$direction, min_fraction = 0.75, min_coverage = 0.5,
+                    background_arm = "none", max_event_length = NA_real_, entrez = NA_integer_,
+                    stringsAsFactors = FALSE)
+  out = rbind(genes, arms)
+  out[!is.na(out$start) & !is.na(out$end) & out$end > out$start, , drop = FALSE]
 }

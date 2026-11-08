@@ -18,6 +18,9 @@ lymphgen_input(
   protein_change_column = NULL,
   cd79b_location_unknown = FALSE,
   cnv_args = list(),
+  cn_scope = "selected",
+  cn_background = "genome",
+  lymphgen_dir = NULL,
   model = "original",
   output_dir = NULL,
   prefix = "lymphgen"
@@ -94,6 +97,35 @@ file is affected, not the feature matrix.}
 \link[GAMBLR.utils:segmented_data_to_cnv_status]{GAMBLR.utils::segmented_data_to_cnv_status}, e.g. \code{blacklist}, or to
 override the LymphGen defaults (\code{value_scale}, \code{centering},
 \code{single_thresh = 0.5}, \code{high_thresh = 1.5}).}
+
+\item{cn_scope}{Which copy number features to write (with \code{seg_data}):
+"selected" (default) only those the model uses (for the original model, the
+51 genes and 8 arms its feature selection picks; LymphGen ignores the
+rest), or "candidates" every copy number feature in the model's training
+feature annotation (\code{Full.Uber.2020.txt}; for the original model about
+2,100 genes and its arm features), for building or checking training
+data. Candidates are called with the same settings as the selected
+features (\code{cnv_args}, per-pipeline defaults), on the annotation's
+coordinates: genes (every gene with a copy number feature, including those
+only in composites such as AMP/MUTATION) counting changes of 30 Mb or less,
+arms needing at least 75\% of the covered arm; whole-chromosome events
+follow from p and q (LymphGen joins them). With
+"candidates", the gambl models also accept \code{seg_data} (their copy number
+files are for building training data; they can't classify with them).}
+
+\item{cn_background}{With \code{cn_scope = "candidates"}: what each gene's
+copy number change is measured against. "genome" (default, as LymphGen's
+training data): the sample's baseline. "arm": the sample's level on the
+arm containing the gene, when the candidate table has an arm feature in
+the same direction (the DLBClass rule, \link[GAMBLR.utils:segmented_data_to_cnv_status]{GAMBLR.utils::segmented_data_to_cnv_status}
+\code{background = "auto"}), so a whole-arm change is called as the arm
+feature only and a gene event means a change beyond its arm's level.
+Arm features are always measured against the genome baseline.}
+
+\item{lymphgen_dir}{With \code{cn_scope = "candidates"}: the LymphGen
+repository holding the model's \code{Full.Uber.2020.txt} (the original model's
+at its top level, the gambl models' in \verb{models/<model>/}). Default: the
+\code{GAMBLR.predict.lymphgen_dir} option, else \code{LYMPHGEN_DIR}.}
 
 \item{model}{The LymphGen model the inputs are for: "original" (default;
 LymphGen 2 as released) or "gambl_v2" (the GAMBL-derived model, run with

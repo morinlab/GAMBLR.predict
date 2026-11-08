@@ -24,7 +24,15 @@
 #'     (including unknown).
 #'   \item Copy number (`X17P.DEL` etc.): the DLBClass arm-level and focal
 #'     features called by [GAMBLR.utils::segmented_data_to_cnv_status] (0, 1
-#'     or 2). Without `seg_data` they are all 0, with a warning.
+#'     or 2) on centred log ratios. Level 1 needs a change of at least 0.2
+#'     (`single_thresh`) and level 2 at least 0.9 (`high_thresh`). The level 1
+#'     threshold is higher than the 0.1 DLBClass used on its own segments: on
+#'     GAMBL exomes (CNVkit, GATK, PureCN, Battenberg), scored against
+#'     DLBClass's published copy number GSM for the same Chapuy cases, 0.1
+#'     over-called events (about 35\% more than published for CNVkit) and C2,
+#'     while 0.2 matched the published event counts and gave the best cluster
+#'     accuracy. Override with `cnv_args = list(single_thresh = 0.1)`.
+#'     Without `seg_data` they are all 0, with a warning.
 #' }
 #' Features with no events in the cohort are included as all-zero columns,
 #' and every sample in `these_samples_metadata` is included.
@@ -46,7 +54,9 @@
 #' @param sv_positive_values Metadata values that indicate an SV. Default
 #' "POS".
 #' @param cnv_args Optional named list of further arguments for
-#' [GAMBLR.utils::segmented_data_to_cnv_status], e.g. `blacklist`.
+#' [GAMBLR.utils::segmented_data_to_cnv_status], e.g. `blacklist`. They
+#' override this function's defaults for it (`single_thresh = 0.2`,
+#' `high_thresh = 0.9`, `bridge_gaps = 0`, `min_gain_spike = 0`).
 #' @param output_format "matrix" (default; samples as rows, features as
 #' columns) or "gsm" (DLBClass layout: a classifier_name column, then one
 #' column per sample, as written by DLBclass-tool).
@@ -194,9 +204,12 @@ dlbclass_gsm = function(maf_data,
 
   # copy number features
   if(!is.null(seg_data)){
-    # DLBClass features are called as DLBClass defines them: no gap bridging
-    # or spike removal unless cnv_args asks for them
-    cnv_call = utils::modifyList(utils::modifyList(list(bridge_gaps = 0, min_gain_spike = 0), cnv_args), list(
+    # DLBClass features are called as DLBClass defines them (no gap bridging
+    # or spike removal unless cnv_args asks for them), except the level 1
+    # threshold: 0.2 rather than DLBClass's 0.1, which over-calls events on
+    # GAMBL segmentations (see Details)
+    cnv_call = utils::modifyList(utils::modifyList(list(single_thresh = 0.2, high_thresh = 0.9, bridge_gaps = 0,
+                                                        min_gain_spike = 0), cnv_args), list(
       seg_data = seg_data,
       cnv_features = GAMBLR.utils::get_cnv_features(genome_build,
                                                     feature_set = "DLBClass"),

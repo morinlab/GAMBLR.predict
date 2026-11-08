@@ -41,7 +41,9 @@ columns. Default \code{c(BCL2 = "bcl2_ba", BCL6 = "bcl6_ba", MYC = "myc_ba")}.}
 "POS".}
 
 \item{cnv_args}{Optional named list of further arguments for
-\link[GAMBLR.utils:segmented_data_to_cnv_status]{GAMBLR.utils::segmented_data_to_cnv_status}, e.g. \code{blacklist}.}
+\link[GAMBLR.utils:segmented_data_to_cnv_status]{GAMBLR.utils::segmented_data_to_cnv_status}, e.g. \code{blacklist}. They
+override this function's defaults for it (\code{single_thresh = 0.2},
+\code{high_thresh = 0.9}, \code{bridge_gaps = 0}, \code{min_gain_spike = 0}).}
 
 \item{output_format}{"matrix" (default; samples as rows, features as
 columns) or "gsm" (DLBClass layout: a classifier_name column, then one
@@ -76,7 +78,15 @@ metadata column named in \code{sv_from_metadata} is positive, otherwise 0
 (including unknown).
 \item Copy number (\code{X17P.DEL} etc.): the DLBClass arm-level and focal
 features called by \link[GAMBLR.utils:segmented_data_to_cnv_status]{GAMBLR.utils::segmented_data_to_cnv_status} (0, 1
-or 2). Without \code{seg_data} they are all 0, with a warning.
+or 2) on centred log ratios. Level 1 needs a change of at least 0.2
+(\code{single_thresh}) and level 2 at least 0.9 (\code{high_thresh}). The level 1
+threshold is higher than the 0.1 DLBClass used on its own segments: on
+GAMBL exomes (CNVkit, GATK, PureCN, Battenberg), scored against
+DLBClass's published copy number GSM for the same Chapuy cases, 0.1
+over-called events (about 35\\% more than published for CNVkit) and C2,
+while 0.2 matched the published event counts and gave the best cluster
+accuracy. Override with \code{cnv_args = list(single_thresh = 0.1)}.
+Without \code{seg_data} they are all 0, with a warning.
 }
 Features with no events in the cohort are included as all-zero columns,
 and every sample in \code{these_samples_metadata} is included.
