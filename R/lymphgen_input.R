@@ -136,6 +136,11 @@
 #'     missense mutations other than L265P.
 #' }
 #' Both are added to the gene list when their gene (NFKBIZ, MYD88) is in it.
+#' "GAMBL-U" (`Run_Lymphgen.R --model GAMBL-U`) is trained with GAMBL copy number: with `seg_data`, its
+#' copy number files hold every candidate CN feature of its annotation with gene changes measured against
+#' their arm (cn_scope "candidates", cn_background "arm", set automatically); its split pseudo-genes are
+#' derived by Run_Lymphgen.R. GAMBL-U calls are the union of its copy-number and no-copy-number passes
+#' (CN.Prediction, NoCN.Prediction in the output); without `seg_data` only the no-CN pass runs.
 #' "gambl_v3" and "gambl_v4" (`Run_Lymphgen.R --model gambl_v3`/`gambl_v4`) add
 #' one more (the models have no gene-level FOXO1 features; keep FOXO1 in the
 #' gene list):
@@ -239,12 +244,19 @@ lymphgen_input = function(maf_data,
                           model = "original",
                           output_dir = NULL,
                           prefix = "lymphgen"){
-  model = match.arg(model, c("original", "gambl_v2", "gambl_v3", "gambl_v4"))
-  gambl = model %in% c("gambl_v2", "gambl_v3", "gambl_v4")
+  model = match.arg(model, c("original", "gambl_v2", "gambl_v3", "gambl_v4", "GAMBL-U"))
+  gambl = model %in% c("gambl_v2", "gambl_v3", "gambl_v4", "GAMBL-U")
   cn_scope = match.arg(cn_scope, c("selected", "candidates"))
   cn_background = match.arg(cn_background, c("genome", "arm"))
+  # GAMBL-U is trained with copy number: every candidate CN feature of its annotation, genes measured against their arm
+  if(model == "GAMBL-U" && !is.null(seg_data)){
+    if(cn_scope != "candidates" || cn_background != "arm") message("GAMBL-U: copy number written as its training data defines it (cn_scope = \"candidates\", cn_background = \"arm\")")
+    cn_scope = "candidates"; cn_background = "arm"
+  }
   if(cn_background == "arm" && cn_scope != "candidates") stop("cn_background = \"arm\" is only implemented for cn_scope = \"candidates\"")
-  if(gambl && !is.null(seg_data) && cn_scope == "candidates"){
+  if(model == "GAMBL-U"){
+    # copy number is used; without seg_data, Run_Lymphgen.R classifies with the model's no-copy-number pass
+  }else if(gambl && !is.null(seg_data) && cn_scope == "candidates"){
     message("the ", model, " model has no copy number training data: the copy number files (cn_scope = \"candidates\") ",
             "are for building training data, not for classifying with this model")
   }else if(gambl && !is.null(seg_data)){
@@ -290,7 +302,7 @@ lymphgen_input = function(maf_data,
     if(4615 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$myd88_nonL265P)
     if(64332 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v2$nfkbiz_3utr)   # NFKBIZ is Entrez 64332 (9640, used before, is ZNF592)
   }
-  if(model %in% c("gambl_v3", "gambl_v4") && 2308 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v3$foxo1_nterm)
+  if(model %in% c("gambl_v3", "gambl_v4", "GAMBL-U") && 2308 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v3$foxo1_nterm)
 
   # mutations -------------------------------------------------------------
   maf = as.data.frame(maf_data)
@@ -318,7 +330,7 @@ lymphgen_input = function(maf_data,
   maf = GAMBLR.utils::classify_mutations(maf, protein_change_column)
   # gambl_v2 pseudo-gene rows, before non-coding classes are filtered
   extra_flat = if(gambl) .gambl_v2_rows(maf, gene_ids) else NULL
-  if(model %in% c("gambl_v3", "gambl_v4")) extra_flat = rbind(extra_flat, .gambl_v3_rows(maf, gene_ids))
+  if(model %in% c("gambl_v3", "gambl_v4", "GAMBL-U")) extra_flat = rbind(extra_flat, .gambl_v3_rows(maf, gene_ids))
   # silent and non-coding mutations count as Synon only in synon_classes; the
   # others are left out of the flat file and the feature matrix
   coding_classes = c("trunc", "missense", "inframe", "nonstop")

@@ -34,7 +34,9 @@
 #' [lymphgen_input]'s output), else "original". For gambl_v2 the result also
 #' has LymphGen.Default.Prediction, LymphGen's own call. "gambl_v3" extends
 #' gambl_v2 (more training samples, new genes, FOXO1 N-terminal feature; see
-#' README_models.md of the GAMBL LymphGen repository). "gambl_v4" extends
+#' README_models.md of the GAMBL LymphGen repository). "GAMBL-U" is trained with copy number and called as
+#' the union of its copy-number and no-copy-number passes (0.4 rule): LymphGen is its union call, with
+#' CN.Prediction and NoCN.Prediction (and NoCN.Confidence.*) alongside. "gambl_v4" extends
 #' gambl_v3 (more ST2 and BN2 training samples, 32 genes from DLBClass, feature
 #' selection that ignores copy-number features).
 #' @param not_assessed Optional gene symbols (or Entrez IDs) the samples were
@@ -119,7 +121,7 @@ run_lymphgen = function(lymphgen_input,
     if(length(input_models) > 1) stop("the inputs were built for different models (", paste(input_models, collapse = ", "), "): give model")
     model = if(length(input_models) == 1) input_models else "original"
   }
-  model = match.arg(model, c("original", "gambl_v2", "gambl_v3", "gambl_v4"))
+  model = match.arg(model, c("original", "gambl_v2", "gambl_v3", "gambl_v4", "GAMBL-U"))
   if(length(input_models) > 0 && !all(input_models == model)){
     warning("inputs built for model ", paste(input_models, collapse = ", "), " are run with model ", model, call. = FALSE)
   }

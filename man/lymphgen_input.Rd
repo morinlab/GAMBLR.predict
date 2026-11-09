@@ -143,6 +143,11 @@ detect some of these mutations.
 missense mutations other than L265P.
 }
 Both are added to the gene list when their gene (NFKBIZ, MYD88) is in it.
+"GAMBL-U" (\verb{Run_Lymphgen.R --model GAMBL-U}) is trained with GAMBL copy number: with \code{seg_data}, its
+copy number files hold every candidate CN feature of its annotation with gene changes measured against
+their arm (cn_scope "candidates", cn_background "arm", set automatically); its split pseudo-genes are
+derived by Run_Lymphgen.R. GAMBL-U calls are the union of its copy-number and no-copy-number passes
+(CN.Prediction, NoCN.Prediction in the output); without \code{seg_data} only the no-CN pass runs.
 "gambl_v3" and "gambl_v4" (\verb{Run_Lymphgen.R --model gambl_v3}/\code{gambl_v4}) add
 one more (the models have no gene-level FOXO1 features; keep FOXO1 in the
 gene list):
