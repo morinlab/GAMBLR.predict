@@ -20,8 +20,15 @@
 #'     include silent mutations (e.g. `get_coding_ssm(include_silent =
 #'     TRUE)`).
 #'   \item Structural variants (`SV.BCL2`, `SV.BCL6`, `SV.MYC`): 3 when the
-#'     metadata column named in `sv_from_metadata` is positive, otherwise 0
-#'     (including unknown).
+#'     sample has an SV rearranging the gene in `sv_data` or the metadata
+#'     column named in `sv_from_metadata` is positive, otherwise 0 (including
+#'     unknown, as DLBClass encodes it). An SV in `sv_data` counts only when
+#'     the gene has an annotated partner (the `gene` and `partner` columns of
+#'     [GAMBLR.utils::annotate_sv], which is run on `sv_data` if it has no
+#'     `gene` column), the same rule as
+#'     [GAMBLR.utils::assemble_classifier_features] and [lymphgen_input]. The
+#'     two sources are pooled: a positive in either gives 3, and metadata
+#'     positives are kept for samples without SV calls (e.g. FISH on exomes).
 #'   \item Copy number (`X17P.DEL` etc.): the DLBClass arm-level and focal
 #'     features called by [GAMBLR.utils::segmented_data_to_cnv_status] (0, 1
 #'     or 2) on centred log ratios. Level 1 needs a change of at least 0.2
@@ -44,13 +51,19 @@
 #' SV status columns.
 #' @param seg_data Optional segmented copy number data (columns ID, chrom,
 #' start, end, log.ratio) for the copy number features.
-#' @param genome_build Genome build of `seg_data`. Default "grch37" (the only
-#' build [GAMBLR.utils::segmented_data_to_cnv_status] currently supports).
+#' @param sv_data Optional structural variants for the SV features, e.g.
+#' from `get_combined_sv()`: bedpe (as for [GAMBLR.utils::annotate_sv], with a
+#' tumour_sample_id column) or already annotated with gene and partner
+#' columns. Pooled with `sv_from_metadata` (see Details).
+#' @param genome_build Genome build of `seg_data` and `sv_data`. Default
+#' "grch37" (the only build [GAMBLR.utils::segmented_data_to_cnv_status]
+#' currently supports).
 #' @param protein_change_column Column of `maf_data` with the protein change
 #' (e.g. "p.L265P"). Default NULL uses Protein_Change, or HGVSp_Short (as in
 #' GAMBL MAFs) if there is no Protein_Change column.
 #' @param sv_from_metadata Named vector mapping the SV features to metadata
-#' columns. Default `c(BCL2 = "bcl2_ba", BCL6 = "bcl6_ba", MYC = "myc_ba")`.
+#' columns. Default `c(BCL2 = "bcl2_ba", BCL6 = "bcl6_ba", MYC = "myc_ba")`;
+#' NULL to use `sv_data` only.
 #' @param sv_positive_values Metadata values that indicate an SV. Default
 #' "POS".
 #' @param cnv_args Optional named list of further arguments for
@@ -68,19 +81,50 @@
 #'
 #' @examples
 #' \dontrun{
-#' meta = get_gambl_metadata() %>% dplyr::filter(pathology == "DLBCL")
-#' maf = get_coding_ssm(these_samples_metadata = meta, include_silent = TRUE)
-#' segs = get_cn_segments(these = meta, projection = "grch37")
-#' gsm = dlbclass_gsm(maf, meta, seg_data = segs)
+#' library(GAMBLR.results)
+#' # DLBCL tumour genomes and exomes
+#' meta = get_gambl_metadata() %>%
+#'   dplyr::filter(seq_type %in% c("genome", "capture"),
+#'                 tissue_status == "tumour", pathology == "DLBCL")
 #'
-#' # write the DLBClass layout for DLBclass-tool
-#' readr::write_tsv(dlbclass_gsm(maf, meta, seg_data = segs,
+#' # mutations over the DLBClass genes only (all variant classes, including
+#' # the silent ones DLBClass encodes as 1)
+#' feature_order = readLines(system.file("extdata", "dlbclass_feature_order.txt",
+#'                                       package = "GAMBLR.predict"))
+#' genes = sub("^HLA[.]", "HLA-",
+#'             setdiff(feature_order[!grepl("^X|^SV[.]", feature_order)],
+#'                     c("MYD88.L265P", "MYD88.OTHER")))
+#' maf = get_ssm_by_regions(
+#'   regions_list = GAMBLR.utils::gene_to_region(gene_symbol = genes,
+#'                                               projection = "grch37",
+#'                                               return_as = "region"),
+#'   these_samples_metadata = meta)
+#'
+#' # copy number: each sample's preferred pipeline that passes the QC gates
+#' segs = get_cn_segments(these_samples_metadata = meta, projection = "grch37",
+#'                        source_rule = "preference")
+#'
+#' # SV calls (genomes), pooled with the FISH / break-apart metadata
+#' svs = get_combined_sv(these_samples_metadata = meta)
+#'
+#' # DLBClass's own CNV blacklist (DLBCL-Classifier repository,
+#' # data_tables/additional_gsm_inputs/CNV.hg19.bypos.111213.CR1_event_added.bed)
+#' blacklist = read.delim("CNV.hg19.bypos.111213.CR1_event_added.bed")
+#'
+#' gsm = dlbclass_gsm(maf, meta, seg_data = segs, sv_data = svs,
+#'                    cnv_args = list(blacklist = blacklist))
+#' calls = run_dlbclass(gsm)
+#'
+#' # the same GSM in DLBClass's own layout, for DLBclass-tool
+#' readr::write_tsv(dlbclass_gsm(maf, meta, seg_data = segs, sv_data = svs,
+#'                               cnv_args = list(blacklist = blacklist),
 #'                               output_format = "gsm"),
 #'                  "cohort.GSM.tsv")
 #' }
 dlbclass_gsm = function(maf_data,
                         these_samples_metadata,
                         seg_data = NULL,
+                        sv_data = NULL,
                         genome_build = "grch37",
                         protein_change_column = NULL,
                         sv_from_metadata = c(BCL2 = "bcl2_ba",
@@ -186,20 +230,38 @@ dlbclass_gsm = function(maf_data,
     gsm[rows, "MYD88.L265P"] = column_max(intersect("MYD88_hotspot", myd88_any))
   }
 
-  # structural variants from metadata (3 when positive)
-  if(!is.null(sv_from_metadata) && length(sv_from_metadata) > 0){
-    meta_rows = match(samples, as.character(these_samples_metadata$sample_id))
-    for(gene in names(sv_from_metadata)){
-      column = sv_from_metadata[[gene]]
-      if(!column %in% colnames(these_samples_metadata)){
-        warning("SV metadata column ", column, " not found; SV.", gene,
-                " is 0 for all samples")
-        next
-      }
-      positive = as.character(these_samples_metadata[[column]][meta_rows]) %in%
-        sv_positive_values
-      gsm[, paste0("SV.", gene)] = ifelse(positive, 3, 0)
+  # structural variants (3 when positive), pooled from sv_data and metadata
+  sv_genes = NULL
+  if(!is.null(sv_data)){
+    sv_data = as.data.frame(sv_data)
+    if(!"gene" %in% colnames(sv_data)){
+      sv_data = GAMBLR.utils::annotate_sv(sv_data, genome_build = genome_build)
     }
+    # only rearranged genes with an annotated partner count, as in
+    # GAMBLR.utils::assemble_classifier_features
+    sv_data = sv_data[sv_data$tumour_sample_id %in% samples &
+                        !is.na(sv_data$partner), , drop = FALSE]
+    sv_genes = split(as.character(sv_data$gene),
+                     as.character(sv_data$tumour_sample_id))
+  }
+  meta_rows = match(samples, as.character(these_samples_metadata$sample_id))
+  for(gene in sub("^SV[.]", "", grep("^SV[.]", feature_order, value = TRUE))){
+    from_sv = rep(FALSE, length(samples))
+    if(!is.null(sv_genes)){
+      from_sv = vapply(samples, function(s) gene %in% sv_genes[[s]], logical(1))
+    }
+    from_meta = rep(FALSE, length(samples))
+    if(!is.null(sv_from_metadata) && gene %in% names(sv_from_metadata)){
+      column = sv_from_metadata[[gene]]
+      if(column %in% colnames(these_samples_metadata)){
+        from_meta = as.character(these_samples_metadata[[column]][meta_rows]) %in%
+          sv_positive_values
+      }else{
+        warning("SV metadata column ", column, " not found; SV.", gene,
+                if(is.null(sv_genes)) " is 0 for all samples" else " uses sv_data only")
+      }
+    }
+    gsm[, paste0("SV.", gene)] = ifelse(from_sv | from_meta, 3, 0)
   }
 
   # copy number features
