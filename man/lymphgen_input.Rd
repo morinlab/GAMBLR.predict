@@ -28,7 +28,10 @@ lymphgen_input(
 }
 \arguments{
 \item{maf_data}{MAF data frame (grch37) of the samples' mutations,
-including silent ones, e.g. from \code{get_coding_ssm(..., include_silent = TRUE)}. Non-coding mutations can be in here or in \code{noncoding_maf}.}
+including silent ones, e.g. from \code{get_all_coding_ssm(..., include_silent = TRUE)}. Non-coding mutations can be in here or in \code{noncoding_maf}. It may
+hold other samples (only those in \code{these_samples_metadata} are used) and
+can be restricted to the genes of \link{lymphgen_genes} beforehand, which
+doesn't change the result.}
 
 \item{these_samples_metadata}{Metadata with one row per sample_id; defines
 the samples (mRNA-seq samples are dropped, with a warning). Optional columns \code{cn_available} (logical; otherwise samples
@@ -245,15 +248,21 @@ the metadata columns in \code{sv_from_metadata}.
 }
 \examples{
 \dontrun{
-meta = get_gambl_metadata() \%>\% dplyr::filter(pathology == "DLBCL")
-maf = get_coding_ssm(these_samples_metadata = meta, include_silent = TRUE)
-synon_regions = get_classifier_features("LymphGen") \%>\%
+meta = get_gambl_metadata() \%>\%
+  dplyr::filter(pathology == "DLBCL", seq_type \%in\% c("genome", "capture"))
+# coding mutations of the genes the model can use (lymphgen_genes()), genomes
+# and exomes; filtered while the MAF is read, which keeps memory down
+maf = get_all_coding_ssm(these_samples_metadata = meta, include_silent = TRUE,
+                         these_genes = lymphgen_genes())
+synon_regions = GAMBLR.utils::get_classifier_features("LymphGen") \%>\%
   dplyr::filter(position_rule == "tss4kb") \%>\%
-  dplyr::distinct(chrom, start, end)
+  dplyr::distinct(chrom, start, end) \%>\%
+  GAMBLR.utils::create_bed_data(genome_build = "grch37")
 noncoding = get_ssm_by_regions(regions_bed = synon_regions,
                                these_samples_metadata = meta,
+                               projection = "grch37",
                                streamlined = FALSE)
-segs = get_cn_segments(these = meta, projection = "grch37")
+segs = get_cn_segments(these_samples_metadata = meta, projection = "grch37")
 lymphgen_input(maf, meta, noncoding_maf = noncoding, seg_data = segs,
                output_dir = "lymphgen_run", prefix = "dlbcl")
 # then: Rscript Run_Lymphgen.R -m lymphgen_run/dlbcl_mutation_flat.tsv \

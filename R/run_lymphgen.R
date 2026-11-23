@@ -45,7 +45,11 @@
 #' the gene list so their features count as unknown rather than unmutated.
 #' It applies to every sample of the run, so run cohorts with different
 #' captures separately. For the Reddy et al. exomes:
-#' `c("LTB", "HLA-A", "HLA-B", "P2RY8", "PRRC2A")`.
+#' `c("LTB", "HLA-A", "HLA-B", "P2RY8", "PRRC2A")`. Gene symbols the model
+#' has no feature for (e.g. LTB and P2RY8 for the original model) are left
+#' out with a message, so one list can be given for every model. An entry
+#' `Gene.Symbol:Feature.type` (e.g. "4p:GAIN") drops that one feature from
+#' the models instead of a whole gene; it must be in the model's catalogue.
 #' @param version LymphGen algorithm version: 2 (default; improved for
 #' incomplete data) or 1 (the original).
 #' @param a53 Classify cases into A53. Default TRUE.
@@ -133,6 +137,20 @@ run_lymphgen = function(lymphgen_input,
   if(length(absent) > 0){
     stop(lymphgen_dir, " lacks LymphGen file(s): ", paste(absent, collapse = ", "),
          if(model != "original") " (models other than the original need the GAMBL LymphGen repository)" else "", "; see ?run_lymphgen")
+  }
+  # not-assessed gene symbols must be in the model's feature catalogue (Run_Lymphgen.R stops otherwise); a gene
+  # the model has no feature for doesn't affect its calls, so leave it out with a message. Entrez IDs and
+  # Gene.Symbol:Feature.type entries are passed on as given.
+  if(length(not_assessed) > 0){
+    not_assessed = as.character(not_assessed)
+    symbols = not_assessed[!grepl(":", not_assessed) & !grepl("^[0-9]+$", not_assessed)]
+    catalogue = utils::read.delim(.lymphgen_uber_path(model, lymphgen_dir), stringsAsFactors = FALSE, check.names = FALSE)
+    unknown = setdiff(symbols, catalogue$Gene.Symbol)
+    if(length(unknown) > 0){
+      message("not_assessed: ", paste(unknown, collapse = ", "), " not in the ", model,
+              " model's feature catalogue, so not passed to LymphGen (no feature of the model uses them)")
+      not_assessed = setdiff(not_assessed, unknown)
+    }
   }
   has_optparse = suppressWarnings(system2(rscript, c("-e", shQuote("cat(requireNamespace('optparse', quietly = TRUE))")),
                                           stdout = TRUE, stderr = TRUE))

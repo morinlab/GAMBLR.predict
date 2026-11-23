@@ -53,7 +53,11 @@ not assessed for, e.g. not covered by their capture
 the gene list so their features count as unknown rather than unmutated.
 It applies to every sample of the run, so run cohorts with different
 captures separately. For the Reddy et al. exomes:
-\code{c("LTB", "HLA-A", "HLA-B", "P2RY8", "PRRC2A")}.}
+\code{c("LTB", "HLA-A", "HLA-B", "P2RY8", "PRRC2A")}. Gene symbols the model
+has no feature for (e.g. LTB and P2RY8 for the original model) are left
+out with a message, so one list can be given for every model. An entry
+\code{Gene.Symbol:Feature.type} (e.g. "4p:GAIN") drops that one feature from
+the models instead of a whole gene; it must be in the model's catalogue.}
 
 \item{compare}{Also return LymphGen's per-class precision and recall for
 the features provided (\code{--compareout}), as \code{attr(result, "compare")}.

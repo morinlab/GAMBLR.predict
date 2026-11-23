@@ -64,8 +64,11 @@
 #' }
 #'
 #' @param maf_data MAF data frame (grch37) of the samples' mutations,
-#' including silent ones, e.g. from `get_coding_ssm(..., include_silent =
-#' TRUE)`. Non-coding mutations can be in here or in `noncoding_maf`.
+#' including silent ones, e.g. from `get_all_coding_ssm(..., include_silent =
+#' TRUE)`. Non-coding mutations can be in here or in `noncoding_maf`. It may
+#' hold other samples (only those in `these_samples_metadata` are used) and
+#' can be restricted to the genes of [lymphgen_genes] beforehand, which
+#' doesn't change the result.
 #' @param these_samples_metadata Metadata with one row per sample_id; defines
 #' the samples (mRNA-seq samples are dropped, with a warning). Optional columns `cn_available` (logical; otherwise samples
 #' in `seg_data` have copy number) and those named in `sv_from_metadata`.
@@ -204,15 +207,21 @@
 #'
 #' @examples
 #' \dontrun{
-#' meta = get_gambl_metadata() %>% dplyr::filter(pathology == "DLBCL")
-#' maf = get_coding_ssm(these_samples_metadata = meta, include_silent = TRUE)
-#' synon_regions = get_classifier_features("LymphGen") %>%
+#' meta = get_gambl_metadata() %>%
+#'   dplyr::filter(pathology == "DLBCL", seq_type %in% c("genome", "capture"))
+#' # coding mutations of the genes the model can use (lymphgen_genes()), genomes
+#' # and exomes; filtered while the MAF is read, which keeps memory down
+#' maf = get_all_coding_ssm(these_samples_metadata = meta, include_silent = TRUE,
+#'                          these_genes = lymphgen_genes())
+#' synon_regions = GAMBLR.utils::get_classifier_features("LymphGen") %>%
 #'   dplyr::filter(position_rule == "tss4kb") %>%
-#'   dplyr::distinct(chrom, start, end)
+#'   dplyr::distinct(chrom, start, end) %>%
+#'   GAMBLR.utils::create_bed_data(genome_build = "grch37")
 #' noncoding = get_ssm_by_regions(regions_bed = synon_regions,
 #'                                these_samples_metadata = meta,
+#'                                projection = "grch37",
 #'                                streamlined = FALSE)
-#' segs = get_cn_segments(these = meta, projection = "grch37")
+#' segs = get_cn_segments(these_samples_metadata = meta, projection = "grch37")
 #' lymphgen_input(maf, meta, noncoding_maf = noncoding, seg_data = segs,
 #'                output_dir = "lymphgen_run", prefix = "dlbcl")
 #' # then: Rscript Run_Lymphgen.R -m lymphgen_run/dlbcl_mutation_flat.tsv \
@@ -277,10 +286,7 @@ lymphgen_input = function(maf_data,
   # Entrez IDs: the registry's (LymphGen's own) first, then gene_tss
   tss = GAMBLR.utils::gene_tss
   tss = tss[tss$genome_build == "grch37" & tss$primary, , drop = FALSE]
-  known = unique(rbind(registry[!is.na(registry$gene) & !is.na(registry$entrez),
-                                c("gene", "entrez")],
-                       tss[, c("gene", "entrez")]))
-  known = known[!duplicated(known$gene), , drop = FALSE]
+  known = .lymphgen_symbols()   # shared with lymphgen_genes()
   to_entrez = function(symbol) as.integer(known$entrez[match(symbol, known$gene)])
 
   # gene list
@@ -305,9 +311,10 @@ lymphgen_input = function(maf_data,
   if(model %in% c("gambl_v3", "gambl_v4", "GAMBL-U") && 2308 %in% gene_ids) gene_ids = c(gene_ids, .gambl_v3$foxo1_nterm)
 
   # mutations -------------------------------------------------------------
-  maf = as.data.frame(maf_data)
+  # these samples' rows only, before any copy (maf_data may hold many more)
+  maf = as.data.frame(dplyr::filter(maf_data, .data$Tumor_Sample_Barcode %in% samples))
   if(!is.null(noncoding_maf)){
-    noncoding_maf = as.data.frame(noncoding_maf)
+    noncoding_maf = as.data.frame(dplyr::filter(noncoding_maf, .data$Tumor_Sample_Barcode %in% samples))
     shared = intersect(colnames(maf), colnames(noncoding_maf))
     maf = rbind(maf[, shared, drop = FALSE], noncoding_maf[, shared, drop = FALSE])
   }
