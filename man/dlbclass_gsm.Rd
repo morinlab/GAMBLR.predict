@@ -13,6 +13,8 @@ dlbclass_gsm(
   protein_change_column = NULL,
   sv_from_metadata = c(BCL2 = "bcl2_ba", BCL6 = "bcl6_ba", MYC = "myc_ba"),
   sv_positive_values = "POS",
+  sv_partners = list(BCL2 = c("IGH", "IGK", "IGL"), BCL6 = c("IGH", "IGK", "IGL",
+    "CIITA", "HIST1H2BK", "LEPREL1", "LRMP", "MBNL1", "PAX5", "RFTN1", "RHOH", "ZEB2")),
   cnv_args = list(),
   output_format = "matrix"
 )
@@ -47,6 +49,12 @@ NULL to use \code{sv_data} only.}
 
 \item{sv_positive_values}{Metadata values that indicate an SV. Default
 "POS".}
+
+\item{sv_partners}{Named list restricting, per gene, which annotated SV
+partners count, as in \link[GAMBLR.utils:assemble_classifier_features]{GAMBLR.utils::assemble_classifier_features} (same
+default: BCL2 needs an immunoglobulin partner, BCL6 an immunoglobulin locus
+or one of CIITA, HIST1H2BK, LEPREL1, LRMP, MBNL1, PAX5, RFTN1, RHOH, ZEB2);
+NULL for no restriction.}
 
 \item{cnv_args}{Optional named list of further arguments for
 \link[GAMBLR.utils:segmented_data_to_cnv_status]{GAMBLR.utils::segmented_data_to_cnv_status}, e.g. \code{blacklist}. They
@@ -87,7 +95,8 @@ column named in \code{sv_from_metadata} is positive, otherwise 0 (including
 unknown, as DLBClass encodes it). An SV in \code{sv_data} counts only when
 the gene has an annotated partner (the \code{gene} and \code{partner} columns of
 \link[GAMBLR.utils:annotate_sv]{GAMBLR.utils::annotate_sv}, which is run on \code{sv_data} if it has no
-\code{gene} column), the same rule as
+\code{gene} column) that is allowed by \code{sv_partners} (by default BCL2 needs
+an immunoglobulin partner, BCL6 one of a curated list), the same rule as
 \link[GAMBLR.utils:assemble_classifier_features]{GAMBLR.utils::assemble_classifier_features} and \link{lymphgen_input}. The
 two sources are pooled: a positive in either gives 3, and metadata
 positives are kept for samples without SV calls (e.g. FISH on exomes).

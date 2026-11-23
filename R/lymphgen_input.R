@@ -85,6 +85,11 @@
 #' @param sv_from_metadata Named vector mapping BCL2 and BCL6 to metadata
 #' columns with their translocation status. Default `c(BCL2 = "bcl2_ba",
 #' BCL6 = "bcl6_ba")`; NULL to use `sv_data` only.
+#' @param sv_partners Named list restricting, per gene, which annotated SV
+#' partners count, as in [GAMBLR.utils::assemble_classifier_features] (same
+#' default: BCL2 needs an immunoglobulin partner, BCL6 an immunoglobulin locus
+#' or one of CIITA, HIST1H2BK, LEPREL1, LRMP, MBNL1, PAX5, RFTN1, RHOH, ZEB2);
+#' NULL for no restriction.
 #' @param sv_positive_values Metadata values that indicate a translocation.
 #' Default "POS".
 #' @param genes Genes sequenced (symbols or Entrez IDs) for the gene list,
@@ -241,6 +246,9 @@ lymphgen_input = function(maf_data,
                           sv_data = NULL,
                           sv_from_metadata = c(BCL2 = "bcl2_ba", BCL6 = "bcl6_ba"),
                           sv_positive_values = "POS",
+                          sv_partners = list(BCL2 = c("IGH", "IGK", "IGL"),
+                                             BCL6 = c("IGH", "IGK", "IGL", "CIITA", "HIST1H2BK", "LEPREL1", "LRMP",
+                                                      "MBNL1", "PAX5", "RFTN1", "RHOH", "ZEB2")),
                           genes = NULL,
                           synon_regions = "registry",
                           synon_classes = c("Silent", "5'UTR"),
@@ -427,6 +435,7 @@ lymphgen_input = function(maf_data,
     sv_data = sv_data,
     sv_from_metadata = sv_from_metadata,
     sv_positive_values = sv_positive_values,
+    sv_partners = sv_partners,
     genome_build = "grch37",
     cnv_args = cnv_args
   ))

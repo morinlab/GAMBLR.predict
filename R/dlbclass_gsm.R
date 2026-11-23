@@ -25,7 +25,8 @@
 #'     unknown, as DLBClass encodes it). An SV in `sv_data` counts only when
 #'     the gene has an annotated partner (the `gene` and `partner` columns of
 #'     [GAMBLR.utils::annotate_sv], which is run on `sv_data` if it has no
-#'     `gene` column), the same rule as
+#'     `gene` column) that is allowed by `sv_partners` (by default BCL2 needs
+#'     an immunoglobulin partner, BCL6 one of a curated list), the same rule as
 #'     [GAMBLR.utils::assemble_classifier_features] and [lymphgen_input]. The
 #'     two sources are pooled: a positive in either gives 3, and metadata
 #'     positives are kept for samples without SV calls (e.g. FISH on exomes).
@@ -66,6 +67,11 @@
 #' NULL to use `sv_data` only.
 #' @param sv_positive_values Metadata values that indicate an SV. Default
 #' "POS".
+#' @param sv_partners Named list restricting, per gene, which annotated SV
+#' partners count, as in [GAMBLR.utils::assemble_classifier_features] (same
+#' default: BCL2 needs an immunoglobulin partner, BCL6 an immunoglobulin locus
+#' or one of CIITA, HIST1H2BK, LEPREL1, LRMP, MBNL1, PAX5, RFTN1, RHOH, ZEB2);
+#' NULL for no restriction.
 #' @param cnv_args Optional named list of further arguments for
 #' [GAMBLR.utils::segmented_data_to_cnv_status], e.g. `blacklist`. They
 #' override this function's defaults for it (`single_thresh = 0.2`,
@@ -131,6 +137,9 @@ dlbclass_gsm = function(maf_data,
                                              BCL6 = "bcl6_ba",
                                              MYC = "myc_ba"),
                         sv_positive_values = "POS",
+                        sv_partners = list(BCL2 = c("IGH", "IGK", "IGL"),
+                                           BCL6 = c("IGH", "IGK", "IGL", "CIITA", "HIST1H2BK", "LEPREL1", "LRMP",
+                                                    "MBNL1", "PAX5", "RFTN1", "RHOH", "ZEB2")),
                         cnv_args = list(),
                         output_format = "matrix"){
   if(!output_format %in% c("matrix", "gsm")){
@@ -241,6 +250,9 @@ dlbclass_gsm = function(maf_data,
     # GAMBLR.utils::assemble_classifier_features
     sv_data = sv_data[sv_data$tumour_sample_id %in% samples &
                         !is.na(sv_data$partner), , drop = FALSE]
+    for(g in intersect(names(sv_partners), unique(sv_data$gene))){
+      sv_data = sv_data[sv_data$gene != g | sv_data$partner %in% sv_partners[[g]], , drop = FALSE]
+    }
     sv_genes = split(as.character(sv_data$gene),
                      as.character(sv_data$tumour_sample_id))
   }
