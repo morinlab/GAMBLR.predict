@@ -1,6 +1,7 @@
 """Classify DLBClass GSM files with DLBclass-tool, writing each result where asked.
 
     python run_dlbclass.py --tool ~/git/DLBclass-tool gsm1.tsv out1.tsv [gsm2.tsv out2.tsv ...]
+    python run_dlbclass.py --tool ~/git/DLBclass-tool --zero TP53_biallelic,X21Q_AMP,Sum_C2_ARM,Sum_C2_FOCAL gsm.tsv out.tsv
     python run_dlbclass.py --tool ~/git/DLBclass-tool --versions
 
 Bundled with GAMBLR.predict and run by its run_dlbclass(); DLBclass-tool
@@ -22,6 +23,7 @@ warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument("--tool", default=os.path.expanduser("~/git/DLBclass-tool"), help="DLBclass-tool checkout")
+parser.add_argument("--zero", default="", help="comma-separated reduced (meta)features set to 0 before classifying")
 parser.add_argument("--versions", action="store_true", help="print Python, pandas and torch versions and exit")
 parser.add_argument("pairs", nargs="*", help="GSM file and output file, repeated")
 args = parser.parse_args()
@@ -46,7 +48,14 @@ import src.format_data as fd  # noqa: E402
 clusters = {1.0: "C1", 2.0: "C2", 3.0: "C3", 4.0: "C4", 5.0: "C5"}
 for gsm_file, out_file in pairs:
     gsm = pd.read_csv(gsm_file, sep="\t", index_col=0)
-    classified = cg.classify_samples_winning_model(fd.construct_reduced_winning_version(gsm))
+    reduced = fd.construct_reduced_winning_version(gsm)
+    zero = [z for z in args.zero.split(",") if z]
+    unknown = [z for z in zero if z not in reduced.columns]
+    if unknown:
+        sys.exit("--zero: not reduced features: " + ", ".join(unknown) + " (reduced features: " + ", ".join(reduced.columns) + ")")
+    for z in zero:
+        reduced[z] = 0
+    classified = cg.classify_samples_winning_model(reduced)
     classified.index.name = "sample"
     classified["PredictedCluster"] = classified["PredictedCluster"].map(clusters)
     classified.to_csv(out_file, sep="\t", index=True)

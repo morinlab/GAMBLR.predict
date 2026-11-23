@@ -4,7 +4,13 @@
 \alias{run_dlbclass}
 \title{Classify DLBCL samples with DLBClass}
 \usage{
-run_dlbclass(gsm, tool = NULL, python = NULL, min_confidence = 0.7)
+run_dlbclass(
+  gsm,
+  tool = NULL,
+  python = NULL,
+  min_confidence = 0.7,
+  zero_metafeatures = NULL
+)
 }
 \arguments{
 \item{gsm}{A GSM, or a list of them (unnamed ones are named input1,
@@ -23,13 +29,21 @@ COO rows are ignored, and CN feature names without DLBClass's "X" prefix
 
 \item{min_confidence}{Calls with Confidence above this get their cluster
 in the \code{DLBClass} column; the rest are "Other". Default 0.7.}
+
+\item{zero_metafeatures}{Optional: names of DLBClass's reduced features
+(the 21 metafeatures its \code{construct_reduced_winning_version} builds from the
+GSM) to set to 0 before classifying, removing that evidence for every
+sample. E.g. DLBClass's C2 block, \code{c("TP53_biallelic", "X21Q_AMP", "Sum_C2_ARM", "Sum_C2_FOCAL")}: their GSM features still count in the other
+clusters' metafeatures (EP300 in C3, 18q/19q gains in C5, ...), which zeroing
+the GSM features would not keep. The model can still call C2 (its other
+inputs remain). Default NULL (DLBClass as published).}
 }
 \value{
 For one GSM, a data frame with one row per sample: sample_id, the
 confidence for each cluster (C1-C5), Confidence (the highest),
 PredictedCluster and DLBClass. For a list, a list of them with the same
 names. The
-DLBclass-tool commit, versions and \code{min_confidence} are in
+DLBclass-tool commit, versions, \code{min_confidence} and \code{zero_metafeatures} are in
 \code{attr(result, "dlbclass_run")}.
 }
 \description{
@@ -67,5 +81,8 @@ table(calls$DLBClass)
 # several GSMs (e.g. different copy number inputs), compared
 calls = run_dlbclass(list(cnv_master = gsm, qc_score = gsm_qc))
 compare_dlbclass_calls(calls)$summary
+
+# without DLBClass's C2 evidence
+no_c2 = run_dlbclass(gsm, zero_metafeatures = c("TP53_biallelic", "X21Q_AMP", "Sum_C2_ARM", "Sum_C2_FOCAL"))
 }
 }

@@ -36,12 +36,20 @@
 #' "python3".
 #' @param min_confidence Calls with Confidence above this get their cluster
 #' in the `DLBClass` column; the rest are "Other". Default 0.7.
+#' @param zero_metafeatures Optional: names of DLBClass's reduced features
+#' (the 21 metafeatures its `construct_reduced_winning_version` builds from the
+#' GSM) to set to 0 before classifying, removing that evidence for every
+#' sample. E.g. DLBClass's C2 block, `c("TP53_biallelic", "X21Q_AMP",
+#' "Sum_C2_ARM", "Sum_C2_FOCAL")`: their GSM features still count in the other
+#' clusters' metafeatures (EP300 in C3, 18q/19q gains in C5, ...), which zeroing
+#' the GSM features would not keep. The model can still call C2 (its other
+#' inputs remain). Default NULL (DLBClass as published).
 #'
 #' @return For one GSM, a data frame with one row per sample: sample_id, the
 #' confidence for each cluster (C1-C5), Confidence (the highest),
 #' PredictedCluster and DLBClass. For a list, a list of them with the same
 #' names. The
-#' DLBclass-tool commit, versions and `min_confidence` are in
+#' DLBclass-tool commit, versions, `min_confidence` and `zero_metafeatures` are in
 #' `attr(result, "dlbclass_run")`.
 #'
 #' @export
@@ -57,11 +65,15 @@
 #' # several GSMs (e.g. different copy number inputs), compared
 #' calls = run_dlbclass(list(cnv_master = gsm, qc_score = gsm_qc))
 #' compare_dlbclass_calls(calls)$summary
+#'
+#' # without DLBClass's C2 evidence
+#' no_c2 = run_dlbclass(gsm, zero_metafeatures = c("TP53_biallelic", "X21Q_AMP", "Sum_C2_ARM", "Sum_C2_FOCAL"))
 #' }
 run_dlbclass = function(gsm,
                         tool = NULL,
                         python = NULL,
-                        min_confidence = 0.7){
+                        min_confidence = 0.7,
+                        zero_metafeatures = NULL){
   if(is.null(tool)){
     tool = getOption("GAMBLR.predict.dlbclass_tool", Sys.getenv("DLBCLASS_TOOL"))
   }
@@ -113,6 +125,7 @@ run_dlbclass = function(gsm,
                        gsm_files[i], sep = "\t", quote = FALSE, row.names = FALSE)
   }
   log = suppressWarnings(system2(python, c(shQuote(script), "--tool", shQuote(tool),
+                                           if(length(zero_metafeatures)) c("--zero", shQuote(paste(zero_metafeatures, collapse = ","))),
                                            as.vector(rbind(shQuote(gsm_files), shQuote(call_files)))),
                                  stdout = TRUE, stderr = TRUE))
   if(!is.null(attr(log, "status")) || !all(file.exists(call_files))){
@@ -122,7 +135,8 @@ run_dlbclass = function(gsm,
   commit = suppressWarnings(tryCatch(system2("git", c("-C", shQuote(tool), "rev-parse", "--short", "HEAD"),
                                              stdout = TRUE, stderr = FALSE), error = function(e) NA_character_))
   run = list(tool = tool, commit = if(length(commit) == 1) commit else NA_character_,
-             versions = versions[grepl("^python=", versions)], min_confidence = min_confidence)
+             versions = versions[grepl("^python=", versions)], min_confidence = min_confidence,
+             zero_metafeatures = zero_metafeatures)
   calls = lapply(call_files, function(f){
     x = utils::read.delim(f, check.names = FALSE, stringsAsFactors = FALSE)
     names(x)[1] = "sample_id"
