@@ -23,7 +23,10 @@ DLBCLone_optimize_params(
   weights_opt = c(TRUE),
   evidence_min = 2,
   class_evidence = NULL,
-  evidence_args = list()
+  evidence_args = list(),
+  purity_selection = "bootstrap",
+  purity_tolerance = 0.005,
+  purity_boot = 200
 )
 }
 \arguments{
@@ -80,6 +83,14 @@ labels with \link{DLBCLone_class_evidence}.}
 
 \item{evidence_args}{Optional list of further arguments to
 \link{DLBCLone_class_evidence} (e.g. \code{list(strong_ppv = 0.8)}).}
+
+\item{purity_selection}{How the purity threshold behind \code{DLBCLone_wo} is
+chosen at each k (see \link{optimize_purity}): "bootstrap" (default) or
+"plateau", stable choices on the flat part of the accuracy curve, or "max"
+(the single best threshold, as before this option existed).}
+
+\item{purity_tolerance, purity_boot}{Settings for "plateau" and
+"bootstrap" (see \link{optimize_purity}).}
 }
 \value{
 List of data frames with the results of the parameter optimization
@@ -89,6 +100,9 @@ UMAP output as a data frame. The list also includes the predictions for the
 evidence gate, \code{predictions} also has \code{DLBCLone_wog} (the gated call),
 \code{DLBCLone_evidence} and \code{DLBCLone_evidence_min}, and the list holds
 \code{class_evidence} and \code{evidence_min} for \link{DLBCLone_predict}.
+\code{best_params} also reports \code{k_DLBCLone_w} and \code{purity_DLBCLone_w}, the k and
+purity threshold behind \code{DLBCLone_wo} (its \code{k} and \code{threshold} columns are
+those of \code{DLBCLone_i}).
 }
 \description{
 Optimize parameters for classifying samples using UMAP and k-nearest neighbor

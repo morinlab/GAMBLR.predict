@@ -1250,6 +1250,12 @@ DLBCLone_KNN <- function(features_df,
 #' labels with [DLBCLone_class_evidence].
 #' @param evidence_args Optional list of further arguments to
 #' [DLBCLone_class_evidence] (e.g. `list(strong_ppv = 0.8)`).
+#' @param purity_selection How the purity threshold behind `DLBCLone_wo` is
+#' chosen at each k (see [optimize_purity]): "bootstrap" (default) or
+#' "plateau", stable choices on the flat part of the accuracy curve, or "max"
+#' (the single best threshold, as before this option existed).
+#' @param purity_tolerance,purity_boot Settings for "plateau" and
+#' "bootstrap" (see [optimize_purity]).
 #'
 #' @returns List of data frames with the results of the parameter optimization
 #' including the best model, the associated knn parameters and the annotated
@@ -1258,6 +1264,9 @@ DLBCLone_KNN <- function(features_df,
 #' evidence gate, `predictions` also has `DLBCLone_wog` (the gated call),
 #' `DLBCLone_evidence` and `DLBCLone_evidence_min`, and the list holds
 #' `class_evidence` and `evidence_min` for [DLBCLone_predict].
+#' `best_params` also reports `k_DLBCLone_w` and `purity_DLBCLone_w`, the k and
+#' purity threshold behind `DLBCLone_wo` (its `k` and `threshold` columns are
+#' those of `DLBCLone_i`).
 #'
 #' @import caret
 #'
@@ -1300,7 +1309,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            weights_opt = c(TRUE),
                            evidence_min = 2,
                            class_evidence = NULL,
-                           evidence_args = list()
+                           evidence_args = list(),
+                           purity_selection = "bootstrap",
+                           purity_tolerance = 0.005,
+                           purity_boot = 200
                            ) {
   store_params = list()
   if ("core_features" %in% names(umap_out)) {
@@ -1441,7 +1453,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
               optimize_by = maximize,
               cap_classification_rate = cap_classification_rate,
               k = k,
-              optimize_for_other = optimize_for_other
+              optimize_for_other = optimize_for_other,
+              purity_selection = purity_selection,
+              purity_tolerance = purity_tolerance,
+              purity_boot = purity_boot
              )
 
             if(verbose){
@@ -1715,6 +1730,9 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   "DLBCLone_w Concordance:", round(acc_check_w$no_other,3),
   "DLBCLone_wo Concordance:", round(acc_check_wo$no_other,3)))
 
+  # the k and purity threshold behind DLBCLone_wo (best_params' own k and threshold are DLBCLone_i's)
+  best_params$k_DLBCLone_w = best_k_w
+  best_params$purity_DLBCLone_w = best_w_purity
   to_ret = list(params=results,
                 best_params = best_params,
                 model=umap_out$model,
@@ -1755,6 +1773,7 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     to_ret$class_evidence = class_evidence
     to_ret$evidence_min = evidence_min
   }
+  to_ret$purity_selection = purity_selection
   to_ret$type = "DLBCLone_optimize_params"
   to_ret$other_class = other_class
   return(to_ret)

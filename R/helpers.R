@@ -551,10 +551,25 @@ process_votes <- function(df,
 #' to update with the optimized prediction.
 #' @param truth_column Name of the column in `processed_votes`
 #' containing the true class labels.
+#' @param purity_selection How the purity threshold is chosen from the
+#' accuracy curve over thresholds (3 to 0, step 0.05): "bootstrap" (default;
+#' the median, over `purity_boot` bootstrap resamples of the samples, of each
+#' resample's "max" threshold), "max" (the threshold with the highest
+#' accuracy, the highest threshold among ties; the behaviour before
+#' `purity_selection` existed) or "plateau" (the middle of the thresholds
+#' whose accuracy is within `purity_tolerance` of the highest). The accuracy curve is flat near its peak, so "max" can move
+#' with small changes in the data; the other two are more stable.
+#' "bootstrap" supports `optimize_by` "balanced_accuracy" and
+#' "overall_accuracy".
+#' @param purity_tolerance With "plateau": how far below the highest
+#' accuracy a threshold may be (default 0.005, half a percentage point).
+#' @param purity_boot With "bootstrap": number of resamples (default 200).
+#' @param purity_seed With "bootstrap": random seed (default 12345).
 #'
-#' @return A list with two elements: `best_accuracy` (numeric, the
-#' highest accuracy achieved) and `best_purity_threshold` (numeric,
-#' the threshold at which this accuracy was achieved).
+#' @return A list with `best_accuracy` (the accuracy at the chosen
+#' threshold), `best_purity_threshold`, `purity_curve` (data frame of
+#' threshold and accuracy; NA where the classification rate exceeds
+#' `cap_classification_rate`), `purity_selection` and the other settings.
 #'
 #' @details
 #' - For each threshold in the range 0.1 to 0.95 (step 0.05),
@@ -587,7 +602,15 @@ optimize_purity <- function(optimized_model_object,
                             cap_classification_rate = 1,
                             exclude_other_for_accuracy = FALSE,
                             other_class = "Other",
-                            optimize_for_other = TRUE) {  
+                            optimize_for_other = TRUE,
+                            purity_selection = "bootstrap",
+                            purity_tolerance = 0.005,
+                            purity_boot = 200,
+                            purity_seed = 12345) {  
+  purity_selection = match.arg(purity_selection, c("max", "plateau", "bootstrap"))
+  if(purity_selection == "bootstrap" && !optimize_by %in% c("balanced_accuracy", "overall_accuracy")){
+    stop("purity_selection = \"bootstrap\" supports optimize_by \"balanced_accuracy\" or \"overall_accuracy\"")
+  }
 
   out_column = "DLBCLone_wo"
 
@@ -631,7 +654,9 @@ optimize_purity <- function(optimized_model_object,
     no_other_df <- processed_votes
   }
 
-  for(purity_threshold in seq(3, 0, -0.05)){
+  thresholds = seq(3, 0, -0.05)
+  curve_accuracy = rep(NA_real_, length(thresholds))
+  for(purity_threshold in thresholds){
     updated_votes <- processed_votes %>%
       mutate(!!sym(out_column) := if (!is.null(other_class) && other_class %in% all_classes) {
         ifelse(score_ratio >= purity_threshold | top_group_score > score_thresh, by_score, other_class)
@@ -690,6 +715,7 @@ optimize_purity <- function(optimized_model_object,
       }
 
 
+      curve_accuracy[match(purity_threshold, thresholds)] = accuracy
       if(accuracy > best_accuracy){
         best_accuracy <- accuracy
         best_purity_threshold <- purity_threshold
@@ -698,6 +724,34 @@ optimize_purity <- function(optimized_model_object,
       message(paste0("skipping purity threshold ",purity_threshold," because classification rate ",round(classification_rate,3),
                      " exceeds cap of ",cap_classification_rate))
     }
+  }
+
+  # a more stable choice than the single highest point of a flat curve
+  if(purity_selection == "plateau" && any(!is.na(curve_accuracy))){
+    near = thresholds[!is.na(curve_accuracy) & curve_accuracy >= max(curve_accuracy, na.rm = TRUE) - purity_tolerance]
+    best_purity_threshold = .nearest_grid(stats::median(near), thresholds)
+    best_accuracy = curve_accuracy[match(best_purity_threshold, thresholds)]
+  }else if(purity_selection == "bootstrap" && any(!is.na(curve_accuracy))){
+    truth = as.character(processed_votes[[truth_column]])
+    rows = if(exclude_other_for_accuracy && !is.null(other_class) && other_class %in% all_classes) truth != other_class else rep(TRUE, length(truth))
+    with_other = !is.null(other_class) && other_class %in% all_classes
+    calls_at = lapply(thresholds, function(t){
+      if(with_other) ifelse(processed_votes$score_ratio >= t | processed_votes$top_group_score > score_thresh,
+                            as.character(processed_votes$by_score), other_class)
+      else as.character(processed_votes$by_score)
+    })
+    set.seed(purity_seed)
+    picks = replicate(purity_boot, {
+      i = sample(length(truth), replace = TRUE)
+      acc = vapply(seq_along(thresholds), function(j){
+        pred = calls_at[[j]][i]
+        if(mean(pred != other_class) > cap_classification_rate) return(NA_real_)
+        .purity_accuracy(truth[i][rows[i]], pred[rows[i]], all_classes, optimize_by)
+      }, 0)
+      if(all(is.na(acc))) NA_real_ else thresholds[which.max(acc)]
+    })
+    best_purity_threshold = .nearest_grid(stats::median(picks, na.rm = TRUE), thresholds)
+    best_accuracy = curve_accuracy[match(best_purity_threshold, thresholds)]
   }
 
   best_out <- processed_votes %>%
@@ -724,8 +778,30 @@ optimize_purity <- function(optimized_model_object,
   optimized_model_object$maximize <- optimize_by
   optimized_model_object$score_thresh <- score_thresh
   optimized_model_object$exclude_other_for_accuracy <- exclude_other_for_accuracy
+  optimized_model_object$purity_curve <- data.frame(threshold = thresholds, accuracy = curve_accuracy)
+  optimized_model_object$purity_selection <- purity_selection
 
   return(optimized_model_object)
+}
+
+# accuracy of calls against labels, as optimize_purity() scores them: the mean
+# per-class balanced accuracy over `classes` (classes without samples left out,
+# as caret's confusionMatrix gives NA for them) or the overall accuracy
+.purity_accuracy = function(truth, pred, classes, optimize_by){
+  if(optimize_by == "overall_accuracy") return(mean(pred == truth))
+  ba = vapply(classes, function(k){
+    pos = truth == k
+    sens = if(any(pos)) mean(pred[pos] == k) else NA_real_
+    spec = if(any(!pos)) mean(pred[!pos] != k) else NA_real_
+    (sens + spec) / 2
+  }, 0)
+  mean(ba, na.rm = TRUE)
+}
+
+# the grid value nearest x (the higher one on a tie)
+.nearest_grid = function(x, grid){
+  d = abs(grid - x)
+  max(grid[d == min(d)])
 }
 
 

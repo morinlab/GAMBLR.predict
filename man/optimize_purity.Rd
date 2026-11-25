@@ -15,12 +15,34 @@ optimize_purity(
   cap_classification_rate = 1,
   exclude_other_for_accuracy = FALSE,
   other_class = "Other",
-  optimize_for_other = TRUE
+  optimize_for_other = TRUE,
+  purity_selection = "bootstrap",
+  purity_tolerance = 0.005,
+  purity_boot = 200,
+  purity_seed = 12345
 )
 }
 \arguments{
 \item{truth_column}{Name of the column in \code{processed_votes}
 containing the true class labels.}
+
+\item{purity_selection}{How the purity threshold is chosen from the
+accuracy curve over thresholds (3 to 0, step 0.05): "bootstrap" (default;
+the median, over \code{purity_boot} bootstrap resamples of the samples, of each
+resample's "max" threshold), "max" (the threshold with the highest
+accuracy, the highest threshold among ties; the behaviour before
+\code{purity_selection} existed) or "plateau" (the middle of the thresholds
+whose accuracy is within \code{purity_tolerance} of the highest). The accuracy curve is flat near its peak, so "max" can move
+with small changes in the data; the other two are more stable.
+"bootstrap" supports \code{optimize_by} "balanced_accuracy" and
+"overall_accuracy".}
+
+\item{purity_tolerance}{With "plateau": how far below the highest
+accuracy a threshold may be (default 0.005, half a percentage point).}
+
+\item{purity_boot}{With "bootstrap": number of resamples (default 200).}
+
+\item{purity_seed}{With "bootstrap": random seed (default 12345).}
 
 \item{processed_votes}{Data frame output from \code{process_votes},
 containing at least the columns for score ratio, by_score_opt,
@@ -30,9 +52,10 @@ and the relevant prediction and truth columns.}
 to update with the optimized prediction.}
 }
 \value{
-A list with two elements: \code{best_accuracy} (numeric, the
-highest accuracy achieved) and \code{best_purity_threshold} (numeric,
-the threshold at which this accuracy was achieved).
+A list with \code{best_accuracy} (the accuracy at the chosen
+threshold), \code{best_purity_threshold}, \code{purity_curve} (data frame of
+threshold and accuracy; NA where the classification rate exceeds
+\code{cap_classification_rate}), \code{purity_selection} and the other settings.
 }
 \description{
 This function searches for the optimal purity threshold to assign
