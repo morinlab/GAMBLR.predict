@@ -38,6 +38,12 @@ reference:
       - make_alluvial
       - DLBCLone_summarize_model
       - DLBCLone_ensemble_postprocess
+      - DLBCLone_class_evidence
+      - DLBCLone_evidence_gate
+      - DLBCLone_cross_validate
+      - DLBCLone_cv_folds
+      - DLBCLone_cv_combine
+      - DLBCLone_cv_summary
     examples: true
   - title: "DLBCLone Functions - DLBCLone Model Management"
     desc: >

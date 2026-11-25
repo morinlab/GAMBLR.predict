@@ -58,6 +58,9 @@ Imports:
     tidyr,
     tidyselect,
     uwot
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 Remotes:
     morinlab/GAMBLR.data,
     morinlab/GAMBLR.helpers,

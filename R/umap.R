@@ -1238,11 +1238,26 @@ DLBCLone_KNN <- function(features_df,
 #' (average sensitivity across all classes), "accuracy"
 #' (actual accuracy across all samples) or "balanced_accuracy" (the mean of the
 #' balanced accuracy values across all classes). Default: "balanced_accuracy"
+#' @param evidence_min Evidence gate ([DLBCLone_evidence_gate]): the minimum
+#' weighted evidence for a sample's class call (`DLBCLone_wo`) to be kept in
+#' `DLBCLone_wog`; a single number or a named vector per class (with an
+#' optional "default"). Default 2: two supporting features or one
+#' class-specific one. NULL skips the gate. The gate is applied after the
+#' optimisation and doesn't change `DLBCLone_wo` or the chosen parameters.
+#' @param class_evidence Optional evidence weights for the gate (a data frame
+#' with `class`, `feature` and `weight`, as [DLBCLone_class_evidence] returns).
+#' Default NULL: derived from `combined_mutation_status_df` and the training
+#' labels with [DLBCLone_class_evidence].
+#' @param evidence_args Optional list of further arguments to
+#' [DLBCLone_class_evidence] (e.g. `list(strong_ppv = 0.8)`).
 #'
 #' @returns List of data frames with the results of the parameter optimization
 #' including the best model, the associated knn parameters and the annotated
 #' UMAP output as a data frame. The list also includes the predictions for the
-#' "Other" class if it was included in the training and testing.
+#' "Other" class if it was included in the training and testing. With the
+#' evidence gate, `predictions` also has `DLBCLone_wog` (the gated call),
+#' `DLBCLone_evidence` and `DLBCLone_evidence_min`, and the list holds
+#' `class_evidence` and `evidence_min` for [DLBCLone_predict].
 #'
 #' @import caret
 #'
@@ -1282,7 +1297,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            maximize = "balanced_accuracy", #or "harmonic_mean" or "accuracy"
                            cap_classification_rate = 1,
                            exclude_other_for_accuracy = FALSE,
-                           weights_opt = c(TRUE)
+                           weights_opt = c(TRUE),
+                           evidence_min = 2,
+                           class_evidence = NULL,
+                           evidence_args = list()
                            ) {
   store_params = list()
   if ("core_features" %in% names(umap_out)) {
@@ -1676,6 +1694,18 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   xx_d = bind_cols(outs$df,pred)
 
   xx_d = left_join(xx_d, select(best_pred_w, sample_id, any_of(c("Local_Otherness")), score_ratio, ends_with("score"), DLBCLone_w, DLBCLone_wo), by="sample_id")
+  # evidence gate: keep a class call only with enough weighted evidence for the class
+  if(!is.null(evidence_min)){
+    if(is.null(class_evidence)){
+      class_evidence = do.call(DLBCLone_class_evidence,
+                               c(list(features = combined_mutation_status_df, labels = metadata_df,
+                                      classes = setdiff(truth_classes, other_class),
+                                      truth_column = truth_column, other_class = other_class),
+                                 evidence_args))
+    }
+    xx_d = DLBCLone_evidence_gate(xx_d, combined_mutation_status_df, class_evidence,
+                                  min_evidence = evidence_min, other_class = other_class)
+  }
   acc_check_w = report_accuracy(xx_d,pred = "DLBCLone_w",truth=truth_column)
   acc_check_wo = report_accuracy(xx_d,pred = "DLBCLone_wo",truth=truth_column)
   message(paste("DLBCLone_w accuracy:",
@@ -1721,6 +1751,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   to_ret$truth_classes = truth_classes
   to_ret$optimize_for_other = optimize_for_other
   to_ret$truth_column = truth_column
+  if(!is.null(evidence_min)){
+    to_ret$class_evidence = class_evidence
+    to_ret$evidence_min = evidence_min
+  }
   to_ret$type = "DLBCLone_optimize_params"
   to_ret$other_class = other_class
   return(to_ret)
@@ -2272,6 +2306,11 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #'   classification. Defaults to \code{FALSE}.
 #' @param seed Integer seed passed to embedding/projection steps for
 #'   reproducibility. Defaults to \code{12345}.
+#' @param evidence_min Evidence gate (\code{\link{DLBCLone_evidence_gate}}):
+#'   the minimum weighted evidence for a class call (\code{DLBCLone_wo}) to be
+#'   kept in \code{DLBCLone_wog}. Default \code{NULL}: the model's own
+#'   (\code{optimized_model$evidence_min}); \code{NA} skips the gate. Models
+#'   trained without the gate (no \code{$class_evidence}) are never gated.
 #'
 #' @details
 #' \strong{Feature alignment.} Columns in \code{mutation_status} must match the
@@ -2333,6 +2372,9 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #'   \item \code{metadata}: the model's training metadata (\code{optimized_model$df}).
 #'   \item \code{type}: string identifier \code{"DLBCLone_predict"}.
 #'   \item \code{unprocessed_votes}: predictions before post-processing.
+#'   \item With the evidence gate, \code{prediction} also has
+#'         \code{DLBCLone_wog}, \code{DLBCLone_evidence} and
+#'         \code{DLBCLone_evidence_min}.
 #'   \item (optional) \code{core_features}, \code{core_feature_multiplier},
 #'         \code{mutation_status}: included when core-feature weighting was applied.
 #' }
@@ -2393,7 +2435,8 @@ DLBCLone_predict <- function(
   check_frequencies = FALSE,
   dry_run = FALSE,
   seed = 12345,
-  verbose=FALSE
+  verbose=FALSE,
+  evidence_min = NULL
 ){
 
   stopifnot(!is.null(optimized_model))
@@ -2621,6 +2664,14 @@ DLBCLone_predict <- function(
           by_score, other_class
         )
       )
+  }
+  # evidence gate, with the model's evidence weights (computed on the unweighted test features)
+  if(is.null(evidence_min)) evidence_min = optimized_model$evidence_min
+  if(!is.null(optimized_model$class_evidence) && !is.null(evidence_min) && !all(is.na(evidence_min)) &&
+     "DLBCLone_wo" %in% colnames(predictions_test_df)){
+    predictions_test_df <- DLBCLone_evidence_gate(predictions_test_df, mutation_status,
+                                                  optimized_model$class_evidence,
+                                                  min_evidence = evidence_min, other_class = other_class)
   }
 
 

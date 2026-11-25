@@ -20,7 +20,10 @@ DLBCLone_optimize_params(
   maximize = "balanced_accuracy",
   cap_classification_rate = 1,
   exclude_other_for_accuracy = FALSE,
-  weights_opt = c(TRUE)
+  weights_opt = c(TRUE),
+  evidence_min = 2,
+  class_evidence = NULL,
+  evidence_args = list()
 )
 }
 \arguments{
@@ -62,12 +65,30 @@ NOTE: this parameter will probably become deprecated!}
 (average sensitivity across all classes), "accuracy"
 (actual accuracy across all samples) or "balanced_accuracy" (the mean of the
 balanced accuracy values across all classes). Default: "balanced_accuracy"}
+
+\item{evidence_min}{Evidence gate (\link{DLBCLone_evidence_gate}): the minimum
+weighted evidence for a sample's class call (\code{DLBCLone_wo}) to be kept in
+\code{DLBCLone_wog}; a single number or a named vector per class (with an
+optional "default"). Default 2: two supporting features or one
+class-specific one. NULL skips the gate. The gate is applied after the
+optimisation and doesn't change \code{DLBCLone_wo} or the chosen parameters.}
+
+\item{class_evidence}{Optional evidence weights for the gate (a data frame
+with \code{class}, \code{feature} and \code{weight}, as \link{DLBCLone_class_evidence} returns).
+Default NULL: derived from \code{combined_mutation_status_df} and the training
+labels with \link{DLBCLone_class_evidence}.}
+
+\item{evidence_args}{Optional list of further arguments to
+\link{DLBCLone_class_evidence} (e.g. \code{list(strong_ppv = 0.8)}).}
 }
 \value{
 List of data frames with the results of the parameter optimization
 including the best model, the associated knn parameters and the annotated
 UMAP output as a data frame. The list also includes the predictions for the
-"Other" class if it was included in the training and testing.
+"Other" class if it was included in the training and testing. With the
+evidence gate, \code{predictions} also has \code{DLBCLone_wog} (the gated call),
+\code{DLBCLone_evidence} and \code{DLBCLone_evidence_min}, and the list holds
+\code{class_evidence} and \code{evidence_min} for \link{DLBCLone_predict}.
 }
 \description{
 Optimize parameters for classifying samples using UMAP and k-nearest neighbor

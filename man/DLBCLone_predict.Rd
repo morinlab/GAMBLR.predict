@@ -12,7 +12,8 @@ DLBCLone_predict(
   check_frequencies = FALSE,
   dry_run = FALSE,
   seed = 12345,
-  verbose = FALSE
+  verbose = FALSE,
+  evidence_min = NULL
 )
 }
 \arguments{
@@ -56,6 +57,12 @@ classification. Defaults to \code{FALSE}.}
 \item{seed}{Integer seed passed to embedding/projection steps for
 reproducibility. Defaults to \code{12345}.}
 
+\item{evidence_min}{Evidence gate (\code{\link{DLBCLone_evidence_gate}}):
+the minimum weighted evidence for a class call (\code{DLBCLone_wo}) to be
+kept in \code{DLBCLone_wog}. Default \code{NULL}: the model's own
+(\code{optimized_model$evidence_min}); \code{NA} skips the gate. Models
+trained without the gate (no \code{$class_evidence}) are never gated.}
+
 \item{annotate_accuracy}{Logical. Currently unused (reserved for future
 output annotations). Defaults to \code{FALSE}.}
 }
@@ -75,6 +82,9 @@ projection/classification (rows = samples).
 \item \code{metadata}: the model's training metadata (\code{optimized_model$df}).
 \item \code{type}: string identifier \code{"DLBCLone_predict"}.
 \item \code{unprocessed_votes}: predictions before post-processing.
+\item With the evidence gate, \code{prediction} also has
+\code{DLBCLone_wog}, \code{DLBCLone_evidence} and
+\code{DLBCLone_evidence_min}.
 \item (optional) \code{core_features}, \code{core_feature_multiplier},
 \code{mutation_status}: included when core-feature weighting was applied.
 }
