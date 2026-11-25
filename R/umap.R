@@ -1256,6 +1256,11 @@ DLBCLone_KNN <- function(features_df,
 #' (the single best threshold, as before this option existed).
 #' @param purity_tolerance,purity_boot Settings for "plateau" and
 #' "bootstrap" (see [optimize_purity]).
+#' @param umap_projection Optional projection of the training samples onto
+#' `umap_out` (the output of [make_and_annotate_umap] with `umap_out`, as
+#' this function would compute it). Default NULL: computed here. Lets callers
+#' that run the optimisation several times on one model (e.g.
+#' [DLBCLone_recommend_k]) project once.
 #'
 #' @returns List of data frames with the results of the parameter optimization
 #' including the best model, the associated knn parameters and the annotated
@@ -1312,7 +1317,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            evidence_args = list(),
                            purity_selection = "bootstrap",
                            purity_tolerance = 0.005,
-                           purity_boot = 200
+                           purity_boot = 200,
+                           umap_projection = NULL
                            ) {
   store_params = list()
   if ("core_features" %in% names(umap_out)) {
@@ -1368,7 +1374,10 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
   ignore_self = TRUE
 
   for(na_option in na_opt){
-    if(missing(umap_out)){
+    if(!is.null(umap_projection)){
+      # projection of the training samples supplied by the caller (e.g. reused across k)
+      outs = umap_projection
+    }else if(missing(umap_out)){
       outs = make_and_annotate_umap(df=combined_mutation_status_df,
                               min_dist = 0,
                               n_neighbors = 55,
@@ -2330,6 +2339,11 @@ weighted_knn_predict_with_conf <- function(train_coords,
 #'   kept in \code{DLBCLone_wog}. Default \code{NULL}: the model's own
 #'   (\code{optimized_model$evidence_min}); \code{NA} skips the gate. Models
 #'   trained without the gate (no \code{$class_evidence}) are never gated.
+#' @param test_projection Optional projection of \code{mutation_status} onto
+#'   the model's UMAP (the output of \code{make_and_annotate_umap} with
+#'   \code{umap_out}, \code{ret_model = FALSE}). Default \code{NULL}: computed
+#'   here. Lets callers that predict the same samples with several models
+#'   sharing one UMAP project once.
 #'
 #' @details
 #' \strong{Feature alignment.} Columns in \code{mutation_status} must match the
@@ -2455,7 +2469,8 @@ DLBCLone_predict <- function(
   dry_run = FALSE,
   seed = 12345,
   verbose=FALSE,
-  evidence_min = NULL
+  evidence_min = NULL,
+  test_projection = NULL
 ){
 
   stopifnot(!is.null(optimized_model))
@@ -2610,7 +2625,7 @@ DLBCLone_predict <- function(
   }else{
     projection_train = list(df = optimized_model$projection_train)
   }
-  projection_test <- make_and_annotate_umap(
+  projection_test <- if(!is.null(test_projection)) test_projection else make_and_annotate_umap(
     df          = test_df,
     umap_out    = umap_model,         # <- use supplied model/settings
     ret_model   = FALSE,              # <- don't retrain; just (re)project

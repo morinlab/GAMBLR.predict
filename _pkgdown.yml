@@ -44,6 +44,7 @@ reference:
       - DLBCLone_cv_folds
       - DLBCLone_cv_combine
       - DLBCLone_cv_summary
+      - DLBCLone_recommend_k
     examples: true
   - title: "DLBCLone Functions - DLBCLone Model Management"
     desc: >

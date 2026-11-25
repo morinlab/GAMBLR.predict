@@ -240,3 +240,170 @@ DLBCLone_cv_summary = function(cv, pred_columns = NULL){
   }))
   list(overall = overall, per_class = per_class)
 }
+
+#' @title Recommend a k for DLBCLone
+#'
+#' @description Choose DLBCLone's k from held-out performance: cross-validate
+#' each k in `ks` on the same folds and recommend one from the flat top of the
+#' resulting curve. Train the final model with `min_k = max_k = ` the
+#' recommended k.
+#'
+#' @details Within each fold (as [DLBCLone_cross_validate]: optional feature
+#' selection on the fold's training samples, then UMAP), the UMAP is fitted
+#' and the samples projected once, and every k reuses them: for each k,
+#' [DLBCLone_optimize_params] (with `min_k = max_k = k`) tunes the
+#' remaining settings on the training samples and [DLBCLone_predict]
+#' classifies the held-out ones. The held-out calls of all folds are pooled
+#' per k and scored on the samples whose label is a training class.
+#'
+#' The recommendation is the middle of the k values whose score is within
+#' `tolerance` of the best (the median, rounded to a k in `ks`, the larger on
+#' a tie): the curve is usually flat near its top, so its single best point
+#' moves with small changes in the data. With `metric` "balanced_accuracy",
+#' the score is the mean per-class balanced accuracy over all training
+#' classes including `other_class` (what [DLBCLone_optimize_params]
+#' maximises); with "agreement", the share of samples given their label.
+#' Scores use `pred_column` (default the evidence-gated call when present).
+#'
+#' A k larger than the smallest class has few training samples per vote; a
+#' warning is given when the recommended k exceeds the smallest class's
+#' training samples in any fold.
+#'
+#' @inheritParams DLBCLone_cross_validate
+#' @param ks The k values to compare (default 5 to 25, step 2).
+#' @param metric "balanced_accuracy" (default) or "agreement".
+#' @param tolerance How far below the best score a k may be and still count
+#' as on the top of the curve (default 0.005).
+#' @param pred_column Call column to score (default "DLBCLone_wog" when the
+#' evidence gate is on, else "DLBCLone_wo").
+#'
+#' @return A list: `recommended_k`, `scores` (one row per k: the metric,
+#' agreement, share classified, labelled-Other samples given a class, and
+#' per-class F1), `near_best` (the k values within `tolerance`),
+#' `predictions` (held-out calls, all k), `folds`, `plot` (score by k) and
+#' `settings`.
+#'
+#' @examples
+#' \dontrun{
+#' rk = DLBCLone_recommend_k(features, metadata, truth_classes = c("EZB", "MCD", "ST2", "BN2", "Other"),
+#'                           group_column = "patient_id", select_features = TRUE,
+#'                           optimize_args = list(optimize_for_other = TRUE))
+#' rk$recommended_k; rk$plot
+#' }
+#' @import ggplot2
+#' @export
+DLBCLone_recommend_k = function(features,
+                                metadata,
+                                truth_classes,
+                                truth_column = "lymphgen",
+                                other_class = "Other",
+                                ks = seq(5, 25, 2),
+                                k = 5,
+                                folds = NULL,
+                                group_column = NULL,
+                                select_features = FALSE,
+                                select_args = list(),
+                                umap_args = list(),
+                                optimize_args = list(),
+                                predict_args = list(),
+                                metric = "balanced_accuracy",
+                                tolerance = 0.005,
+                                pred_column = NULL,
+                                seed = 12345){
+  metric = match.arg(metric, c("balanced_accuracy", "agreement"))
+  ks = sort(unique(ks))
+  features = .dlbclone_feature_rows(features)
+  md = as.data.frame(metadata)
+  md = md[md$sample_id %in% rownames(features), , drop = FALSE]
+  if(nrow(md) == 0) stop("no samples shared by features and metadata")
+  if(is.null(folds)) folds = DLBCLone_cv_folds(md, truth_column = truth_column, k = k, group_column = group_column, seed = seed)
+  folds = folds[folds$sample_id %in% md$sample_id, , drop = FALSE]
+  trainable = md$sample_id[md[[truth_column]] %in% truth_classes]
+  real = setdiff(truth_classes, other_class)
+  preds = list()
+  smallest = Inf
+  for(f in sort(unique(folds$fold))){
+    test_ids = folds$sample_id[folds$fold == f]
+    train_md = md[md$sample_id %in% setdiff(trainable, test_ids), , drop = FALSE]
+    smallest = min(smallest, min(table(factor(train_md[[truth_column]], real))))
+    x_train = features[train_md$sample_id, , drop = FALSE]
+    if(select_features){
+      ev = do.call(DLBCLone_class_evidence,
+                   c(list(features = x_train, labels = train_md, classes = real,
+                          truth_column = truth_column, other_class = other_class), select_args))
+      x_train = x_train[, colnames(x_train) %in% union(unique(ev$feature), grep("_feats$", colnames(x_train), value = TRUE)), drop = FALSE]
+    }
+    x_train = x_train[, colSums(x_train > 0, na.rm = TRUE) > 0, drop = FALSE]
+    message("== fold ", f, ": ", nrow(train_md), " training samples, ", ncol(x_train), " features; k ", paste(ks, collapse = ","))
+    umap_out = do.call(make_and_annotate_umap,
+                       c(list(df = x_train, metadata = train_md, truth_column = truth_column, seed = seed), umap_args))
+    # the training projection DLBCLone_optimize_params would make from umap_out, and the held-out projection
+    # DLBCLone_predict would make: computed once per fold, reused for every k
+    proj_train = make_and_annotate_umap(df = umap_out$features, umap_out = umap_out, min_dist = 0, n_neighbors = 55,
+                                        n_epochs = 1500, seed = seed, metadata = train_md, ret_model = TRUE,
+                                        metric = "cosine", join_column = "sample_id", na_vals = "drop")
+    if("sample_metadata_no_features" %in% names(umap_out)) proj_train$sample_metadata_no_features = umap_out$sample_metadata_no_features
+    x_test = features[test_ids, colnames(x_train), drop = FALSE]
+    proj_test = make_and_annotate_umap(df = tibble::rownames_to_column(x_test, "sample_id"), umap_out = umap_out,
+                                       ret_model = FALSE, seed = seed, join_column = "sample_id", na_vals = "drop")
+    for(kk in ks){
+      opt = do.call(DLBCLone_optimize_params,
+                    c(list(combined_mutation_status_df = x_train, metadata_df = train_md, umap_out = umap_out,
+                           umap_projection = proj_train, truth_classes = truth_classes, truth_column = truth_column,
+                           other_class = other_class, seed = seed, min_k = kk, max_k = kk),
+                      optimize_args[setdiff(names(optimize_args), c("min_k", "max_k"))]))
+      opt$projection_train = proj_train$df
+      pr = as.data.frame(do.call(DLBCLone_predict, c(list(mutation_status = x_test, optimized_model = opt, seed = seed,
+                                                          test_projection = proj_test), predict_args))$prediction)
+      dropped = setdiff(test_ids, pr$sample_id)
+      pr$no_features = FALSE
+      if(length(dropped)){
+        filler = data.frame(sample_id = dropped, no_features = TRUE, stringsAsFactors = FALSE)
+        for(v in intersect(c("DLBCLone_w", "DLBCLone_wo", "DLBCLone_wog"), colnames(pr))) filler[[v]] = other_class
+        pr = dplyr::bind_rows(pr, filler)
+      }
+      keep = intersect(c("sample_id", "DLBCLone_w", "DLBCLone_wo", "DLBCLone_wog", "DLBCLone_evidence", "no_features"), colnames(pr))
+      pr = pr[, keep, drop = FALSE]
+      pr$k = kk; pr$fold = f
+      pr$truth = as.character(md[[truth_column]])[match(pr$sample_id, md$sample_id)]
+      pr$purity_DLBCLone_w = if(is.null(opt$best_params$purity_DLBCLone_w)) NA_real_ else opt$best_params$purity_DLBCLone_w
+      preds[[paste(f, kk)]] = pr
+      rm(opt); invisible(gc())
+    }
+    rm(umap_out, proj_train, proj_test); invisible(gc())
+  }
+  preds = dplyr::bind_rows(preds)
+  if(is.null(pred_column)) pred_column = if("DLBCLone_wog" %in% colnames(preds)) "DLBCLone_wog" else "DLBCLone_wo"
+  scored = preds[preds$truth %in% truth_classes, , drop = FALSE]
+  scores = do.call(rbind, lapply(ks, function(kk){
+    p = scored[scored$k == kk, , drop = FALSE]
+    call = p[[pred_column]]
+    row = data.frame(k = kk,
+                     balanced_accuracy = .purity_accuracy(p$truth, call, truth_classes, "balanced_accuracy"),
+                     agreement = mean(call == p$truth), classified = mean(call != other_class),
+                     other_given_class = sum(p$truth == other_class & call != other_class))
+    for(cl in real){
+      tp = sum(p$truth == cl & call == cl)
+      row[[paste0("F1_", cl)]] = if(tp == 0) 0 else 2 * tp / (2 * tp + sum(p$truth != cl & call == cl) + sum(p$truth == cl & call != cl))
+    }
+    row
+  }))
+  best = max(scores[[metric]])
+  near = scores$k[scores[[metric]] >= best - tolerance]
+  recommended = .nearest_grid(stats::median(near), ks)
+  if(recommended > smallest){
+    warning("the recommended k (", recommended, ") exceeds the smallest class's training samples in a fold (", smallest, ")")
+  }
+  message("recommended k: ", recommended, " (k within ", tolerance, " of the best ", metric, ": ", paste(near, collapse = ", "), ")")
+  plot = ggplot(scores, aes(x = .data$k, y = .data[[metric]])) +
+    geom_hline(yintercept = best - tolerance, linetype = "dashed", colour = "grey60") +
+    geom_line() + geom_point(aes(colour = .data$k %in% near), size = 2.5) +
+    geom_vline(xintercept = recommended, colour = "firebrick") +
+    scale_colour_manual(values = c(`TRUE` = "firebrick", `FALSE` = "grey40"), guide = "none") +
+    labs(x = "k", y = paste("held-out", gsub("_", " ", metric)), title = paste("Recommended k:", recommended)) +
+    theme_bw()
+  list(recommended_k = recommended, scores = scores, near_best = near, predictions = preds, folds = folds, plot = plot,
+       settings = list(ks = ks, metric = metric, tolerance = tolerance, pred_column = pred_column,
+                       truth_classes = truth_classes, truth_column = truth_column, other_class = other_class,
+                       select_features = select_features, seed = seed))
+}

@@ -13,7 +13,8 @@ DLBCLone_predict(
   dry_run = FALSE,
   seed = 12345,
   verbose = FALSE,
-  evidence_min = NULL
+  evidence_min = NULL,
+  test_projection = NULL
 )
 }
 \arguments{
@@ -62,6 +63,12 @@ the minimum weighted evidence for a class call (\code{DLBCLone_wo}) to be
 kept in \code{DLBCLone_wog}. Default \code{NULL}: the model's own
 (\code{optimized_model$evidence_min}); \code{NA} skips the gate. Models
 trained without the gate (no \code{$class_evidence}) are never gated.}
+
+\item{test_projection}{Optional projection of \code{mutation_status} onto
+the model's UMAP (the output of \code{make_and_annotate_umap} with
+\code{umap_out}, \code{ret_model = FALSE}). Default \code{NULL}: computed
+here. Lets callers that predict the same samples with several models
+sharing one UMAP project once.}
 
 \item{annotate_accuracy}{Logical. Currently unused (reserved for future
 output annotations). Defaults to \code{FALSE}.}

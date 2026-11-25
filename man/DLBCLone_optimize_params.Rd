@@ -26,7 +26,8 @@ DLBCLone_optimize_params(
   evidence_args = list(),
   purity_selection = "bootstrap",
   purity_tolerance = 0.005,
-  purity_boot = 200
+  purity_boot = 200,
+  umap_projection = NULL
 )
 }
 \arguments{
@@ -91,6 +92,12 @@ chosen at each k (see \link{optimize_purity}): "bootstrap" (default) or
 
 \item{purity_tolerance, purity_boot}{Settings for "plateau" and
 "bootstrap" (see \link{optimize_purity}).}
+
+\item{umap_projection}{Optional projection of the training samples onto
+\code{umap_out} (the output of \link{make_and_annotate_umap} with \code{umap_out}, as
+this function would compute it). Default NULL: computed here. Lets callers
+that run the optimisation several times on one model (e.g.
+\link{DLBCLone_recommend_k}) project once.}
 }
 \value{
 List of data frames with the results of the parameter optimization
