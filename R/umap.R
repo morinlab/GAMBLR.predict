@@ -1219,8 +1219,11 @@ DLBCLone_KNN <- function(features_df,
 #' evaluated and held out from training rather than using all samples.
 #' NOTE: this parameter will probably become deprecated!
 #' @param umap_out The output of a previous run of make_and_annotate_umap.
-#' If provided, the function will use this model to project the data
-#' instead of re-running UMAP.
+#' Optional: without it, the UMAP is fitted here (make_and_annotate_umap with
+#' its defaults). Either way, the training samples are scored on their
+#' projection through the fitted model, the same projection
+#' [DLBCLone_activate] and [DLBCLone_predict] use, so the training-time calls
+#' match the model's later predictions for the same samples.
 #' @param min_k Starting k for knn (Default: 3)
 #' @param max_k Ending k for knn (Default: 33)
 #' @param optimize_for_other Set to TRUE to optimize the threshold for
@@ -1321,6 +1324,17 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
                            umap_projection = NULL
                            ) {
   store_params = list()
+  # Without a fitted UMAP, fit one here. The training samples are then scored on their projection through the fitted
+  # model (below), the same deterministic projection DLBCLone_activate() and DLBCLone_predict() use, never on the
+  # fit's own embedding, so training-time calls match the model's later predictions.
+  if(missing(umap_out) || is.null(umap_out)){
+    message("no umap_out given: fitting the UMAP")
+    umap_out = make_and_annotate_umap(df = combined_mutation_status_df,
+                                      metadata = metadata_df,
+                                      truth_column = truth_column,
+                                      seed = seed,
+                                      ret_model = TRUE)
+  }
   if ("core_features" %in% names(umap_out)) {
     store_params$core_feature_multiplier = umap_out$core_feature_multiplier
     store_params$core_features = umap_out$core_features
@@ -1377,23 +1391,8 @@ DLBCLone_optimize_params = function(combined_mutation_status_df,
     if(!is.null(umap_projection)){
       # projection of the training samples supplied by the caller (e.g. reused across k)
       outs = umap_projection
-    }else if(missing(umap_out)){
-      outs = make_and_annotate_umap(df=combined_mutation_status_df,
-                              min_dist = 0,
-                              n_neighbors = 55,
-                              n_epochs = 1500,
-                              seed=seed,
-                              metadata=metadata_df,
-                              ret_model=T,
-                              metric="cosine",
-                              join_column="sample_id",
-                              na_vals = na_option)
-
     }else{
-      #project onto existing model instead of re-running UMAP
-      if(!missing(combined_mutation_status_df)){
-        message("ignoring mutation status data frame and using features from umap_out instead")
-      }
+      #project the training samples onto the fitted model (never the fit's own embedding; see above)
       outs = make_and_annotate_umap(df=umap_out$features,
                               umap_out = umap_out,
                               min_dist = 0,

@@ -38,8 +38,11 @@ one column per mutation}
 three required columns: sample_id, dataset and lymphgen}
 
 \item{umap_out}{The output of a previous run of make_and_annotate_umap.
-If provided, the function will use this model to project the data
-instead of re-running UMAP.}
+Optional: without it, the UMAP is fitted here (make_and_annotate_umap with
+its defaults). Either way, the training samples are scored on their
+projection through the fitted model, the same projection
+\link{DLBCLone_activate} and \link{DLBCLone_predict} use, so the training-time calls
+match the model's later predictions for the same samples.}
 
 \item{truth_classes}{Vector of classes to use for training and testing.
 Default: c("EZB","MCD","ST2","N1","BN2","Other")}
